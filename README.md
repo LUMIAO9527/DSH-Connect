@@ -1,46 +1,76 @@
-# DS Harmony 连接器
+<p align="center"><img src="branding/cn-mark.svg" width="88" alt="DSH Connect"></p>
+<h1 align="center">DSH Connect</h1>
+<p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
-在真实 DeepSeek Harness（DSH）中提供手机和平板配对入口、设备会话恢复，以及手机界面的通用布局支持。会话、工作区、模型和插件继续由运行 DSH 的电脑提供。
+DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完整 DeepSeek Harness：会话、工作区、文件、模型、工具与任务共用同一份数据。模型调用和工具执行由连接的电脑完成。
 
-仓库：https://github.com/LUMIAO9527/dsh-harmony-connect
+**首发版本：1.0.0。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
 
-## 安装与版本
+## 选择打开方式
 
-当前版本为 `0.2.4-preview.1`。从 [GitHub Releases](https://github.com/LUMIAO9527/dsh-harmony-connect/releases) 获取 `dsh-harmony-connect-0.2.4-preview.1.tgz`，通过 DSH 的插件包安装流程安装或更新。
+| 方式 | 适合的使用习惯 | 入口 |
+| --- | --- | --- |
+| 鸿蒙应用 | 记住多台电脑、扫码连接、使用系统相机／相册／文件入口 | [鸿蒙应用说明](harmony/README.md) |
+| 浏览器 | 打开链接即可使用，适合不想安装应用的设备 | [电脑插件说明](desktop-plugin/README.md) |
 
-依赖 `dsh-mobile@0.6.18`，使用 DSH 的 `webServer` 和 `connection` 服务。当前开发环境的 DSH 核心版本为 `0.2.1-rc.3`；其他组合需要单独验证。
+连接后的完整工作区由电脑上的 DSH 提供。应用首页和连接管理使用 ArkUI；会话区由 ArkWeb 承载。浏览器入口保留相同的移动排版和连接恢复能力。
 
-鸿蒙客户端独立维护；本仓库发布连接器源码和连接器安装包。
+## 页面
 
-## 配置
+<p align="center"><img src="docs/images/home.jpg" width="245" alt="首次使用"><img src="docs/images/computers.jpg" width="245" alt="已保存电脑"><img src="docs/images/add.jpg" width="245" alt="添加电脑"></p>
 
-在连接器的 DSH 配置中提供：
+页面来自官方 SDK 的原生渲染，使用演示电脑数据。[下载完整页面图册](https://github.com/LUMIAO9527/DSH-Connect/releases/download/v1.0.0/DSH-Connect-1.0.0-preview.html)。
 
-| 字段 | 含义 |
-| --- | --- |
-| `publicOrigin` | 设备实际访问的固定 HTTPS 源，例如 `https://your-device.example` |
-| `stateDirectory` | 运行 DSH 的电脑上用于保存配对状态的绝对目录，例如 `D:/DSH/state/harmony` |
-| `listenPort` | 本机网关端口，默认 `3446` |
+## 下载
 
-网关绑定 `127.0.0.1`，由 HTTPS 入口转发。状态目录包含私密设备凭据，应由运行用户控制访问。
+从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取：
 
-## 使用
+- `dsh-connect-1.0.0.tgz`：安装在电脑 DSH 中的插件。
+- `DSH-Connect-1.0.0-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
+- `DSH-Connect-1.0.0.zip`：完整源码、说明及本版安装产物。
+- `DSH-Connect-1.0.0-icon.svg`：独立的 Cn 矢量图标。
+- `SHA256SUMS.txt`：文件校验和。
 
-1. 在提供会话和工作区的电脑上运行 DSH 与连接器。
-2. 打开「设置 → DS Harmony」，生成一次性配对二维码或链接。
-3. 在鸿蒙客户端扫码或粘贴链接，完成配对；有效配对会在后续启动时尝试恢复。
+HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装包。首次体验也可以先使用浏览器入口。
 
-当前管理入口的显示条件仍限定桌面或回环环境；远程浏览器管理员配对流程需要后续调整。主界面由 DSH Web 承载，真机交互性能仍在优化。
+## 开始使用
 
-## 当前改动
+1. 在电脑上打开 DeepSeek Harness，安装 `dsh-connect-1.0.0.tgz`，启用 **DSH Connect** 插件。
+2. 为电脑配置固定 HTTPS 访问入口，将 HTTP 和 WebSocket 转发到插件的本机网关；在插件配置中填写这个地址。
+3. 打开电脑的「设置 → DSH Connect」，生成配对二维码或链接。
+4. 用鸿蒙应用扫描二维码或粘贴链接；浏览器直接打开完整链接。应用和每个浏览器分别完成一次配对。
+5. 配对后保存固定入口。以后打开应用或原来配对的浏览器即可继续工作。
 
-- 配对响应与登录失败状态分别处理，启动网络中断持续尝试恢复。
-- 配对内容放在设置页内，系统返回交给 DSH 内部导航处理。
-- 手机内嵌适配接管布局后，连接器让出重复监听；输入和流式消息变化跳过整页布局扫描。
-- 原生桥晚于前端初始化时，连接状态订阅仍能建立。
+电脑、DSH、HTTPS 通道和网络需要保持可达。连接方式、配置字段和更新步骤见 [电脑插件 README](desktop-plugin/README.md)。
 
-## 更新约定
+## 主要体验
 
-GitHub 的提交、标签与 Release 保存版本历史。本地工作目录维护当前源码，发布包仅在发布过程中临时生成；运行状态、个人配置、设备记录及签名材料留在各自设备。
+- 主电脑集中展示，其他电脑按需展开；支持重命名和移除。
+- 冷启动恢复最近使用的电脑和原工作页面；从后台回来保留当前会话和草稿。自动恢复可在设置中关闭。
+- 手机使用纵向布局、会话抽屉和设置二级页面；输入框及字号适应窄屏。
+- 应用统一处理系统安全区与键盘；输入框下方保留 Token／上下文信息，上方保留排队消息与扩展位置。
+- Cn 图标与 Nx、Rm 共用黑底、白色圆润笔画的设计语言，并用于启动页、电脑封面和网页入口。
 
-发布前检查 JavaScript 语法、包内文件和敏感内容，发布后核对远端源码及安装包摘要。安装包发布成功与真机体验验收分别记录。
+## 升级与数据
+
+更新时保留原固定地址、端口和设备状态目录。已有的浏览器 Cookie 和设备授权继续使用；新插件会优先使用自己的已有状态，并在旧版默认状态存在时原地复用。采用自定义状态目录的安装继续填写原路径。
+
+旧连接器需要先停用，再启用新版，避免两个网关占用同一端口。旧预览包与历史提交仍保留在 GitHub；1.0.0 是采用 DSH Connect 统一名称的首个正式版本。不会自动重放消息、审批或其他写请求。
+
+## 开发与验证
+
+```powershell
+npm ci --ignore-scripts
+npm run check
+npm test
+./branding/Build-Brand.ps1 -Check
+./Build-Release.ps1 -ToolsRoot <已有官方HarmonyOS工具链目录> -JavaHome <已有Java目录>
+```
+
+源码结构：`harmony/` 为鸿蒙客户端，`desktop-plugin/` 为电脑插件，`branding/` 为 Cn 图形源及派生资源生成脚本，`tools/` 为发布检查。根目录的 npm 入口指向同一个电脑插件，便于从仓库安装；Release TGZ 是推荐的固定版本入口。
+
+验证基线、已运行检查和待验收项目见 [验证记录](docs/VALIDATION.md)。未签名 HAP、SDK 页面预览和真机测试分别记录。原生文件全流程、长时间锁屏和切网需要在具体设备上验收。
+
+## 许可与来源
+
+本项目采用 [Apache-2.0](LICENSE)。部分连接与认证代码改编自 `dsh-mobile 0.6.18`，保留上游声明与许可证，见 [第三方说明](desktop-plugin/lib/mobile-access/NOTICE)。轻量鸿蒙外壳的思路参考 [SakuraNeko/Deepseek-Harmony](https://github.com/SakuraNeko/Deepseek-Harmony)。

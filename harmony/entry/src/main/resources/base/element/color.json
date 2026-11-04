@@ -1,0 +1,11 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#F7F8FA" },
+    { "name": "connector_background", "value": "#F7F8FA" },
+    { "name": "surface", "value": "#FFFFFF" },
+    { "name": "surface_alt", "value": "#F1F3F7" },
+    { "name": "ink", "value": "#202329" },
+    { "name": "muted", "value": "#7B808B" },
+    { "name": "line", "value": "#E5E8EE" }
+  ]
+}

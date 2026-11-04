@@ -1,0 +1,10 @@
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = dirname(fileURLToPath(import.meta.url));
+const temporary = join(root, '../_wip/tests');
+mkdirSync(temporary, { recursive: true });
+const tests = readdirSync(join(root, 'tests')).filter(name => name.endsWith('.test.mjs')).map(name => join(root, 'tests', name));
+const result = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...tests], { cwd: root, stdio: 'inherit', env: { ...process.env, TEMP: temporary, TMP: temporary, TMPDIR: temporary } });
+process.exit(result.status ?? 1);

@@ -1,0 +1,13 @@
+DSH Connect connection modules
+
+The files in core/ incorporate and adapt selected access, device storage, network,
+HTTP security, browser authentication page and WebSocket relay sources from
+dsh-mobile 0.6.18. The relay is adapted for DSH Connect's authorization lifetime,
+resource limits and sanitized upstream headers; standard framing and compression
+are supplied by the separately licensed ws library.
+Upstream: https://github.com/saya-ch/dsh-mobile
+License: Apache License, Version 2.0 (included in LICENSE).
+These files are maintained as part of DSH Connect. The upstream plugin, deployment
+providers, bundled executable tools and host registration are not included.
+
+The gateway orchestration and host integration are implemented by DSH Connect.

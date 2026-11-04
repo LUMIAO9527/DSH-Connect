@@ -1,0 +1,37 @@
+# DSH Connect 鸿蒙应用
+
+版本 1.0.0。通过鸿蒙手机或平板，继续使用电脑上的完整 DeepSeek Harness。首页、电脑管理与系统交互使用 ArkUI，连接后的工作区由 ArkWeb 展示。
+
+## 安装
+
+Release 提供 `DSH-Connect-1.0.0-unsigned.hap`。该文件是未签名的 release 构建，需要在 DevEco 中配置自己的开发签名，并在已授权设备上安装；不是可供所有设备直接安装的应用市场包。
+
+正式包名为 `com.lumiao.dshconnect`，版本代码为 10000。已有同包名安装升级时，需使用匹配签名以保留应用数据。历史独立调试包不等同于正式包。
+
+## 连接电脑
+
+在电脑安装并配置同名 **DSH Connect** 插件，从「设置 → DSH Connect」生成配对二维码或完整 HTTPS 链接。应用内扫码或粘贴链接即可连接。支持系统链接 `dshconnect://connect?url=…` 唤起。
+
+配对成功后保存固定电脑入口和 Cookie，不保存临时配对令牌。应用和浏览器分别保存授权，之后共用电脑上的同一份数据。
+
+首页突出展示主电脑，其他电脑可展开；菜单支持设主电脑、重命名和移除。主电脑用于首页展示，冷启动仍恢复最近成功使用的电脑与原工作页面。自动恢复可在连接设置中关闭。
+
+从后台返回、从首页继续同一电脑时，复用已打开的工作区，保留会话和草稿。模型和工具由电脑上的 DSH 提供，电脑与 HTTPS 通道需保持可达。
+
+## 系统界面
+
+应用统一处理四边系统安全区、透明系统栏和键盘避让；网页使用已分配的内容区。输入框下方保留 Token／上下文统计，上方保留 DSH 的排队和扩展内容。Cn 图标由 `branding/cn-mark.svg` 统一生成，覆盖启动图、页面、封面和网页入口。
+
+相机、相册、文档选择和下载保存通过系统入口接入。各项完整流程需在具体设备上验收，当前边界见 [验证记录](../docs/VALIDATION.md)。
+
+## 构建
+
+需要已有官方 HarmonyOS Command Line Tools／SDK 及 Java 环境。默认工具链目录为项目 `_wip/tools/sdk26/command-line-tools`；也可传入自己的路径：
+
+```powershell
+./Build-Hap.ps1 -ToolsRoot <官方工具链目录> -JavaHome <Java目录>
+```
+
+脚本先生成品牌资源，再复制源码到 `_wip/build/harmony`，默认构建 release HAP，`debug=false`，不自动配置签名。产物位于根目录 `artifacts/`，缓存与编译输出留在 `_wip`。显式 `-DeviceDebug` 仅用于本地调试构建。
+
+兼容配置 API 24、目标 API 26，以 `build-profile.json5` 为准。原生桥只向用户选定电脑的精确源暴露连接状态与电脑入口，不向任意网页开放文件操作。

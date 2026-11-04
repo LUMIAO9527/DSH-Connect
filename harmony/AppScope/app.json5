@@ -1,0 +1,10 @@
+{
+  "app": {
+    "bundleName": "com.lumiao.dshconnect",
+    "vendor": "LUMIAO9527",
+    "versionCode": 10000,
+    "versionName": "1.0.0",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name"
+  }
+}

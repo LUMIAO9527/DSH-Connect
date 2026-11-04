@@ -1,0 +1,63 @@
+# DSH Connect 电脑插件
+
+插件包：`dsh-connect@1.0.0`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
+
+## 安装
+
+推荐从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 下载 `dsh-connect-1.0.0.tgz`，在 DSH「插件 → 添加插件」选择本地安装包。安装后启用 **DSH Connect**，按 DSH 提示正常重开应用。
+
+已有 DSH CLI 时，可使用 `dsh plugin --profile web add <安装包绝对路径>`；桌面版通过自己的插件管理界面安装。仓库根目录也提供同一个插件的 npm 入口；固定版本更新推荐使用 Release TGZ。
+
+验证基线为 DSH `0.2.1-rc.5`、Node.js `24.22.1`。依赖为 `@deepseek-ai/schemastery`、`qrcode` 与 `ws`，由安装流程解析。
+
+## 连接配置
+
+每台电脑分别配置自己的固定 HTTPS 入口。插件只监听本机回环，不直接公开 DSH 内部端口。
+
+| 配置项 | 默认值 | 用途 |
+| --- | --- | --- |
+| `publicOrigin` | 留空 | 固定 HTTPS 源，如 `https://dsh.example.com`；只填源，不带路径、账号或查询参数。 |
+| `listenPort` | `3446` | 本机网关端口，监听 `127.0.0.1`。 |
+| `stateDirectory` | 自动选择 | 设备授权状态目录。新安装使用 `DSH_HOME/dsh-connect`；升级时原地复用已有旧版默认目录。自定义路径始终优先。 |
+| `deviceLifetimeDays` | `90` | 新设备授权的有效天数，范围 1–366。 |
+| `sessionLifetimeHours` | `8` | 短会话小时数，范围 1–24；自动续期不超过设备授权期限。 |
+
+使用已有 HTTPS 反向代理或 Tailscale Funnel 等通道，将该源的根路径完整转发到 `http://127.0.0.1:3446`。代理需支持 HTTP、WebSocket Upgrade，保留公开 Host，并从本机回环访问网关。域名、证书和通道由运行者配置。
+
+## 配对
+
+1. 打开电脑「设置 → DSH Connect」，点击生成配对链接。
+2. 鸿蒙应用扫描二维码或粘贴完整链接；浏览器直接打开完整链接。也可复制应用链接 `dshconnect://connect?url=…`。
+3. 每个新设备／浏览器分别生成一个链接；链接十分钟内单次有效，重新生成会替换尚未使用的旧链接。
+4. 配对后保存固定访问入口。使用原来配对的应用或浏览器再次打开，即可恢复。
+5. 在同一设置页查看设备或撤销某个设备的授权。
+
+应用、普通浏览器和无痕窗口各自保存网站数据。提示未保存授权时，先确认是否使用原来配对的入口；不要因此清空所有设备。
+
+已配对设备可操作这台电脑的工作区和工具，请只将配对链接交给信任的人。此插件提供受信任的远程访问，不提供多人权限隔离。
+
+## 持续使用
+
+浏览器前台会按到期时间续期；返回前台或网络恢复时重新检查授权。网关重启后，已有设备授权可换取新的短会话。一次网络失败不会删除有效授权。DSH 负责自身实时连接重试与数据同步。
+
+消息、审批及其他写请求不会自动重放。电脑、DSH、HTTPS 通道和网络需要保持运行；浏览器后台可能被系统挂起，返回后恢复。授权到期、被撤销或网站数据被清除后，需要重新配对。
+
+移动界面采用全宽会话、抽屉和设置二级页面。共享布局以 DSH rc.5 的标记和设置结构为基线，升级 DSH 后应回归侧栏、详情、设置和文件交互。
+
+## 从旧连接器升级
+
+先停用旧插件，再启用 `dsh-connect`，避免重复监听端口。保留原 `publicOrigin`、端口和 `stateDirectory` 及其中的 `devices.json`。如果之前填写了自定义目录，继续填写同一个路径。
+
+旧默认目录 `DSH_HOME/foreverweb` 已有状态且新目录尚无状态时，会直接复用旧目录，不复制或重置授权。Cookie、内部恢复标记和协议字段保留兼容；对外显示名称、设置入口和安装包均为 DSH Connect。
+
+## 排查
+
+公开健康检查为 `GET /mobile-access/health`，仅证明网关可达，不能证明 DSH 实时同步完成。管理和配对生成只接受已登录的本机请求；远程访问不公开管理接口。
+
+遇到问题依次检查固定 HTTPS 入口、设备授权、电脑 DSH 状态与 WebSocket。诊断只记录有限状态与分类；分享日志前移除配对链接、Cookie 和令牌。避免通过清理设备文件处理普通网络故障。
+
+## 开发与许可
+
+在工程根运行 `npm ci --ignore-scripts`、`npm run check` 和 `npm test`。运行 `branding/Build-Brand.ps1` 更新公共标识，`Build-Release.ps1` 构建并验证交付包。详见工程根 [README](../README.md)。
+
+Apache-2.0；部分代码改编自 `dsh-mobile 0.6.18`，来源与许可证见 `lib/mobile-access/NOTICE`、`lib/mobile-access/LICENSE`。
