@@ -47,7 +47,7 @@ with zipfile.ZipFile(hap) as archive:
 assert re.search(r'DEVICE_DEBUG\s*:\s*boolean\s*=\s*false', (root / 'harmony/entry/src/main/ets/model/RuntimeMode.ets').read_text(encoding='utf-8'))
 assert 'signingConfigs' not in (root / 'harmony/build-profile.json5').read_text(encoding='utf-8')
 
-files = [(root / name, name) for name in ['.gitignore','README.md','CHANGELOG.md','LICENSE','package.json','package-lock.json','Build-Release.ps1']]
+files = [(root / name, name) for name in ['.gitattributes','.gitignore','README.md','CHANGELOG.md','LICENSE','package.json','package-lock.json','Build-Release.ps1']]
 excluded = {'node_modules','oh_modules','.hvigor','.idea','.preview','_wip','build','__pycache__'}
 for folder in ['harmony','desktop-plugin','branding','tools','docs','.github']:
     for source in sorted((root / folder).rglob('*')):
