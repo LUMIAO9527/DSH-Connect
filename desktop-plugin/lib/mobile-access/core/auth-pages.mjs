@@ -1,5 +1,6 @@
 // DSH Connect connection core. Adapted from dsh-mobile 0.6.18 (Apache-2.0).
 import { BRAND_SVG } from '../../brand.mjs';
+const BRAND_ICON_URL = 'data:image/svg+xml,' + encodeURIComponent(BRAND_SVG);
 // Maintained in this project; see ../NOTICE and ../LICENSE.
 const COPY = {
     en: {
@@ -119,6 +120,7 @@ export function renderPairPage(locale) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/svg+xml" href="${BRAND_ICON_URL}">
 <style>${AUTH_STYLE}</style>
 <title>${copy.pairTitle}</title>
 </head>
@@ -219,6 +221,7 @@ export function renderLoginPage(locale) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/svg+xml" href="${BRAND_ICON_URL}">
 <style>${AUTH_STYLE}</style>
 <title>${copy.reconnectTitle}</title>
 </head>

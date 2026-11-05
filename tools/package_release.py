@@ -59,9 +59,10 @@ for folder in ['harmony','desktop-plugin','branding','tools','docs','.github']:
         assert source.suffix not in {'.p12','.p7b','.cer','.csr','.pem','.key'}, relative
         files.append((source, relative.as_posix()))
 products = [hap, tgz]
-icon = artifacts / f'DSH-Connect-{version}-icon.svg'
-icon.write_bytes((root / 'branding/cn-mark.svg').read_bytes())
-products.append(icon)
+for suffix, source in [('', 'cn-mark.svg'), ('-light', 'cn-mark-light.svg'), ('-dark', 'cn-mark-dark.svg')]:
+    icon = artifacts / f'DSH-Connect-{version}-icon{suffix}.svg'
+    icon.write_bytes((root / 'branding' / source).read_bytes())
+    products.append(icon)
 preview = artifacts / f'DSH-Connect-{version}-preview.html'
 if preview.is_file():
     products.append(preview)

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 32 32" fill="none" role="img" aria-label="DSH Connect">
+  <rect id="cn-tile" width="32" height="32" rx="10" fill="#171717"/>
+  <g id="cn-letters" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7"/>
+    <path d="M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22"/>
+  </g>
+</svg>

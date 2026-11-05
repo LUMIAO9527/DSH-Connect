@@ -1,10 +1,10 @@
 # DSH Connect 电脑插件
 
-插件包：`dsh-connect@1.0.0`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
+插件包：`dsh-connect@1.0.1`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
 
 ## 安装
 
-推荐从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 下载 `dsh-connect-1.0.0.tgz`，在 DSH「插件 → 添加插件」选择本地安装包。安装后启用 **DSH Connect**，按 DSH 提示正常重开应用。
+推荐从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 下载 `dsh-connect-1.0.1.tgz`，在 DSH「插件 → 添加插件」选择本地安装包。安装后启用 **DSH Connect**，按 DSH 提示正常重开应用。
 
 已有 DSH CLI 时，可使用 `dsh plugin --profile web add <安装包绝对路径>`；桌面版通过自己的插件管理界面安装。仓库根目录也提供同一个插件的 npm 入口；固定版本更新推荐使用 Release TGZ。
 

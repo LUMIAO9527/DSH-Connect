@@ -4,4 +4,4 @@
     <path d="M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7"/>
     <path d="M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22"/>
   </g>
-</svg>
+<style>#cn-tile{fill:#fff;stroke:#d7d7d7;stroke-width:.75}#cn-letters{stroke:#171717}@media(prefers-color-scheme:dark){#cn-tile{fill:#171717;stroke:none}#cn-letters{stroke:#fff}}</style></svg>

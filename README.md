@@ -1,10 +1,10 @@
-<p align="center"><img src="branding/cn-mark.svg" width="88" alt="DSH Connect"></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="branding/cn-mark-dark.svg"><img src="branding/cn-mark-light.svg" width="88" alt="DSH Connect"></picture></p>
 <h1 align="center">DSH Connect</h1>
 <p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
 DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完整 DeepSeek Harness：会话、工作区、文件、模型、工具与任务共用同一份数据。模型调用和工具执行由连接的电脑完成。
 
-**首发版本：1.0.0。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
+**当前版本：1.0.1。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
 
 ## 选择打开方式
 
@@ -19,23 +19,23 @@ DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完�
 
 <p align="center"><img src="docs/images/home.jpg" width="245" alt="首次使用"><img src="docs/images/computers.jpg" width="245" alt="已保存电脑"><img src="docs/images/add.jpg" width="245" alt="添加电脑"></p>
 
-页面来自官方 SDK 的原生渲染，使用演示电脑数据。[下载完整页面图册](https://github.com/LUMIAO9527/DSH-Connect/releases/download/v1.0.0/DSH-Connect-1.0.0-preview.html)。
+页面来自官方 SDK 的原生渲染，使用演示电脑数据。[下载完整页面图册](https://github.com/LUMIAO9527/DSH-Connect/releases/download/v1.0.1/DSH-Connect-1.0.1-preview.html)。
 
 ## 下载
 
 从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取：
 
-- `dsh-connect-1.0.0.tgz`：安装在电脑 DSH 中的插件。
-- `DSH-Connect-1.0.0-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
-- `DSH-Connect-1.0.0.zip`：完整源码、说明及本版安装产物。
-- `DSH-Connect-1.0.0-icon.svg`：独立的 Cn 矢量图标。
+- `dsh-connect-1.0.1.tgz`：安装在电脑 DSH 中的插件。
+- `DSH-Connect-1.0.1-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
+- `DSH-Connect-1.0.1.zip`：完整源码、说明及本版安装产物。
+- `DSH-Connect-1.0.1-icon-light.svg`／`DSH-Connect-1.0.1-icon-dark.svg`：浅、深两套 Cn 矢量图标。
 - `SHA256SUMS.txt`：文件校验和。
 
 HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装包。首次体验也可以先使用浏览器入口。
 
 ## 开始使用
 
-1. 在电脑上打开 DeepSeek Harness，安装 `dsh-connect-1.0.0.tgz`，启用 **DSH Connect** 插件。
+1. 在电脑上打开 DeepSeek Harness，安装 `dsh-connect-1.0.1.tgz`，启用 **DSH Connect** 插件。
 2. 为电脑配置固定 HTTPS 访问入口，将 HTTP 和 WebSocket 转发到插件的本机网关；在插件配置中填写这个地址。
 3. 打开电脑的「设置 → DSH Connect」，生成配对二维码或链接。
 4. 用鸿蒙应用扫描二维码或粘贴链接；浏览器直接打开完整链接。应用和每个浏览器分别完成一次配对。
@@ -49,7 +49,7 @@ HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装�
 - 冷启动恢复最近使用的电脑和原工作页面；从后台回来保留当前会话和草稿。自动恢复可在设置中关闭。
 - 手机使用纵向布局、会话抽屉和设置二级页面；输入框及字号适应窄屏。
 - 应用统一处理系统安全区与键盘；输入框下方保留 Token／上下文信息，上方保留排队消息与扩展位置。
-- Cn 图标与 Nx、Rm 共用黑底、白色圆润笔画的设计语言，并用于启动页、电脑封面和网页入口。
+- Cn 图标与 Nx、Rm 共用圆角底板和圆润笔画；深色黑底白字、浅色白底黑字，同步用于启动页、电脑封面和网页入口。
 
 ## 升级与数据
 

@@ -5,6 +5,7 @@ import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { url } from '@kit.ArkTS';
 import { Computer, ComputerStore, parseAddress, connectorPermission } from '../model/ComputerStore';
 import { FileSupport } from '../model/FileSupport';
+import { APP_VERSION } from '../model/Version';
 import { PairingIntro, ComputerCover, ConnectionLoading, ConnectionIssue } from '../components/ConnectionViews';
 
 class ConnectorBridge {
@@ -325,7 +326,7 @@ struct Index {
     Column({ space: 18 }) {
       Row({ space: 12 }) {
         Image($r('app.media.cn_mark')).width(42).height(42).accessibilityText('DSH Connect')
-        Column({ space: 5 }) { Text('DSH Connect').fontSize(17).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')); Text('1.0.0').fontSize(12).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start)
+        Column({ space: 5 }) { Text('DSH Connect').fontSize(17).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')); Text(APP_VERSION).fontSize(12).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start)
       }.width('100%').padding({ bottom: 8 })
       Row({ space: 16 }) {
         Column({ space: 6 }) { Text('自动恢复工作页面').fontSize(14).fontColor($r('app.color.ink')); Text(this.computers.length ? this.latestComputer().name : '添加电脑后即可使用').fontSize(12).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start).layoutWeight(1)
@@ -369,7 +370,7 @@ struct Index {
         .horizontalScrollBarAccess(false)
         .onControllerAttached(() => {
           this.attached = true;
-          try { this.webController.setCustomUserAgent(this.webController.getUserAgent() + ' DSH-Connect/1.0.0'); this.files?.downloads(this.webController); } catch (_) {}
+          try { this.webController.setCustomUserAgent(this.webController.getUserAgent() + ' DSH-Connect/' + APP_VERSION); this.files?.downloads(this.webController); } catch (_) {}
           this.registerBridge(); this.waitForConnection();
         })
         .onPageEnd((event) => { this.documentLoaded(event?.url || ''); })
