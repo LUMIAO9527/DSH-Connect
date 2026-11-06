@@ -1,10 +1,10 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, openMenu = false, viewport, drawer = false, hero = false } = {}) {
+function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, openMenu = false, viewport, drawer = false, hero = false, css = false } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] || ''; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
@@ -16,7 +16,9 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     append(...nodes) { this.children.push(...nodes); }
     contains(element) { return this === element || this.children.some(child => child.contains(element)); }
     getClientRects() { return this.hidden ? [] : [{}]; }
-    getBoundingClientRect() { return { width: 280 }; }
+    getBoundingClientRect() { this.rectCalls = (this.rectCalls || 0) + 1; return { width: this.rectWidth || 280, height: this.rectHeight || 0 }; }
+    matches(selector) { return selector === '[data-chat-turn]' ? 'data-chat-turn' in this.attrs : false; }
+    closest(selector) { return this.matches(selector) ? this : null; }
     focus() { this.focused = true; }
   }
   const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [];
@@ -78,7 +80,11 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     : settings && query === '[data-shortcut-modal="settings"]' ? settingsPanel : null;
   document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : isFolderSelector(query) ? (conversation ? [folderButton] : [])
     : query === '[role="menu"]' && openMenu ? [menu]
+    : query === '[conversation-scroll] [data-chat-turn]' || query === '[data-conversation-scroll] [data-chat-turn]' ? turns
     : query === '[role="dialog"]' && settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
+  const turns = [];
+  const makeTurn = (height = 100) => { const element = new Element('div'); element.nodeType = 1; element.setAttribute('data-chat-turn', ''); element.rectHeight = height; turns.push(element); return element; };
+  if (css) window.CSS = { supports: () => true };
   const media=Object.assign(new EventTarget(),{matches:!wide});window.matchMedia=()=>media;
   window.innerWidth = wide ? 1280 : 366;
   if (viewport) { window.innerHeight = viewport.innerHeight; window.visualViewport = Object.assign(new EventTarget(), { height: viewport.height }); }
@@ -95,7 +101,7 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     toggleSidebar() { calls.push('close-left'); frame.setAttribute('data-sidebar-collapsed', 'true'); },
     closeRightbar() { calls.push('close-right'); frame.removeAttribute('data-rightbar-fullscreen'); },
   });
-  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,folderButton,
+  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,folderButton, turns, makeTurn,
     pick: () => click(fileButton, selector => selector === 'button[data-dsc-file-picker]'),
     openFolder: () => click(folderButton, isFolderSelector),
     banner: () => document.body.children.find(node => node.className === 'dsc-status'),
@@ -431,4 +437,25 @@ test('keyboard resize events share one layout update and use the native viewport
   assert.equal(current.frames.length, 1);
   current.frames.shift()();
   assert.equal(current.document.documentElement.style['--dsc-viewport'], '100dvh');
+});
+
+test('only turns added since the last frame are measured for content visibility', () => {
+  const current = page({ conversation: true, css: true });
+  const flush = () => { for (let round = 0; round < 3; round += 1) current.frames.splice(0).forEach(callback => callback()); };
+  flush();
+  const first = current.makeTurn(120);
+  current.mutate([{ addedNodes: [first], target: current.document.body }]);
+  flush();
+  assert.equal(first.rectCalls, 1);
+  assert.ok('data-dsc-turn-rendering' in first.attrs);
+  const second = current.makeTurn(80);
+  current.mutate([{ addedNodes: [second], target: current.document.body }]);
+  flush();
+  assert.equal(first.rectCalls, 1, 'the retained turn is not measured again');
+  assert.equal(second.rectCalls, 1);
+  current.media.matches = true;
+  current.media.dispatchEvent(new Event('change'));
+  flush();
+  assert.equal(first.rectCalls, 1, 'a layout-mode change skips turns already seeded');
+  assert.equal(second.rectCalls, 1);
 });

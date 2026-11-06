@@ -298,10 +298,13 @@
   const adaptedSlots = `${headerSlot},${tabsSelector},${composerSelector}`;
   const turnSelector = '[data-chat-turn]';
   const renderedTurns = new WeakSet();
-  const markTurnRendering = () => {
+  const markTurnRendering = batch => {
     if (!(media.matches || native) || !window.CSS?.supports('content-visibility', 'auto')) return;
-    const turns = [...document.querySelectorAll(`[data-conversation-scroll] ${turnSelector}`)]
-      .filter(turn => !renderedTurns.has(turn) && !turn.parentElement.closest(turnSelector));
+    // Measure only the turns that just arrived. A full rescan is reserved for a
+    // layout-mode change, where every retained turn has to be re-seeded.
+    const turns = (batch?.length ? batch : [...document.querySelectorAll(`[data-conversation-scroll] ${turnSelector}`)])
+      .filter(turn => turn.isConnected !== false && !renderedTurns.has(turn) && !turn.parentElement?.closest?.(turnSelector));
+    if (!turns.length) return;
     // Seed every retained turn from its measured height before changing rendering.
     // The browser then remembers the current size while the turn is on screen.
     const heights = turns.map(turn => turn.getBoundingClientRect().height);
@@ -312,13 +315,20 @@
       renderedTurns.add(turn);
     });
   };
-  let turnsQueued = false;
-  const queueTurnRendering = () => {
-    if (turnsQueued || !(media.matches || native) || !window.CSS?.supports('content-visibility', 'auto')) return;
+  let turnsQueued = false, pendingTurns = [], fullTurnScan = false;
+  const queueTurnRendering = turns => {
+    if (!(media.matches || native) || !window.CSS?.supports('content-visibility', 'auto')) return;
+    if (turns) pendingTurns.push(...turns); else fullTurnScan = true;
+    if (turnsQueued) return;
     turnsQueued = true;
-    requestAnimationFrame(() => { turnsQueued = false; markTurnRendering(); });
+    requestAnimationFrame(() => {
+      turnsQueued = false;
+      const batch = fullTurnScan ? undefined : pendingTurns;
+      pendingTurns = []; fullTurnScan = false;
+      markTurnRendering(batch);
+    });
   };
-  media.addEventListener('change', queueTurnRendering);
+  media.addEventListener('change', () => queueTurnRendering());
   const markKeyboardPolicy = () => {
     if (!native || !navigator.virtualKeyboard) return;
     for (const editor of document.querySelectorAll('[data-composer-input][contenteditable]')) {
@@ -418,8 +428,17 @@
     const markControls = () => { markConversationHeader(); markFilePickers(); markWorkspaceFolders(); markKeyboardPolicy(); };
     let queued = false;
     new MutationObserver(records => {
-      if (records.some(({ addedNodes }) => [...addedNodes].some(node => node.nodeType === 1 &&
-          (node.matches(turnSelector) || node.querySelector(turnSelector))))) queueTurnRendering();
+      // Collect the turns that actually appeared so the next frame measures them
+      // alone instead of rescanning every retained turn in the conversation.
+      const addedTurns = [];
+      for (const { addedNodes } of records) {
+        for (const node of [...addedNodes]) {
+          if (node.nodeType !== 1 || typeof node.matches !== 'function') continue;
+          if (node.matches(turnSelector)) addedTurns.push(node);
+          else if (typeof node.querySelectorAll === 'function') addedTurns.push(...node.querySelectorAll(turnSelector));
+        }
+      }
+      if (addedTurns.length) queueTurnRendering(addedTurns);
       if (queued || !records.some(({ target, addedNodes }) => [...addedNodes].some(node =>
         node.nodeType === 1 && (target.closest(adaptedSlots) || node.matches(adaptedSlots) || node.querySelector(adaptedSlots))
       ))) return;
