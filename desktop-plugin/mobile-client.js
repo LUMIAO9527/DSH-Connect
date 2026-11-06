@@ -298,6 +298,12 @@
   const adaptedSlots = `${headerSlot},${tabsSelector},${composerSelector}`;
   const turnSelector = '[data-chat-turn]';
   const renderedTurns = new WeakSet();
+  const markTurnImages = turn => {
+    for (const image of turn.querySelectorAll?.('img:not([loading])') || []) {
+      image.loading = 'lazy';
+      image.decoding = 'async';
+    }
+  };
   const markTurnRendering = batch => {
     if (!(media.matches || native) || !window.CSS?.supports('content-visibility', 'auto')) return;
     // Measure only the turns that just arrived. A full rescan is reserved for a
@@ -313,6 +319,7 @@
       turn.style.setProperty('--dsc-turn-height', `${heights[index]}px`);
       turn.setAttribute('data-dsc-turn-rendering', '');
       renderedTurns.add(turn);
+      markTurnImages(turn);
     });
   };
   let turnsQueued = false, pendingTurns = [], fullTurnScan = false;
@@ -451,9 +458,12 @@
   const state = () => ['invalid','revoked','expired'].includes(access?.device?.state) || access?.lastError?.action === 'pair' ? 'auth-required'
     : navigator.onLine === false ? 'offline'
     : transport === 'connected' && access?.session?.state === 'valid' ? 'connected' : 'connecting';
-  let accessBlockedFrame;
+  let accessBlockedFrame, lastState = '';
   const update = () => {
     mount(); const next = state();
+    // Access events fire in bursts; only a real state change redraws the notice.
+    if (next === lastState) return;
+    lastState = next;
     if (next === 'auth-required') {
       if (frame && !frame.hasAttribute('inert')) { frame.setAttribute('inert', ''); accessBlockedFrame = frame; }
     } else if (accessBlockedFrame) {
