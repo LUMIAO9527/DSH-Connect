@@ -189,7 +189,7 @@ export class AccessController {
             sessionExpiresAt: record.expiresAt
         });
     }
-    async openPairing(requestedTtlMs) {
+    async openPairing(requestedTtlMs, scope) {
         this.requireInitialized();
         return this.exclusive(async ()=>{
             const ttl = requestedTtlMs ?? this.options.pairingTtlMs;
@@ -200,7 +200,8 @@ export class AccessController {
             const expiresAt = this.now() + ttl;
             this.pairingWindow = Object.freeze({
                 digest: digest(token),
-                expiresAt
+                expiresAt,
+                scope
             });
             return Object.freeze({
                 token,
@@ -212,11 +213,12 @@ export class AccessController {
         if (!this.pairLimiter.take(sourceKey, now)) throw new AccessError(429, 'rate_limited');
         throw new AccessError(401, 'authentication_failed');
     }
-    async pair(sourceKey, token, label) {
+    async pair(sourceKey, token, label, scope) {
         this.requireInitialized();
         const initialNow = this.now();
         const initialWindow = this.pairingWindow;
-        if (token.length > 512 || initialWindow === undefined || initialWindow.expiresAt <= initialNow || !matchesDigest(token, initialWindow.digest)) {
+        if (token.length > 512 || initialWindow === undefined || initialWindow.expiresAt <= initialNow
+            || initialWindow.scope !== scope || !matchesDigest(token, initialWindow.digest)) {
             this.rejectPairingAttempt(sourceKey, initialNow);
         }
         if (this.pairPending) throw new AccessError(429, 'rate_limited');
@@ -225,7 +227,7 @@ export class AccessController {
             return await this.exclusive(async ()=>{
                 const now = this.now();
                 const window = this.pairingWindow;
-                if (window === undefined || window.expiresAt <= now || !matchesDigest(token, window.digest)) {
+                if (window === undefined || window.expiresAt <= now || window.scope !== scope || !matchesDigest(token, window.digest)) {
                     if (window !== undefined && window.expiresAt <= now) this.pairingWindow = undefined;
                     this.rejectPairingAttempt(sourceKey, now);
                 }
@@ -361,6 +363,22 @@ export class AccessController {
                 if (session.deviceId === deviceId) this.removeSession(key, 'revoked');
             }
             return true;
+        });
+    }
+    async renameDevice(deviceId, label) {
+        this.requireInitialized();
+        const normalized = normalizeLabel(label);
+        return this.exclusive(async ()=>{
+            const device = this.devices.find((candidate)=>candidate.id === deviceId);
+            if (device === undefined) return undefined;
+            const updated = Object.freeze({
+                ...device,
+                label: normalized
+            });
+            const next = this.devices.map((candidate)=>candidate === device ? updated : candidate);
+            await this.store.save(this.snapshot(next));
+            this.devices = next;
+            return publicDevice(updated);
         });
     }
     async resetDevices() {

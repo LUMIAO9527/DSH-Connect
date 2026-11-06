@@ -2,7 +2,7 @@ import { lstat, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from 'yaml';
 
-export const CONNECTION_FIELDS = ['publicOrigin', 'listenPort', 'stateDirectory', 'deviceLifetimeDays', 'sessionLifetimeHours'];
+export const CONNECTION_FIELDS = ['publicOrigin', 'localNetwork', 'relayConfigFile', 'listenPort', 'stateDirectory', 'deviceLifetimeDays', 'sessionLifetimeHours'];
 export function connectionFields(value = {}) {
   if (!value || typeof value !== 'object') return {};
   return Object.fromEntries(CONNECTION_FIELDS.filter(key => Object.hasOwn(value, key)).map(key => [key, value[key]]));
@@ -11,7 +11,7 @@ export function connectionFields(value = {}) {
 // Renaming the package must not disconnect a profile which still names its old entry.
 export async function configurationFor(ctx, config) {
   const raw = ctx.fiber?.entry?.options?.config;
-  if (config.publicOrigin || raw && Object.hasOwn(raw, 'publicOrigin') || !ctx.profileContext?.patchPath) return config;
+  if (config.publicOrigin || config.relayConfigFile || raw && Object.hasOwn(raw, 'publicOrigin') || !ctx.profileContext?.patchPath) return config;
   const path = ctx.profileContext.patchPath;
   try {
     if ((await stat(path)).size > 512 * 1024) return config;

@@ -1,28 +1,37 @@
 # DSH Connect 电脑插件
 
-维护版本：`dsh-connect@1.0.12`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
+为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复。鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取已发布安装包，本地 1.0.12 构建位于根目录 `artifacts/`。在 DSH「插件 → 添加插件」选择安装包，安装后启用 **DSH Connect**。
+从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取已发布安装包。在 DSH「插件 → 添加插件」选择安装包，安装后启用 **DSH Connect**。
 
 已有 DSH CLI 时，可使用 `dsh plugin --profile web add <安装包绝对路径>`；桌面版通过自己的插件管理界面安装。仓库根目录也提供同一个插件的 npm 入口；固定版本更新推荐使用 Release TGZ。
 
-当前本机验证基线为 DSH `0.2.2-rc.1`、Node.js `24.22.1`。依赖由安装流程解析。
-
 ## 连接配置
 
-每台电脑分别配置自己的固定 HTTPS 入口。插件只监听本机回环，不直接公开 DSH 内部端口。
+当前源码默认启用同网直连。DSH Connect 选择唯一的可用私有 IPv4 地址，在该子网上提供 HTTPS 配对入口。鸿蒙应用扫码时核对电脑证书，和跨网入口共用设备管理与授权。电脑换了局域网地址时，应用需要用新二维码配对。
 
 | 配置项 | 默认值 | 用途 |
 | --- | --- | --- |
 | `publicOrigin` | 留空 | 固定 HTTPS 源，如 `https://dsh.example.com`；只填源，不带路径、账号或查询参数。 |
-| `listenPort` | `3446` | 本机网关端口，监听 `127.0.0.1`。 |
+| `localNetwork` | `true` | 在可用的私有局域网中提供鸿蒙应用直连。 |
+| `relayConfigFile` | 留空 | 由中继服务运营方签发的电脑凭据文件绝对路径。 |
+| `listenPort` | `3446` | 同网 HTTPS 与跨网回环网关使用的端口。 |
 | `stateDirectory` | 自动选择 | 设备授权状态目录。新安装使用 `DSH_HOME/dsh-connect`；升级时原地复用已有旧版默认目录。自定义路径始终优先。 |
 | `deviceLifetimeDays` | `90` | 新设备授权的有效天数，范围 1–366。 |
 | `sessionLifetimeHours` | `8` | 短会话小时数，范围 1–24；自动续期不超过设备授权期限。 |
 
-使用已有 HTTPS 反向代理或 Tailscale Funnel 等通道，将该源的根路径完整转发到 `http://127.0.0.1:3446`。代理需支持 HTTP、WebSocket Upgrade，保留公开 Host，并从本机回环访问网关。域名、证书和通道由运行者配置。
+已有 HTTPS 入口可继续使用。代理将根路径的 HTTP 和 WebSocket 请求转发到 `http://127.0.0.1:3446`，并保留公开 Host。
+
+### 内置中继部署
+
+内置中继的电脑端随插件运行。服务运营方需提供公网域名与有效证书，供鸿蒙应用和浏览器通过 HTTPS 访问。当前没有默认公网中继。
+
+- 中继的控制域名为 `relay.example.com`，电脑使用独立的 `<route>.example.com`。DNS 和证书覆盖 `*.example.com`。
+- 从源码运行 `node tools/serve-relay.mjs relay.json`。配置包含 `origin`、`certFile`、`keyFile`、`seedFile` 和监听 `host`。种子文件存放随机的 64 位十六进制字符串，供运营方保管。
+- 运行 `node tools/serve-relay.mjs relay.json --issue computer.json` 签发单台电脑的凭据，将该文件路径设为插件的 `relayConfigFile`。配置有固定 `publicOrigin` 时优先使用已有入口。
+- 公网 TLS 在中继结束，中继可读取经过的数据，应运行在可信的基础设施上。插件与中继的通道同样使用 TLS。
 
 ## 配对
 

@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { renderLoginScript, renderPairScript } from '../lib/mobile-access/core/auth-pages.mjs';
 
 const source = await readFile(new URL('../gateway-bootstrap.js', import.meta.url), 'utf8');
+const clientSource = await readFile(new URL('../client.js', import.meta.url), 'utf8');
 const BASE_TIME = 1800000000000;
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -15,6 +16,41 @@ const snapshot = (overrides = {}) => ({ protocolVersion: 1, pluginVersion: '0.4.
 const renewed = (value = snapshot()) => Response.json({ sessionExpiresAt: value.session.expiresAt, deviceExpiresAt: value.device.expiresAt, connection: value });
 const unauthorized = (scope = 'session', code = 'authentication_failed') => Response.json({ error: code }, {
   status: 401, headers: { 'x-dsh-foreverweb-error-scope': scope, 'x-dsh-foreverweb-error-code': code }
+});
+
+test('workspace startup prefetches the saved session once through the Session Controller', async () => {
+  let plugin;
+  const window = {
+    __ModuleLoader__: { load: descriptor => { plugin = descriptor.factory(() => ({})); } },
+    addEventListener() {}, removeEventListener() {},
+  };
+  const document = { querySelector: () => ({}) };
+  const localStorage = { getItem: key => key === 'dsh.sessions.current' ? '{"sessionId":"session-saved"}' : null };
+  vm.runInNewContext(clientSource, { window, document, localStorage, navigator: { onLine: true } });
+
+  let state = 'connecting';
+  const listeners = new Set(), prefetches = [];
+  const effect = setup => setup();
+  plugin.apply({
+    effect,
+    inject(dependencies, setup) {
+      assert.deepEqual([...dependencies], ['sessions']);
+      setup({ effect, sessions: { async refreshProjections(id) { prefetches.push(id); } } });
+    },
+    slots: { inject: (_key, setup) => setup(), register() {} },
+    connection: { state: { getSnapshot: () => state, subscribe(callback) {
+      listeners.add(callback);
+      return () => listeners.delete(callback);
+    } } },
+  });
+  await flush();
+  assert.deepEqual(prefetches, []);
+  for (const next of ['connected', 'disconnected', 'connected']) {
+    state = next;
+    for (const callback of listeners) callback();
+    await flush();
+  }
+  assert.deepEqual(prefetches, ['session-saved']);
 });
 
 function application(nativeFetch, { initial = snapshot(), authenticated = true, href = 'https://harmony.test/', recovery } = {}) {

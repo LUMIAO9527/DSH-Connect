@@ -66,6 +66,25 @@ test('default 90 day grant and 8 hour session remain distinct', async () => {
   await gateway.close();
 });
 
+test('paired devices can be renamed without changing grants or sessions', async () => {
+  const store = new MemoryDeviceStore();
+  const gateway = new DSHConnectGateway(config('/tmp/dsh-rename-fixture.json'), { store });
+  await gateway.access.initialize();
+  const opening = await gateway.access.openPairing();
+  const pair = await gateway.access.pair('fixture', opening.token, 'Mobile device');
+  const renamed = await gateway.access.renameDevice(pair.deviceId, '  Mate 80  ');
+  assert.equal(renamed.id, pair.deviceId);
+  assert.equal(renamed.label, 'Mate 80');
+  assert.equal(gateway.access.listDevices()[0].label, 'Mate 80');
+  assert.equal(store.inspect().devices[0].label, 'Mate 80');
+  await assert.rejects(gateway.access.renameDevice(pair.deviceId, ''), { status: 400 });
+  await assert.rejects(gateway.access.renameDevice(pair.deviceId, 'x'.repeat(65)), { status: 400 });
+  assert.equal(await gateway.access.renameDevice('a'.repeat(32), 'Unknown'), undefined);
+  assert.equal((await gateway.access.renew(pair.deviceToken)).deviceId, pair.deviceId);
+  assert.equal(gateway.access.listDevices()[0].label, 'Mate 80');
+  await gateway.close();
+});
+
 test('queue reservations enforce shared/per-device caps and release exactly once', () => {
   const budget = new ConnectionQueueBudget(100, 150);
   const a = budget.reserve('a', 60), b = budget.reserve('b', 60);

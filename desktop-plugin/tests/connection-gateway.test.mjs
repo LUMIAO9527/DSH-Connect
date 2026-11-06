@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import https from 'node:https';
+import { X509Certificate } from 'node:crypto';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { DSHConnectGateway, VERSION } from '../lib/mobile-access/connection.mjs';
 import { MemoryDeviceStore } from '../lib/mobile-access/core/storage.mjs';
+import { createLanCertificate, localNetworkAddress } from '../lib/mobile-access/lan.mjs';
+import { relayRouteKey, relaySettings, startRelayAgent, startRelayServer } from '../lib/mobile-access/relay.mjs';
+import forge from 'node-forge';
 const WebSocket = createRequire(new URL('../package.json', import.meta.url))('ws');
 const { WebSocketServer } = WebSocket;
 
@@ -15,7 +21,7 @@ function request(port, path, { method = 'GET', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request({ hostname: '127.0.0.1', port, path, method, headers: { host: 'harmony.test', ...headers } }, res => {
       const chunks = []; res.on('data', chunk => chunks.push(chunk)); res.once('error', reject);
-      res.once('end', () => { const data = Buffer.concat(chunks); resolve({ status: res.statusCode, headers: res.headers, text: data.toString(), json: () => JSON.parse(data) }); });
+      res.once('end', () => { const data = Buffer.concat(chunks); resolve({ status: res.statusCode, headers: res.headers, data, text: data.toString(), json: () => JSON.parse(data) }); });
     });
     req.once('error', reject); req.setTimeout(3000, () => req.destroy(new Error('Fixture request timed out'))); req.end(body);
   });
@@ -23,6 +29,130 @@ function request(port, path, { method = 'GET', headers = {}, body } = {}) {
 const post = (port, path, data, headers = {}) => request(port, path, { method: 'POST',
   headers: { origin, 'content-type': 'application/json', ...headers }, body: JSON.stringify(data) });
 const cookies = response => (response.headers['set-cookie'] || []).map(value => value.split(';')[0]).join('; ');
+const localDns = (_name, options, done) => options.all ? done(null, [{ address: '127.0.0.1', family: 4 }]) : done(null, '127.0.0.1', 4);
+const secureRequest = (url, { ca, method = 'GET', data, headers = {} } = {}) => new Promise((resolve, reject) => {
+  const request = https.request(url, { ca, lookup: localDns, method, headers }, response => {
+    const chunks = [];
+    response.on('data', chunk => chunks.push(chunk));
+    response.once('error', reject);
+    response.once('end', () => resolve({ status: response.statusCode, headers: response.headers,
+      json: () => JSON.parse(Buffer.concat(chunks)) }));
+  });
+  request.once('error', reject);
+  request.setTimeout(3000, () => request.destroy(new Error('TLS fixture request timed out')));
+  request.end(data === undefined ? undefined : JSON.stringify(data));
+});
+async function openPairing(gateway, mode) {
+  const route = gateway.localAdminRoute('/admin', () => true);
+  const server = http.createServer(route.handler);
+  await listen(server);
+  try {
+    const host = '127.0.0.1:' + server.address().port;
+    const reply = await request(server.address().port, '/admin/pairing/open', {
+      method: 'POST', headers: { host, origin: 'http://' + host, 'content-type': 'application/json' }, body: JSON.stringify({ mode }),
+    });
+    return { status: reply.status, ...reply.json() };
+  } finally { await close(server); }
+}
+
+test('automatic local binding selects one private subnet and excludes public and virtual adapters', () => {
+  const wireless = { address: '192.168.1.141', cidr: '192.168.1.141/25' };
+  const virtual = { address: '172.22.16.1', cidr: '172.22.16.1/20' };
+  const publicAddress = { address: '198.51.100.2', cidr: '198.51.100.2/24' };
+  assert.deepEqual(localNetworkAddress({ WLAN: [wireless], 'vEthernet (WSL)': [virtual], Ethernet: [publicAddress] }),
+    { host: wireless.address, cidr: '192.168.1.128/25' });
+  assert.equal(localNetworkAddress({ Ethernet: [publicAddress], 'vEthernet (WSL)': [virtual] }), undefined);
+  assert.equal(localNetworkAddress({ WLAN: [wireless], Ethernet: [virtual] }), undefined);
+});
+
+test('a LAN QR binds its one-use token to the private TLS listener and the same revocation list', { timeout: 10000 }, async t => {
+  const credentials = await createLanCertificate('127.0.0.1');
+  const fingerprint = new X509Certificate(credentials.cert).fingerprint256.replaceAll(':', '').toLowerCase();
+  const { gateway, port } = await fixture(t, { gateway: { lan: { ...credentials, fingerprint, host: '127.0.0.1', cidr: '127.0.0.0/8' } } });
+  const opened = await openPairing(gateway, 'lan');
+  assert.equal(opened.status, 201);
+  const link = new URL(opened.pairUrl);
+  assert.equal(link.origin, gateway.lanOrigin);
+  assert.equal(new URLSearchParams(link.hash.slice(1)).get('pin'), fingerprint);
+  await assert.rejects(secureRequest(new URL('/mobile-access/health', link)), /self.signed/i);
+  assert.equal((await post(port, '/mobile-access/auth/pair', { token: opened.token })).status, 401);
+  const pair = () => secureRequest(new URL('/mobile-access/auth/pair', link), {
+    ca: credentials.cert, method: 'POST', data: { token: opened.token },
+    headers: { origin: link.origin, 'content-type': 'application/json' },
+  });
+  const paired = await pair();
+  assert.equal(paired.status, 201);
+  assert.equal((await pair()).status, 401);
+  const access = () => secureRequest(new URL('/mobile-access/status', link), { ca: credentials.cert, headers: { cookie: cookies(paired) } });
+  assert.equal((await access()).status, 200);
+  assert.equal(await gateway.access.revokeDevice(paired.json().deviceId), true);
+  assert.equal((await access()).status, 401);
+  const before = gateway.access.hostId;
+  await gateway.configureLan(undefined);
+  assert.equal(gateway.lanOrigin, '');
+  assert.equal((await openPairing(gateway, 'lan')).status, 409);
+  assert.equal((await request(port, '/mobile-access/health')).status, 200);
+  await gateway.configureLan({ ...credentials, fingerprint, host: '127.0.0.1', cidr: '127.0.0.0/8' });
+  assert.equal(gateway.access.hostId, before);
+  assert.equal((await openPairing(gateway, 'lan')).status, 201);
+});
+
+test('built-in relay reconnects and carries authenticated HTTPS, writes and WebSockets', { timeout: 15000 }, async t => {
+  const credentials = await createLanCertificate('127.0.0.1');
+  const leaf = forge.pki.certificateFromPem(credentials.cert);
+  leaf.setExtensions([{ name: 'subjectAltName', altNames: [{ type: 2, value: '*.fixture.test' }] }]);
+  leaf.sign(forge.pki.privateKeyFromPem(credentials.key), forge.md.sha256.create());
+  const cert = forge.pki.certificateToPem(leaf);
+  const seed = 'e'.repeat(64), route = 'f'.repeat(32);
+  let service = await startRelayServer({ origin: 'https://relay.fixture.test:0', seed, key: credentials.key, cert, port: 0 });
+  t.after(() => service.close());
+  const endpoint = 'https://relay.fixture.test:' + service.port;
+  const settings = relaySettings({ endpoint, route, key: relayRouteKey(seed, route) });
+  const env = await fixture(t, { gateway: { publicOrigin: settings.origin } });
+  const fetch = (path, options = {}) => secureRequest(new URL(path, settings.origin), { ca: cert, ...options });
+  assert.equal((await fetch('/mobile-access/health')).status, 503);
+  const invalid = new WebSocket(endpoint.replace('https:', 'wss:') + '/v1/connect', { ca: cert, lookup: localDns,
+    headers: { authorization: 'Bearer ' + '0'.repeat(64), 'x-dsh-relay-route': route } });
+  const [, response] = await once(invalid, 'unexpected-response');
+  assert.equal(response.statusCode, 403);
+  invalid.on('error', () => {}); invalid.terminate();
+  const agent = startRelayAgent({ settings, gatewayPort: env.port, ca: cert, lookup: localDns });
+  t.after(() => agent.close());
+  const waitOnline = async () => {
+    for (let attempt = 0; attempt < 100 && !agent.online; attempt++) await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(agent.online, true);
+  };
+  await waitOnline();
+  assert.equal((await fetch('/mobile-access/health')).status, 200);
+  assert.equal((await fetch('/api/foreverweb/devices')).status, 404);
+  assert.equal((await fetch('/mobile-access/status')).status, 401);
+  const opened = await openPairing(env.gateway, 'remote');
+  assert.equal(opened.status, 201);
+  assert.equal(new URL(opened.pairUrl).origin, settings.origin);
+  const browserPost = (path, data, headers = {}) => fetch(path, { method: 'POST', data,
+    headers: { origin: settings.origin, 'content-type': 'application/json', ...headers } });
+  const paired = await browserPost('/mobile-access/auth/pair', { token: opened.token });
+  assert.equal(paired.status, 201);
+  const cookie = cookies(paired);
+  assert.equal((await browserPost('/write', { file: 'x'.repeat(160000) }, { cookie, 'x-dsh-mobile-csrf': paired.json().csrfToken })).status, 200);
+  const client = new WebSocket(settings.origin.replace('https:', 'wss:') + '/api/remote.mux', {
+    ca: cert, lookup: localDns, headers: { cookie, origin: settings.origin },
+  });
+  t.after(() => client.terminate());
+  await once(client, 'open');
+  const echoed = once(client, 'message'); client.send('fixture');
+  assert.equal(String((await echoed)[0]), 'fixture');
+  const closed = once(client, 'close');
+  await env.gateway.access.revokeDevice(paired.json().deviceId);
+  await closed;
+  assert.equal((await fetch('/mobile-access/status', { headers: { cookie } })).status, 401);
+  await service.close();
+  for (let attempt = 0; attempt < 100 && agent.online; attempt++) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(agent.online, false);
+  service = await startRelayServer({ origin: endpoint, seed, key: credentials.key, cert, port: Number(new URL(endpoint).port) });
+  await waitOnline();
+  assert.equal((await fetch('/mobile-access/health')).status, 200);
+});
 
 async function fixture(t, options = {}) {
   const counters = { writes: 0, auth: 0, upgrades: 0 }, paths = [];
@@ -52,6 +182,12 @@ async function fixture(t, options = {}) {
     }
     if (url.pathname === '/cancel-stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write('data: initial\n\n'); return;
+    }
+    if (url.pathname === '/plugins/' || url.pathname === '/extension/font/example.ttf') {
+      const type = url.pathname === '/plugins/' ? 'text/javascript' : 'font/ttf';
+      res.writeHead(200, { 'content-type': type, etag: '"fixture"' });
+      res.end('fixture asset'.repeat(100));
+      return;
     }
     res.writeHead(200, { 'content-type': 'text/plain' }); res.end('fixture asset');
   });
@@ -110,6 +246,26 @@ test('authenticated status and stock entry preserve existing authorization and h
   assert.ok(page.headers['content-security-policy'].includes("base-uri 'none'"));
   const asset = await request(env.port, '/assets/test.js', { headers: { cookie: paired.cookie } });
   assert.equal(asset.status, 200); assert.equal(env.paths.at(-1), '/assets/test.js');
+});
+
+test('startup bundles and uncompressed fonts negotiate Brotli with gzip fallback', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const paired = await env.pair();
+  for (const path of ['/plugins/?bundle=fixture&rev=1', '/extension/font/example.ttf']) {
+    const get = headers => request(env.port, path, { headers: { cookie: paired.cookie, ...headers } });
+    const body = 'fixture asset'.repeat(100);
+    const brotli = await get({ 'accept-encoding': 'gzip, br' });
+    assert.equal(brotli.headers['content-encoding'], 'br');
+    assert.equal(brotli.headers.vary, 'Accept-Encoding');
+    assert.equal(brotli.headers.etag, 'W/"fixture"');
+    assert.equal(brotliDecompressSync(brotli.data).toString(), body);
+    const gzip = await get({ 'accept-encoding': 'gzip, br;q=0' });
+    assert.equal(gzip.headers['content-encoding'], 'gzip');
+    assert.equal(gunzipSync(gzip.data).toString(), body);
+    const identity = await get({ 'accept-encoding': 'br', range: 'bytes=0-30' });
+    assert.equal(identity.headers['content-encoding'], undefined);
+    assert.equal(identity.text, body);
+  }
 });
 
 test('gateway restart preserves grant/host identity but invalidates only the short session', { timeout: 10000 }, async t => {
@@ -312,4 +468,29 @@ test('plain and compressed browser sockets preserve text and binary messages', {
     [message, binary] = await received; assert.equal(binary, true); assert.deepEqual(message, bytes);
     assert.equal(env.gateway.hostState.state, 'reachable');
   });
+});
+
+test('resetting all grants ends existing sockets and rejects old requests and renewal', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const devices = [await env.pair(), await env.pair()];
+  const sockets = [];
+  for (const [index, compressed] of [false, true].entries()) {
+    const socket = new WebSocket(`ws://127.0.0.1:${env.port}/api/remote.mux`, {
+      perMessageDeflate: compressed,
+      headers: { host: 'harmony.test', origin, cookie: devices[index].cookie },
+    });
+    socket.on('error', () => {});
+    t.after(() => socket.terminate());
+    await once(socket, 'open');
+    sockets.push(socket);
+  }
+  const closed = sockets.map(socket => once(socket, 'close'));
+  await env.gateway.access.resetDevices();
+  await Promise.all(closed);
+  assert.equal(env.gateway.webSockets.size, 0);
+  assert.equal(env.gateway.access.listDevices().length, 0);
+  for (const device of devices) {
+    assert.equal((await request(env.port, '/', { headers: { cookie: device.cookie } })).status, 401);
+    assert.equal((await post(env.port, '/mobile-access/auth/renew', {}, { cookie: device.cookie })).status, 401);
+  }
 });

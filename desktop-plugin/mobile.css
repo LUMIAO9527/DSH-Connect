@@ -5,14 +5,53 @@ html[data-dsh-connect-mobile]{overflow:hidden}
 html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transparent;overflow:hidden}
 [data-dsh-connect-mobile] #root{min-width:0;max-width:100%;overflow-x:hidden}
 [data-dsh-connect-mobile] [data-dsc-frame]{height:100%;min-height:0;max-width:100%}
-[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]{grid-template-columns:0 minmax(0,1fr) 0!important}
-[data-dsh-connect-mobile] [data-dsc-sidebar] [data-slot=sidebar]>*{box-sizing:border-box;width:100%!important;max-width:100%!important;height:100%!important;min-height:0;margin:0!important;border-radius:0!important;padding-bottom:calc(6px + var(--dsc-inset-bottom))!important}
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]{
+  --dsc-drawer-duration:210ms;
+  --dsc-drawer-ease:cubic-bezier(.2,.75,.24,1);
+  grid-template-columns:0 minmax(0,1fr) 0!important;
+  transition:none;
+}
+[data-dsh-connect-mobile] [data-sidebar-drawer] [data-shortcut-modal=sidebar]{transition:none}
+[data-dsh-connect-mobile] [data-dsc-sidebar] [data-slot=sidebar]>*{box-sizing:border-box;width:100%!important;max-width:100%!important;height:100%!important;min-height:0;margin:0!important;border-radius:0!important;padding-bottom:max(6px,var(--dsc-inset-bottom))!important}
+/* Align the drawer footer and the conversation status row above the gesture area. */
+[data-dsh-connect-mobile] [data-sidebar-drawer] [data-slot="sidebar.settings"] > :has(> [data-slot="settings.launcher"]){margin-block-end:0}
 [data-dsh-connect-mobile] [data-dsc-sidebar] button[data-dsh-market-nav-icon]:has([data-slot="dsh-focus.icon"] svg)::before{content:none}
 [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]>[data-shell-leading]{top:4px;inset-inline-start:var(--dsc-page-gutter)}
 [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer] [data-sidebar-opener]{width:32px;height:36px}
-[data-dsh-connect-mobile] [data-rightbar-col]{box-sizing:border-box;position:absolute!important;grid-area:auto!important;inset:0!important;width:100%!important;max-width:100%;padding-bottom:var(--dsc-inset-bottom);z-index:43;border:0!important;background:var(--dsw-alias-bg-base,#fff)}
-[data-dsh-connect-mobile] [data-dsc-frame][data-rightbar-collapsed]:not([data-rightbar-fullscreen]) [data-rightbar-col]{display:none!important}
+[data-dsh-connect-mobile] [data-phase=hero] [data-conversation-header-corner] [data-sidebar-right-expand]{display:none}
+[data-dsh-connect-mobile] [data-rightbar-col]{box-sizing:border-box;position:absolute!important;grid-area:auto!important;inset:0!important;width:100%!important;max-width:100%;padding-bottom:var(--dsc-inset-bottom);z-index:43;border:0!important}
+[data-dsh-connect-mobile] [data-dsc-frame][data-rightbar-collapsed]:not([data-rightbar-fullscreen])>[data-rightbar-col]{
+  visibility:hidden;
+  pointer-events:none;
+}
 [data-dsh-connect-mobile] [data-sidebar-right-panel=fullscreen]{inset:0!important;width:100%!important;height:100%!important;max-width:100%;border-radius:0!important}
+[data-dsh-connect-mobile] [data-dsc-swipe]{
+  transition:none!important;
+  will-change:translate;
+}
+[data-dsh-connect-mobile] [data-dsc-swipe-mask]{
+  transition:none!important;
+  pointer-events:none;
+  backdrop-filter:none;
+}
+[data-dsh-connect-mobile] [data-dsc-frame][data-dsc-swipe=right] [data-sidebar-right-panel][data-sidebar-right-open] :is([data-dockkit-host=dock],[data-dockkit-empty],[data-dockkit-divider]){
+  transform:none!important;
+  transition:none!important;
+}
+@media(prefers-reduced-motion:no-preference){
+  [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]:not([data-sidebar-instant])>[data-dsc-sidebar]{
+    transition:transform var(--dsc-drawer-duration) var(--dsc-drawer-ease);
+  }
+  [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer][data-sidebar-collapsed]:not([data-sidebar-instant])>[data-dsc-sidebar]{
+    transition:transform var(--dsc-drawer-duration) var(--dsc-drawer-ease),visibility 0s linear var(--dsc-drawer-duration);
+  }
+  [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]>[data-sidebar-mask]{
+    transition:opacity var(--dsc-drawer-duration) var(--dsc-drawer-ease);
+  }
+  [data-dsh-connect-mobile] [data-sidebar-drawer] [data-sidebar-right-panel=fullscreen][data-sidebar-right-open] :is([data-dockkit-host=dock],[data-dockkit-empty],[data-dockkit-divider]){
+    transition:transform var(--dsc-drawer-duration) var(--dsc-drawer-ease);
+  }
+}
 /* Keep the conversation folder control and route its tap to the in-app file pane. */
 [data-dsh-connect-mobile] [data-open-target]:not([data-slot="conversation.session.header.utilities"] [data-open-target="directory"]),
 [data-dsh-connect-mobile] [data-slot="conversation.session.header.utilities"] [data-open-target="directory"] button[aria-haspopup="menu"]{display:none!important}
@@ -23,6 +62,10 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-conversation-content]{min-width:0;max-width:100%;--dsh-chat-content-width:100%;--dsh-composer-card-max-width:100%;--dsh-composer-side-clearance:var(--dsc-page-gutter);--dsh-composer-dock-inset:4px}
 [data-dsh-connect-mobile] [data-conversation-scroll]{scrollbar-gutter:auto;scrollbar-width:none;margin-right:0;overscroll-behavior-y:contain;scroll-padding-bottom:20px;-webkit-overflow-scrolling:touch}
 [data-dsh-connect-mobile] [data-conversation-scroll]::-webkit-scrollbar{width:0;height:0}
+[data-dsh-connect-mobile] [data-conversation-scroll] [data-dsc-turn-rendering]{
+  content-visibility:auto;
+  contain-intrinsic-block-size:auto var(--dsc-turn-height);
+}
 [data-dsh-connect-mobile] [data-conversation-header-leading]{min-width:0;gap:8px}
 [data-dsh-connect-mobile] [data-conversation-header-corner]{flex-shrink:0;gap:4px}
 [data-dsh-connect-mobile] [data-dsc-conversation-header]{box-sizing:border-box;min-height:0!important;padding:0 var(--dsc-page-gutter)!important;row-gap:0!important;container-type:inline-size}
@@ -84,31 +127,21 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-conversation-content] h3{font-size:16px!important;line-height:1.55!important}
 [data-dsh-connect-mobile] [data-composer-dock] button{font-size:11px!important;line-height:18px!important}
 [data-dsh-connect-mobile] [data-model-compact]{min-width:0;max-width:100%;font-size:11px!important}
-[data-dsh-connect-mobile] [role=dialog]{max-width:calc(100vw - 24px)!important;max-height:calc(var(--dsc-viewport) - 32px)!important;overflow:auto;border-radius:20px!important}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]{width:100%!important;max-width:100%!important;height:var(--dsc-viewport)!important;max-height:var(--dsc-viewport)!important;border:0!important;border-radius:0!important;inset:0!important;display:flex!important;position:fixed!important;transform:none!important;overflow:hidden!important;z-index:100}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]>nav{width:100%!important;max-width:none!important;padding:18px 18px 24px;overflow:auto}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]>nav>div:first-child{font-size:20px;padding:10px 50px 24px 8px;height:auto;min-height:56px}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]>nav button{width:100%;min-height:52px;border-radius:14px;font-size:14px;padding:14px 16px;gap:12px}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]:not([data-dsc-settings-detail]) [data-dsc-settings-content]{display:contents}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]:not([data-dsc-settings-detail]) [data-dsc-settings-options]{display:none}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]:not([data-dsc-settings-detail]) [data-dsc-settings-header]{position:absolute;right:18px;top:18px;width:44px;height:44px;padding:0}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings]:not([data-dsc-settings-detail]) [data-dsc-settings-header]>div{display:none}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings] [data-dsc-settings-header]>button:last-child{min-width:40px;min-height:40px}
-.dsc-settings-back{display:none}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings][data-dsc-settings-detail]>nav{display:none}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings][data-dsc-settings-detail] [data-dsc-settings-content]{width:100%;min-width:0;min-height:0;display:flex;flex-direction:column}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings][data-dsc-settings-detail] [data-dsc-settings-header]{height:64px;min-height:64px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--dsw-alias-border-l2,#e8ebf1);gap:8px}
-[data-dsh-connect-mobile] [data-shortcut-modal=settings][data-dsc-settings-detail] .dsc-settings-back{display:flex;align-items:center;gap:8px;min-height:40px;max-width:60%;padding:7px 8px;border:0;background:transparent;color:var(--dsw-alias-label-primary,#202329);font:14px/1.4 system-ui;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-[data-dsh-connect-mobile] [data-dsc-settings-options]{padding:8px 22px calc(30px + var(--dsc-inset-bottom))!important;overflow-y:auto;overflow-x:hidden;min-height:0;max-width:100%;font-size:13px!important}
-[data-dsh-connect-mobile] [data-dsc-settings-options]>*{min-width:0!important;max-width:100%!important;box-sizing:border-box}
-[data-dsh-connect-mobile] [data-dsc-settings-options] [class*="_row"]{flex-direction:column!important;align-items:stretch!important;gap:12px!important;min-width:0;max-width:100%;font-size:13px;line-height:1.7}
-[data-dsh-connect-mobile] [data-dsc-settings-options] [class*="_row"]>div{min-width:0!important;max-width:100%!important;width:100%;flex-shrink:1}
-[data-dsh-connect-mobile] [data-dsc-settings-options] [class*="_label"]{min-width:0!important;max-width:100%;font-size:13px;line-height:1.6}
-[data-dsh-connect-mobile] [data-dsc-settings-options] button{max-width:100%;font-size:13px;min-height:36px}
+/* Let the home controls finish before a desktop pet downloads its display font. */
+[data-dsh-connect-mobile][data-dsc-starting]:not(
+  :has([data-phase=active]),
+  :has([data-composer-card] [data-slot="conversation.input.permission"] button:enabled):has([data-composer-card] [data-slot="conversation.input.model"] button:enabled:not([aria-busy="true"]))
+) :is(.dsh-pet-bubble,.pet-tooltip){--dsh-pet-font-family:system-ui,sans-serif!important}
+/* Harness settings handle their own responsive layout. The sidebar reaches the system inset. */
+[data-dsh-connect-mobile] [role=dialog]:not([data-shortcut-modal=sidebar],[data-shortcut-modal=settings]){max-width:calc(100vw - 24px)!important;max-height:calc(var(--dsc-viewport) - 32px)!important;overflow:auto;border-radius:20px!important}
 [data-dsh-connect-mobile] button{touch-action:manipulation}
 [data-dsh-connect-mobile] button:focus-visible{outline:2px solid var(--dsc-accent);outline-offset:3px}
 [data-dsh-connect-mobile] input,[data-dsh-connect-mobile] textarea{font-size:max(16px,1em)}
 .dsc-status{position:fixed;z-index:10001;left:50%;top:64px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:10px 14px;background:var(--dsw-alias-bg-elevated,#fff);color:var(--dsw-alias-label-primary,#202329);border:1px solid var(--dsw-alias-border-l2,#e7e9ee);border-radius:16px;box-shadow:0 8px 32px #141b2d16;font:13px/1.5 system-ui,sans-serif}
 .dsc-status[hidden]{display:none}.dsc-status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#e6a23c}.dsc-status[data-state=offline] .dsc-status-dot{background:#969ba6}.dsc-status[data-state=auth-required] .dsc-status-dot{background:#d66c61}.dsc-status button{flex:none;min-height:32px;padding:4px 10px;border:0;border-radius:9px;background:#4d6bfe;color:#fff;font:inherit;cursor:pointer}
+.dsc-status>span:not(.dsc-status-dot){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsc-status[data-state=auth-required]{box-sizing:border-box;inset:0;width:100%;height:100%;max-width:none;padding:28px;transform:none;flex-direction:column;justify-content:center;gap:20px;border:0;border-radius:0;box-shadow:none;text-align:center;background:var(--dsw-alias-bg-base,#fff);font-size:16px}
+.dsc-status[data-state=auth-required] .dsc-status-dot{display:none}
+.dsc-status[data-state=auth-required] button{min-height:44px;padding:10px 22px;border-radius:12px}
 @media(prefers-reduced-motion:no-preference){.dsc-status{animation:dsc-appear 180ms ease-out}@keyframes dsc-appear{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}}
 @media(min-width:901px){.dsc-status{top:16px}}

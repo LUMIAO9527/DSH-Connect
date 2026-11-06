@@ -4,10 +4,95 @@ window.__ModuleLoader__.load({
     const { createElement: h, useEffect, useRef, useState } = require('react');
     const ADMIN = '/api/foreverweb';
     const STYLE = `
-.dfw-settings{--dfw-ink:var(--dsw-alias-label-primary,#171717);--dfw-muted:var(--dsw-alias-label-secondary,#686868);--dfw-line:var(--dsw-alias-border-l2,#e8e8e8);--dfw-surface:color-mix(in srgb,var(--dfw-ink) 4%,transparent);--dfw-inverse:var(--dsw-alias-bg-base,#fff);width:100%;max-width:780px;padding:8px 0 28px;color:var(--dfw-ink);font-size:14px;line-height:1.55;box-sizing:border-box}
-.dfw-settings .dfw-brand{display:flex;align-items:center;gap:12px;min-width:0}.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg{display:block;width:34px;height:34px;flex-shrink:0}.dfw-settings *{box-sizing:border-box}.dfw-settings h3,.dfw-settings h4,.dfw-settings p{margin:0}.dfw-settings h3{font-size:22px;line-height:1.3;font-weight:650;letter-spacing:-.4px}.dfw-settings h4{font-size:15px;font-weight:600}.dfw-settings p{color:var(--dfw-muted)}.dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}.dfw-settings .dfw-intro{margin-bottom:24px}.dfw-settings .dfw-badge{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}.dfw-settings .dfw-card{margin-top:12px;padding:20px;border:1px solid var(--dfw-line);border-radius:16px;background:var(--dfw-surface)}.dfw-settings .dfw-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.dfw-settings .dfw-hint{font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:16px}.dfw-settings .dfw-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;min-width:40px;padding:8px 14px;border:1px solid var(--dfw-line);border-radius:15px;background:transparent;color:var(--dfw-ink);font:inherit;line-height:1.4;white-space:nowrap;cursor:pointer;touch-action:manipulation;transition:background 160ms,box-shadow 160ms}.dfw-settings .dfw-button-primary{min-height:44px;border-radius:16px;background:var(--dfw-ink);border-color:transparent;color:var(--dfw-inverse);font-weight:600}.dfw-settings .dfw-button:hover:not(:disabled){box-shadow:0 3px 12px #00000014;background:color-mix(in srgb,var(--dfw-ink) 8%,transparent)}.dfw-settings .dfw-button-primary:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-ink) 88%,var(--dfw-inverse))}.dfw-settings .dfw-button:active:not(:disabled){box-shadow:none}.dfw-settings .dfw-button:disabled{opacity:.46;cursor:not-allowed}.dfw-settings .dfw-button:focus-visible,.dfw-settings input:focus-visible{outline:2px solid var(--dfw-ink);outline-offset:3px}.dfw-settings .dfw-icon{display:block;flex-shrink:0;width:18px;height:18px}.dfw-settings .dfw-link-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}.dfw-settings .dfw-link{min-width:0;width:100%;height:42px;padding:10px 12px;border:1px solid var(--dfw-line);border-radius:12px;background:var(--dfw-inverse);color:var(--dfw-ink);font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}.dfw-settings .dfw-pair-body{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:20px;align-items:start;margin-top:20px;padding-top:20px;border-top:1px solid var(--dfw-line)}.dfw-settings .dfw-qr{padding:10px;border:1px solid var(--dfw-line);border-radius:12px;background:#fff;line-height:0}.dfw-settings .dfw-qr svg{width:100%;height:auto}.dfw-settings .dfw-qr[aria-disabled=true]{opacity:.25}.dfw-settings .dfw-pair-body .dfw-link{margin-top:12px}.dfw-settings .dfw-device-list{list-style:none;padding:0;margin:0}.dfw-settings .dfw-device{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--dfw-line)}.dfw-settings .dfw-device:first-child{padding-top:2px}.dfw-settings .dfw-device:last-child{border-bottom:0;padding-bottom:0}.dfw-settings .dfw-device-name{font-weight:500;overflow-wrap:anywhere}.dfw-settings .dfw-device-meta{margin-top:4px;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-notice{margin:16px 0;padding:12px 14px;border:1px solid var(--dfw-line);border-radius:12px;overflow-wrap:anywhere}.dfw-settings .dfw-footer{margin-top:16px;font-size:12px}.dfw-settings .dfw-loading{padding:20px 0;color:var(--dfw-muted)}
-@media(max-width:540px){.dfw-settings .dfw-card{padding:16px}.dfw-settings .dfw-pair-body{grid-template-columns:1fr}.dfw-settings .dfw-qr{width:160px}.dfw-settings .dfw-device{align-items:flex-start;gap:8px}.dfw-settings .dfw-device .dfw-button{min-height:44px}.dfw-settings .dfw-head{flex-wrap:wrap}.dfw-settings .dfw-link-row{align-items:stretch;flex-wrap:wrap}.dfw-settings .dfw-card-head,.dfw-settings .dfw-device{flex-wrap:wrap}}
-@media(prefers-reduced-motion:reduce){.dfw-settings .dfw-button{transition:none}}
+.dfw-settings{--dfw-ink:var(--dsw-alias-label-primary,CanvasText);--dfw-muted:var(--dsw-alias-label-secondary,var(--dfw-ink));--dfw-line:color-mix(in srgb,var(--dfw-ink) 11%,transparent);--dfw-surface:var(--dsw-alias-bg-layer-1,Canvas);--dfw-field:var(--dsw-alias-bg-module-platform,var(--dfw-surface));--dfw-soft:color-mix(in srgb,var(--dfw-field) 52%,var(--dfw-surface));--dfw-inverse:var(--dsw-alias-bg-base,Canvas);--dfw-danger:var(--dsw-alias-label-error,#b72c39);--dfw-ok:var(--dsw-alias-state-success-label,var(--dsw-alias-state-success-primary,#16814a));container:dsh-connect-settings / inline-size;width:100%;max-width:680px;padding:8px 0 24px;color:var(--dfw-ink);font-size:14px;line-height:1.6;box-sizing:border-box}
+.dfw-settings *{box-sizing:border-box}
+.dfw-settings h3,.dfw-settings h4,.dfw-settings p{margin:0}
+.dfw-settings h3{font-size:20px;line-height:1.4;font-weight:600}
+.dfw-settings h4{font-size:14px;font-weight:600}
+.dfw-settings p{color:var(--dfw-muted)}
+.dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 20px}
+.dfw-settings .dfw-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg{display:block;width:36px;height:36px;flex:none}
+.dfw-settings .dfw-brand-mark{overflow:hidden;border-radius:10px;background:var(--dfw-field)}
+.dfw-settings .dfw-features{display:flex;flex-wrap:wrap;gap:6px;min-width:0;margin:0;padding:0;list-style:none}
+.dfw-settings .dfw-features li{max-width:100%;padding:2px 8px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-soft);color:var(--dfw-muted);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.dfw-settings .dfw-state{display:inline-flex;padding:2px 7px;border-radius:8px;background:color-mix(in srgb,var(--dfw-ok) 11%,var(--dfw-surface));color:color-mix(in srgb,var(--dfw-ok) 72%,var(--dfw-ink));font-size:12px;line-height:17px}
+.dfw-settings .dfw-section,.dfw-settings .dfw-head+.dfw-card{margin-top:22px}
+.dfw-settings .dfw-section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px}
+.dfw-settings .dfw-section-title{display:flex;align-items:baseline;gap:8px;min-width:0}
+.dfw-settings .dfw-count{font-size:12px;font-weight:400;color:var(--dfw-muted)}
+.dfw-settings .dfw-card{border:1px solid var(--dfw-line);border-radius:16px;background:var(--dfw-surface);overflow:hidden}
+.dfw-settings .dfw-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px}
+.dfw-settings .dfw-row+.dfw-row{border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-row-main{min-width:0;flex:1 1 120px;overflow-wrap:anywhere}
+.dfw-settings .dfw-row-title{font-size:14px;font-weight:500}
+.dfw-settings .dfw-row-desc{margin-top:4px;font-size:12px;color:var(--dfw-muted)}
+.dfw-settings .dfw-row-control{flex:0 1 56%;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.dfw-settings .dfw-pair-options{flex-wrap:wrap}
+.dfw-settings .dfw-field{display:flex;align-items:center;gap:8px;width:100%;min-width:0}
+.dfw-settings .dfw-link{min-width:0;width:100%;height:34px;padding:6px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}
+.dfw-settings .dfw-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;min-width:32px;padding:5px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:transparent;color:var(--dfw-ink);font:inherit;font-size:13px;line-height:1.4;white-space:nowrap;cursor:pointer;touch-action:manipulation}
+.dfw-settings .dfw-button-primary{background:var(--dfw-ink);border-color:transparent;color:var(--dfw-inverse);font-weight:600}
+.dfw-settings .dfw-button-danger{border-color:color-mix(in srgb,var(--dfw-danger) 45%,var(--dfw-line));color:var(--dfw-danger)}
+.dfw-settings .dfw-button:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-ink) 7%,transparent)}
+.dfw-settings .dfw-button-primary:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-ink) 88%,var(--dfw-inverse))}
+.dfw-settings .dfw-button-danger:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-danger) 9%,transparent)}
+.dfw-settings .dfw-button:active:not(:disabled){filter:brightness(.94)}
+.dfw-settings .dfw-button:disabled{opacity:.45;cursor:not-allowed}
+.dfw-settings .dfw-button:focus-visible,.dfw-settings input:focus-visible{outline:2px solid var(--dfw-ink);outline-offset:3px}
+.dfw-settings .dfw-icon{display:block;flex-shrink:0;width:17px;height:17px}
+.dfw-settings .dfw-pairing{margin:0 16px 12px;padding:12px;border:1px solid var(--dfw-line);border-radius:12px;background:var(--dfw-soft)}
+.dfw-settings .dfw-pairing-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px}
+.dfw-settings .dfw-pairing-state{font-size:12px;font-weight:600;color:var(--dfw-ink)}
+.dfw-settings .dfw-pairing-state[data-expired=true]{color:var(--dfw-muted);font-weight:400}
+.dfw-settings .dfw-pairing-body{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:14px;align-items:start}
+.dfw-settings .dfw-pairing-main{min-width:0}
+.dfw-settings .dfw-pairing-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.dfw-settings .dfw-qr{width:168px;max-width:100%;padding:10px;border:1px solid var(--dfw-line);border-radius:12px;background:#fff;line-height:0}
+.dfw-settings .dfw-qr svg{width:100%;height:auto}
+.dfw-settings .dfw-qr[aria-disabled=true]{opacity:.3}
+.dfw-settings .dfw-note{margin-top:10px;font-size:12px;color:var(--dfw-muted)}
+.dfw-settings .dfw-device-list{list-style:none;padding:0;margin:0}
+.dfw-settings .dfw-device{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;padding:12px 16px}
+.dfw-settings .dfw-device+.dfw-device{border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-device-info{min-width:0;flex:1 1 auto}
+.dfw-settings .dfw-device-name{font-weight:500;overflow-wrap:anywhere}
+.dfw-settings .dfw-device-meta{margin-top:3px;font-size:12px;color:var(--dfw-muted)}
+.dfw-settings .dfw-device-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.dfw-settings .dfw-device-edit{display:flex;align-items:center;gap:8px;width:min(100%,320px)}
+.dfw-settings .dfw-device-edit input{min-width:0;width:100%;height:34px;padding:6px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:inherit}
+.dfw-settings .dfw-empty{padding:14px 16px;font-size:12px;color:var(--dfw-muted)}
+.dfw-settings .dfw-foot{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 16px;margin-top:22px}
+.dfw-settings .dfw-foot-info{min-width:0}
+.dfw-settings .dfw-foot-version{font-size:12px;font-weight:600;color:var(--dfw-ink)}
+.dfw-settings .dfw-foot-note{margin-top:3px;font-size:12px;color:var(--dfw-muted);overflow-wrap:anywhere}
+.dfw-settings .dfw-foot-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.dfw-settings .dfw-loading{padding:20px 2px;color:var(--dfw-muted)}
+.dfw-settings .dfw-setup{padding:14px 16px}
+.dfw-settings .dfw-setup-title{font-size:14px;font-weight:600}
+.dfw-settings .dfw-setup-body{margin-top:10px;display:grid;gap:10px}
+.dfw-settings .dfw-setup label{font-size:12px;color:var(--dfw-muted)}
+.dfw-settings .dfw-setup input{width:100%;height:36px;padding:6px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:inherit}
+.dfw-settings .dfw-setup-actions{display:flex;justify-content:flex-end}
+.dfw-settings .dfw-advanced{border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-advanced summary{font-size:12px;color:var(--dfw-muted);cursor:pointer}
+.dfw-settings .dfw-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@container dsh-connect-settings (max-width:520px){
+  .dfw-settings .dfw-row,.dfw-settings .dfw-device{flex-direction:column;align-items:stretch;gap:10px}
+  .dfw-settings .dfw-row-main,.dfw-settings .dfw-row-control{flex:0 0 auto}
+  .dfw-settings .dfw-row-control,.dfw-settings .dfw-foot-actions{justify-content:flex-start}
+  .dfw-settings .dfw-pairing-body{grid-template-columns:minmax(0,1fr)}
+  .dfw-settings .dfw-qr{justify-self:center}
+  .dfw-settings .dfw-device-actions{flex-wrap:wrap}
+  .dfw-settings .dfw-device-edit{width:100%;flex-wrap:wrap}
+  .dfw-settings .dfw-foot{flex-direction:column}
+}
+@media(prefers-reduced-motion:no-preference){
+  .dfw-settings .dfw-button{transition:scale 140ms cubic-bezier(.2,.7,.25,1),background-color 140ms,color 140ms}
+  .dfw-settings .dfw-button:active:not(:disabled){scale:.97;transition-duration:85ms}
+  .dfw-settings :is(.dfw-pairing,.dfw-device-edit,.dfw-setup-body){animation:dfw-enter 190ms cubic-bezier(.2,.7,.25,1)}
+  @keyframes dfw-enter{from{opacity:.45;translate:0 4px}to{opacity:1;translate:0 0}}
+}
 `;
     function icon(name) {
       const paths = { link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
@@ -34,113 +119,230 @@ window.__ModuleLoader__.load({
       } finally { clearTimeout(timeout); signal?.removeEventListener('abort', cancel); }
     }
     function Settings() {
-      const [status, setStatus] = useState(null), [devices, setDevices] = useState([]);
-      const [pairing, setPairing] = useState(null), [notice, setNotice] = useState(null);
-      const [busy, setBusy] = useState(false), [now, setNow] = useState(Date.now());
-      const [address, setAddress] = useState(''), [update, setUpdate] = useState(null);
-      const active = useRef(false), pending = useRef(false), abort = useRef(null);
-      const refresh = async signal => {
-        const value = await request('/status', undefined, signal);
-        if (!active.current || signal?.aborted) return;
-        setStatus(value);
-        const versions = await request('/updates/status', undefined, signal);
-        if (active.current && !signal?.aborted) setUpdate(versions);
-        if (value.configured !== false) {
-          const result = await request('/devices', undefined, signal);
-          if (active.current && !signal?.aborted) setDevices(result.devices);
-        }
-      };
-      useEffect(() => {
-        active.current = true; const controller = new AbortController(); abort.current = controller;
-        if (local()) void refresh(controller.signal).catch(error => { if (active.current && !controller.signal.aborted) setNotice({ scope: 'status', message: error.message }); });
-        return () => { active.current = false; controller.abort(); };
-      }, []);
-      useEffect(() => { if (!pairing) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [pairing]);
-      useEffect(() => {
-        if (!['downloading', 'installing', 'restoring'].includes(update?.stage)) return;
-        const timer = setInterval(() => { void request('/updates/status', undefined, abort.current.signal).then(value => { if (active.current) setUpdate(value); }).catch(() => {}); }, 1500);
-        return () => clearInterval(timer);
-      }, [update?.stage]);
-      const run = async (action, scope = 'pairing') => {
-        if (pending.current) return; pending.current = true; setBusy(true); setNotice(null);
-        try { await action(abort.current.signal); }
-        catch (error) { if (active.current && !abort.current.signal.aborted) setNotice({ scope, message: error.message }); }
-        finally { pending.current = false; if (active.current) setBusy(false); }
-      };
-      const copy = (value, scope) => void navigator.clipboard.writeText(value)
-        .then(() => { if (active.current) setNotice({ scope, message: '链接已复制。' }); })
-        .catch(() => { if (active.current) setNotice({ scope, message: '请选中链接后手动复制。' }); });
-      const feedback = scope => notice?.scope === scope && h('div', { className: 'dfw-notice', role: 'status' }, notice.message);
-      const action = (label, onClick, { primary = false, disabled = busy, symbol } = {}) => h('button',
-        { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : ''), disabled, onClick }, symbol && icon(symbol), label);
-      const remaining = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 1000)) : 0;
-      return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
-        h('style', null, STYLE),
-        h('div', { className: 'dfw-head' }, h('div', { className: 'dfw-brand' },
-          window.__DSH_CONNECT_BRAND__ && h('span', { className: 'dfw-brand-mark', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: window.__DSH_CONNECT_BRAND__ } }), h('h3', null, 'DSH Connect')),
-          local() && status?.configured !== false && status && h('span', { className: 'dfw-badge' }, '连接服务已开启')),
-        h('p', { className: 'dfw-intro' }, '手机应用与浏览器，共用这台电脑的会话、文件和工具。'),
-        !local() ? h('div', { className: 'dfw-card' }, h('p', null, '请在运行 DSH 的电脑上打开此设置页，生成配对链接和管理设备。'))
-        : !status ? h('div', { className: 'dfw-loading' }, notice
-          ? h('div', null, feedback('status'), action('重新读取', () => void run(signal => refresh(signal), 'status'), { symbol: 'refresh' })) : '正在读取连接状态…')
-        : status.configured === false ? h('div', { className: 'dfw-card' }, h('h4', null, '连接这台电脑'),
-          h('p', { style: { marginTop: 8 } }, status.error || status.message),
-          h('label', { className: 'dfw-hint', htmlFor: 'dsh-connect-origin', style: { display: 'block', marginTop: 16 } }, '电脑访问地址'),
-          h('input', { id: 'dsh-connect-origin', className: 'dfw-link', type: 'url', placeholder: 'https://…', value: address, onChange: event => setAddress(event.target.value), autoComplete: 'url', spellCheck: false, style: { marginTop: 8 } }),
-          h('div', { className: 'dfw-actions' }, action('启用连接', () => void run(async signal => { await request('/configuration', { publicOrigin: address }, signal); await refresh(signal); }, 'configuration'), { primary: true, disabled: busy || !address.trim() || !status.editable })),
-          feedback('configuration'),
-          h('p', { className: 'dfw-footer' }, '使用已为这台电脑开通的 HTTPS 地址。手机和电脑需保持联网。'))
-        : h('div', null,
-          h('div', { className: 'dfw-card' },
-            h('div', { className: 'dfw-card-head' }, h('h4', null, '日常访问'), h('span', { className: 'dfw-hint' }, '已配对的浏览器使用')),
-            h('div', { className: 'dfw-link-row' },
-              h('input', { className: 'dfw-link', value: status.gateway.origin + '/', readOnly: true, 'aria-label': '固定访问入口' }),
-              action('复制入口', () => copy(status.gateway.origin + '/', 'entry'), { disabled: false, symbol: 'copy' })),
-            feedback('entry'),
-            h('p', { className: 'dfw-hint' }, '将此地址存为书签，用原来配对的浏览器打开即可恢复连接。')),
-          h('div', { className: 'dfw-card' },
-            h('h4', null, '连接新设备'),
-            h('p', { className: 'dfw-hint', style: { marginTop: 6 } }, '新设备或浏览器丢失授权时，生成一个新链接完成配对。'),
-            h('div', { className: 'dfw-actions' }, action(busy ? '处理中…' : pairing ? '重新生成链接' : '生成配对链接', () => void run(async signal => {
-              const value = await request('/pairing/open', { ttlMs: 600000 }, signal);
+          const [status, setStatus] = useState(null), [devices, setDevices] = useState([]);
+          const [pairing, setPairing] = useState(null);
+          const [busy, setBusy] = useState(''), [now, setNow] = useState(Date.now());
+          const [address, setAddress] = useState(''), [update, setUpdate] = useState(null);
+          const [flash, setFlash] = useState({}), [announcement, setAnnouncement] = useState('');
+          const [issue, setIssue] = useState('');
+          const [editing, setEditing] = useState(null), [revoking, setRevoking] = useState('');
+          const active = useRef(false), pending = useRef(false), abort = useRef(null), timers = useRef(new Map());
+          const setTemporary = (key, text, { error = false, duration = 2200, announce = true } = {}) => {
+            if (!active.current) return;
+            const cache = timers.current, previous = cache.get(key);
+            if (previous) clearTimeout(previous);
+            setFlash(value => ({ ...value, [key]: { text, error } }));
+            if (announce) setAnnouncement(text);
+            const timer = setTimeout(() => {
+              cache.delete(key);
+              if (active.current) setFlash(value => { const next = { ...value }; delete next[key]; return next; });
+            }, duration);
+            cache.set(key, timer);
+          };
+          const flashText = (key, fallback) => flash[key]?.text ?? fallback;
+          const flashError = key => Boolean(flash[key]?.error);
+          const refresh = async signal => {
+            const value = await request('/status', undefined, signal);
+            if (!active.current || signal?.aborted) return value;
+            setStatus(value);
+            const versions = await request('/updates/status', undefined, signal);
+            if (active.current && !signal?.aborted) setUpdate(versions);
+            if (value.configured !== false) {
+              const result = await request('/devices', undefined, signal);
+              if (active.current && !signal?.aborted) setDevices(result.devices);
+            }
+            return value;
+          };
+          useEffect(() => {
+            active.current = true; const controller = new AbortController(); abort.current = controller;
+            if (local()) void refresh(controller.signal).catch(error => {
+              if (active.current && !controller.signal.aborted) setTemporary('status', error.message, { error: true, duration: 8000 });
+            });
+            return () => { active.current = false; controller.abort(); for (const timer of timers.current.values()) clearTimeout(timer); timers.current.clear(); };
+          }, []);
+          useEffect(() => { if (!pairing) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [pairing]);
+          useEffect(() => {
+            if (!status || status.localNetwork === undefined) return;
+            const timer = setInterval(() => {
+              void request('/status', undefined, abort.current?.signal).then(async value => {
+                if (!active.current) return;
+                const changed = value.localNetwork !== status.localNetwork || value.remoteAvailable !== status.remoteAvailable
+                  || value.configured !== status.configured || value.gateway?.origin !== status.gateway?.origin;
+                if (!changed) return;
+                setStatus(value);
+                setPairing(null);
+                if (value.configured) {
+                  const saved = await request('/devices', undefined, abort.current?.signal);
+                  if (active.current) setDevices(saved.devices);
+                }
+              }).catch(() => {});
+            }, 5000);
+            return () => clearInterval(timer);
+          }, [status?.gateway?.origin, status?.remoteAvailable, status?.configured, status?.localNetwork]);
+          useEffect(() => {
+            if (!['downloading', 'installing', 'restoring'].includes(update?.stage)) return;
+            const timer = setInterval(() => { void request('/updates/status', undefined, abort.current?.signal).then(value => { if (active.current) setUpdate(value); }).catch(() => {}); }, 1500);
+            return () => clearInterval(timer);
+          }, [update?.stage]);
+          useEffect(() => {
+            if (!revoking) return;
+            const timer = setTimeout(() => { if (active.current) setRevoking(current => current === revoking ? '' : current); }, 4000);
+            return () => clearTimeout(timer);
+          }, [revoking]);
+          useEffect(() => { if (editing && !devices.some(device => device.id === editing.id)) setEditing(null); }, [devices, editing]);
+          const run = async (key, action, onError) => {
+            if (pending.current) return;
+            pending.current = true; setBusy(key); setIssue('');
+            try { await action(abort.current?.signal); }
+            catch (error) { if (active.current && !abort.current?.signal.aborted) { setIssue(error?.message || ''); onError?.(error); } }
+            finally { pending.current = false; if (active.current) setBusy(''); }
+          };
+          const copy = (value, key) => void navigator.clipboard.writeText(value)
+            .then(() => { if (active.current) setTemporary(key, '已复制', { duration: 1600 }); })
+            .catch(() => { if (active.current) setTemporary(key, '请手动复制', { error: true, duration: 2800 }); });
+          const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol } = {}) => h('button',
+            { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : '') + (danger || flashError(key) ? ' dfw-button-danger' : ''), disabled: disabled ?? busy !== '', onClick },
+            symbol && icon(symbol), flashText(key, fallback));
+          const openPairing = (mode, key) => void run(key, async signal => {
+            const value = await request('/pairing/open', { ttlMs: 600000, mode }, signal);
+            if (!active.current) return;
+            if (typeof value.pairUrl !== 'string' || !value.qrSvg?.startsWith('<svg')) throw new Error('invalid pairing');
+            setPairing({ ...value, mode }); setNow(Date.now());
+            setTemporary(key, '链接已生成', { duration: 1800 });
+          }, () => setTemporary(key, '生成失败，点此重试', { error: true, duration: 4000 }));
+          const saveRename = () => {
+            const label = (editing?.name ?? '').trim();
+            if (label.length < 1 || label.length > 64) { setTemporary('rename-save', '名称需 1–64 字', { error: true, duration: 3200 }); return; }
+            void run('rename-save', async signal => {
+              const result = await request('/devices/rename', { deviceId: editing.id, label }, signal);
               if (!active.current) return;
-              if (typeof value.pairUrl !== 'string' || !value.qrSvg?.startsWith('<svg')) throw new Error('配对信息无效，请重试。');
-              setPairing(value); setNow(Date.now());
-            }), { primary: true, symbol: 'link' })),
-            feedback('pairing'),
-            pairing && h('div', { className: 'dfw-pair-body' },
-              h('div', null,
-                h('p', null, remaining ? `单次有效 · 剩余 ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : '链接已过期，请重新生成。'),
-                h('input', { className: 'dfw-link', value: pairing.pairUrl, readOnly: true, 'aria-label': '配对链接' }),
-                h('div', { className: 'dfw-actions' }, action('复制浏览器链接', () => copy(pairing.pairUrl, 'pairing'), { disabled: !remaining, symbol: 'copy' }),
-                  action('复制应用链接', () => copy('dshconnect://connect?url=' + encodeURIComponent(pairing.pairUrl), 'pairing'), { disabled: !remaining, symbol: 'copy' })),
-                h('p', { className: 'dfw-footer' }, '鸿蒙应用内扫码即可连接；浏览器直接打开链接。每个入口各自配对，之后共用电脑上的同一份 DSH。')),
-              h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', 'aria-disabled': !remaining, dangerouslySetInnerHTML: { __html: pairing.qrSvg } }))),
-          h('div', { className: 'dfw-card' },
-            h('div', { className: 'dfw-card-head' }, h('h4', null, `已配对设备${devices.length ? ` · ${devices.length}` : ''}`),
-              action('刷新', () => void run(signal => refresh(signal), 'devices'), { symbol: 'refresh' })),
-            feedback('devices'),
-            !devices.length ? h('p', { className: 'dfw-hint' }, '暂无配对设备。')
-            : h('ul', { className: 'dfw-device-list' }, devices.map(device => h('li', { className: 'dfw-device', key: device.id },
-              h('div', null, h('div', { className: 'dfw-device-name' }, device.label),
-                h('div', { className: 'dfw-device-meta' }, `授权至 ${new Date(device.expiresAt).toLocaleDateString()} · 最近使用 ${new Date(device.lastSeenAt).toLocaleDateString()}`)),
-              h('div', null, action('撤销授权', () => void run(async signal => { await request('/devices/revoke', { deviceId: device.id }, signal); await refresh(signal); }, 'device:' + device.id)), feedback('device:' + device.id)))))),
-          h('p', { className: 'dfw-footer' }, '电脑、DSH 和 HTTPS 通道需保持运行。配对设备可操作此 DSH 的工作区和工具，请只分享给信任的人。')),
-        h('div', { className: 'dfw-card' },
-          h('div', { className: 'dfw-card-head' }, h('h4', null, '版本更新'), h('span', { className: 'dfw-hint' }, status?.version ? '版本 ' + status.version : 'DSH Connect')),
-          h('p', { role: 'status' }, update?.message || '更新保留连接地址和已配对设备。'),
-          h('div', { className: 'dfw-actions' },
-            action(busy ? '正在检查…' : '检查更新', () => void run(async signal => { const value = await request('/updates/check', {}, signal); if (active.current) setUpdate(value); }, 'updates'), { disabled: busy || ['downloading', 'installing', 'restoring'].includes(update?.stage), symbol: 'refresh' }),
-            update?.available && update.canUpdate && action('更新到 ' + update.latest, () => void run(async signal => { const value = await request('/updates/apply', { version: update.latest }, signal); if (active.current) setUpdate(value); }, 'updates'), { primary: true, disabled: busy || update.stage !== 'available' }),
-            h('a', { className: 'dfw-button', href: 'https://github.com/LUMIAO9527/DSH-Connect/releases/latest', target: '_blank', rel: 'noopener noreferrer' }, '发布记录')),
-          feedback('updates')));
-    }
+              setDevices(current => current.map(device => device.id === result.device.id ? result.device : device));
+              setEditing(null);
+              setTemporary('rename:' + result.device.id, '已命名', { duration: 2000 });
+            }, () => setTemporary('rename-save', '命名失败，重试', { error: true, duration: 4000 }));
+          };
+          const revoke = device => {
+            if (revoking !== device.id) { setRevoking(device.id); return; }
+            setRevoking('');
+            void run('revoke:' + device.id, async signal => {
+              await request('/devices/revoke', { deviceId: device.id }, signal);
+              if (!active.current) return;
+              setDevices(current => current.filter(candidate => candidate.id !== device.id));
+              setTemporary('revoke:' + device.id, '已撤销', { duration: 1800 });
+            }, () => setTemporary('revoke:' + device.id, '撤销失败，重试', { error: true, duration: 4000 }));
+          };
+          const remaining = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 1000)) : 0;
+          const configured = status?.configured !== false;
+          const publicOrigin = status?.gateway?.origin;
+          const sameNetwork = status?.localNetwork === true;
+          const differentNetwork = publicOrigin && status?.remoteAvailable !== false;
+          const addressForm = () => h('div', { className: 'dfw-setup-body' },
+            h('label', { htmlFor: 'dsh-connect-origin' }, '电脑访问地址'),
+            h('input', { id: 'dsh-connect-origin', type: 'url', placeholder: 'https://…', value: address,
+              onChange: event => setAddress(event.target.value), autoComplete: 'url', spellCheck: false }),
+            h('div', { className: 'dfw-setup-actions' }, action('configuration', '启用连接', () => void run('configuration', async signal => {
+              await request('/configuration', { publicOrigin: address }, signal);
+              await refresh(signal);
+            }, () => setTemporary('configuration', '保存失败，重试', { error: true, duration: 4000 })),
+            { primary: true, disabled: busy !== '' || !address.trim() || !status.editable })));
+          return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
+            h('style', null, STYLE),
+            h('header', { className: 'dfw-head' },
+              h('div', { className: 'dfw-brand' },
+                window.__DSH_CONNECT_BRAND__ && h('span', { className: 'dfw-brand-mark', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: window.__DSH_CONNECT_BRAND__ } }),
+                h('h3', null, 'DSH Connect')),
+              h('ul', { className: 'dfw-features', role: 'list' },
+                h('li', null, '浏览器访问'), h('li', null, '鸿蒙连接'), h('li', null, '设备管理'))),
+            !local() ? h('div', { className: 'dfw-card' }, h('p', { className: 'dfw-empty' }, '请在运行 DSH 的电脑上打开此设置页，生成配对链接和管理设备。'))
+            : !status ? h('div', { className: 'dfw-loading' },
+              h('div', null, flashText('status', '正在读取连接状态…')),
+              flashError('status') && action('status', '重新读取', () => void run('status', signal => refresh(signal), () => setTemporary('status', '读取失败，重试', { error: true, duration: 5000 })), { symbol: 'refresh' }))
+            : !configured ? h('div', { className: 'dfw-card' }, h('div', { className: 'dfw-setup' },
+              h('div', { className: 'dfw-setup-title' }, '连接这台电脑'),
+              h('p', { className: 'dfw-note', style: { marginTop: 6 } }, status.error || status.message)),
+              h('details', { className: 'dfw-setup dfw-advanced' }, h('summary', null, '使用已有 HTTPS 地址'), addressForm()))
+            : h('div', null,
+              h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-connection-title' },
+                h('div', { className: 'dfw-section-head' },
+                  h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-connection-title' }, '连接与访问')),
+                  h('span', { className: 'dfw-state' }, sameNetwork || differentNetwork ? '可配对' : '正在连接')),
+                h('div', { className: 'dfw-card' },
+                  publicOrigin && h('div', { className: 'dfw-row' },
+                    h('div', { className: 'dfw-row-main' },
+                      h('div', { className: 'dfw-row-title' }, '固定访问入口'),
+                      h('div', { className: 'dfw-row-desc' }, '存为书签，用原来配对的浏览器打开即可恢复连接。')),
+                    h('div', { className: 'dfw-row-control' }, h('div', { className: 'dfw-field' },
+                      h('input', { className: 'dfw-link', value: publicOrigin + '/', readOnly: true, 'aria-label': '固定访问入口' }),
+                      action('entry', '复制入口', () => copy(publicOrigin + '/', 'entry'), { symbol: 'copy', disabled: false })))),
+                  h('div', { className: 'dfw-row' },
+                    h('div', { className: 'dfw-row-main' },
+                      h('div', { className: 'dfw-row-title' }, '配对新设备'),
+                      h('div', { className: 'dfw-row-desc' }, publicOrigin && !differentNetwork ? '跨网中继正在连接…'
+                        : sameNetwork && !publicOrigin ? '手机和电脑接入同一个局域网。跨网连接暂未开通。'
+                        : sameNetwork ? '同网使用应用扫码，跨网支持应用和浏览器。' : '生成二维码或链接，配对手机与浏览器。')),
+                    h('div', { className: 'dfw-row-control dfw-pair-options' },
+                      sameNetwork && action('pairing-lan', busy === 'pairing-lan' ? '生成中…' : '同网配对', () => openPairing('lan', 'pairing-lan'),
+                        { primary: true, symbol: 'link' }),
+                      differentNetwork && action('pairing', busy === 'pairing' ? '生成中…' : sameNetwork ? '跨网配对' : pairing ? '重新生成链接' : '生成配对链接',
+                        () => openPairing('remote', 'pairing'), { primary: !sameNetwork, symbol: 'link' }))),
+                  pairing && h('div', { className: 'dfw-pairing' },
+                    h('div', { className: 'dfw-pairing-head' },
+                      h('span', { className: 'dfw-pairing-state', 'data-expired': remaining === 0 }, remaining ? `单次有效 · 剩余 ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : '链接已过期，请重新生成。'),
+                      h('span', { className: 'dfw-count' }, '仅限一次配对')),
+                    h('div', { className: 'dfw-pairing-body' },
+                      h('div', { className: 'dfw-pairing-main' },
+                        h('input', { className: 'dfw-link', value: pairing.pairUrl, readOnly: true, 'aria-label': '配对链接' }),
+                        h('div', { className: 'dfw-pairing-actions' },
+                          pairing.mode !== 'lan' && action('pair-browser', '复制浏览器链接', () => copy(pairing.pairUrl, 'pair-browser'), { disabled: !remaining, symbol: 'copy' }),
+                          action('pair-app', '复制应用链接', () => copy('dshconnect://connect?url=' + encodeURIComponent(pairing.pairUrl), 'pair-app'), { disabled: !remaining, symbol: 'copy' })),
+                        h('p', { className: 'dfw-note' }, pairing.mode === 'lan' ? '用 DSH Connect 扫码。'
+                          : '用 DSH Connect 扫码，或在浏览器打开配对链接。')),
+                      h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', 'aria-disabled': !remaining, dangerouslySetInnerHTML: { __html: pairing.qrSvg } }))),
+                  !publicOrigin && h('details', { className: 'dfw-setup dfw-advanced' }, h('summary', null, '使用已有 HTTPS 地址'), addressForm()))),
+              h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-devices-title' },
+                h('div', { className: 'dfw-section-head' },
+                  h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-devices-title' }, '已配对设备'), h('span', { className: 'dfw-count' }, devices.length ? `${devices.length} 台` : '暂无')),
+                  action('devices', '刷新', () => void run('devices', async signal => { await refresh(signal); if (active.current) setTemporary('devices', '已刷新', { duration: 1600 }); }, () => setTemporary('devices', '刷新失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', disabled: busy !== '' })),
+                h('div', { className: 'dfw-card' },
+                  !devices.length ? h('p', { className: 'dfw-empty' }, '暂无配对设备。生成配对链接后，新设备会显示在这里。')
+                  : h('ul', { className: 'dfw-device-list' }, devices.map(device => h('li', { className: 'dfw-device', key: device.id },
+                    h('div', { className: 'dfw-device-info' },
+                      editing?.id === device.id
+                        ? h('div', { className: 'dfw-device-edit' },
+                          h('input', { value: editing.name, maxLength: 64, 'aria-label': '设备名称', autoFocus: true,
+                            onChange: event => setEditing(current => current && current.id === device.id ? { ...current, name: event.target.value } : current),
+                            onKeyDown: event => { if (event.key === 'Enter') saveRename(); else if (event.key === 'Escape') setEditing(null); } }),
+                          action('rename-save', '保存', saveRename, { primary: true, disabled: busy !== '' }),
+                          action('rename-cancel', '取消', () => setEditing(null), { disabled: busy !== '' }))
+                        : h('div', { className: 'dfw-device-name' }, device.label),
+                      h('div', { className: 'dfw-device-meta' }, `授权至 ${new Date(device.expiresAt).toLocaleDateString()} · 最近使用 ${new Date(device.lastSeenAt).toLocaleDateString()}`)),
+                    h('div', { className: 'dfw-device-actions' },
+                      editing?.id === device.id ? null : action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '' }),
+                      action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '' })))))))),
+            h('div', { className: 'dfw-foot' },
+                h('div', { className: 'dfw-foot-info' },
+                  h('div', { className: 'dfw-foot-version' }, 'DSH Connect ' + (status?.version || '')),
+                  h('div', { className: 'dfw-foot-note', role: 'status', 'aria-live': 'polite' }, issue || update?.message || '更新保留连接地址和已配对设备。')),
+                local() && h('div', { className: 'dfw-foot-actions' },
+                  action('updates', busy === 'updates' ? '正在检查…' : '检查更新', () => void run('updates', async signal => {
+                    const value = await request('/updates/check', {}, signal);
+                    if (!active.current) return;
+                    setUpdate(value);
+                    setTemporary('updates', '已检查', { duration: 1600 });
+                  }, () => setTemporary('updates', '检查失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', disabled: busy !== '' || ['downloading', 'installing', 'restoring'].includes(update?.stage) }),
+                  update?.available && update.canUpdate && action('apply', '更新到 ' + update.latest, () => void run('apply', async signal => {
+                    const value = await request('/updates/apply', { version: update.latest }, signal);
+                    if (active.current) setUpdate(value);
+                  }, () => setTemporary('apply', '更新失败，重试', { error: true, duration: 4000 })), { primary: true, disabled: busy !== '' || update.stage !== 'available' }),
+                  h('a', { className: 'dfw-button', href: 'https://github.com/LUMIAO9527/DSH-Connect/releases/latest', target: '_blank', rel: 'noopener noreferrer' }, '发布记录'))),
+              h('div', { className: 'dfw-sr', role: 'status', 'aria-live': 'polite' }, announcement));
+        }
     /* settings-icon:start */
     function installSettingsIcon(ctx) {
       if (typeof document === 'undefined' || typeof MutationObserver === 'undefined' || !ctx.effect) return;
       ctx.effect(() => {
         const mark = "dsh-connect", label = "DSH Connect";
-        const glyph = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n  <rect id=\"cn-tile\" width=\"32\" height=\"32\" rx=\"10\" fill=\"#171717\"/>\n  <g id=\"cn-letters\" stroke=\"#ffffff\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\">\n    <path d=\"M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7\"/>\n    <path d=\"M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22\"/>\n  </g>\n</svg>\n";
+        const glyph = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n  <rect id=\"cn-tile\" width=\"32\" height=\"32\" rx=\"10\" fill=\"#ffffff\" stroke=\"#d7d7d7\" stroke-width=\"0.75\"/>\n  <g id=\"cn-letters\" stroke=\"#171717\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\">\n    <path d=\"M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7\"/>\n    <path d=\"M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22\"/>\n  </g>\n</svg>\n";
         const style = document.createElement('style');
         const selector = 'button[data-dsh-plugin-icon="' + mark + '"] svg';
         style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background:transparent url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat;mask:none}' + selector + '>*{visibility:hidden}';
@@ -163,6 +365,26 @@ window.__ModuleLoader__.load({
       // for a reconnect when the existing transport is already disconnected.
       if (!document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]')) return;
       const connection = ctx.connection;
+      ctx.inject?.(['sessions'], scope => {
+        let prepared = false;
+        const prepareSelection = () => {
+          if (prepared || connection.state.getSnapshot() !== 'connected') return;
+          prepared = true;
+          let saved;
+          try { saved = JSON.parse(localStorage.getItem('dsh.sessions.current')); }
+          catch { return; }
+          if (saved?.subagentAddress !== undefined || typeof saved?.sessionId !== 'string' || !saved.sessionId) return;
+          // The Session Controller shares this read with workspace restoration.
+          void Promise.resolve().then(() => {
+            if (connection.state.getSnapshot() === 'connected') return scope.sessions.refreshProjections(saved.sessionId);
+          }).catch(() => {});
+        };
+        scope.effect(() => {
+          const off = connection.state.subscribe(prepareSelection);
+          prepareSelection();
+          return off;
+        }, 'prepare saved workspace session');
+      });
       window.__DSH_CONNECT_UI__?.configure({
         toggleSidebar: () => ctx.layout?.toggleSidebar(),
         closeRightbar: () => ctx.sidebarRight?.toggleExpanded(),

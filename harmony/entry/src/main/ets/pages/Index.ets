@@ -1,15 +1,23 @@
 import { common } from '@kit.AbilityKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import { curves, KeyboardAvoidMode } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
+import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { url } from '@kit.ArkTS';
 import { Computer, ComputerStore, parseAddress, connectorPermission } from '../model/ComputerStore';
 import { FileSupport } from '../model/FileSupport';
 import { APP_VERSION } from '../model/Version';
 import { checkRelease, RELEASE_URL, PROJECT_URL, ReleaseResult } from '../model/ReleaseInfo';
-import { ComputerCover, ConnectionLoading } from '../components/ConnectionViews';
+import { ACTION_PRESS, ComputerCover, ConnectionLoading } from '../components/ConnectionViews';
 
 enum ConnectPanel { Settings, Help, Add, Rename, Remove, ConnectionError, Attachments }
+
+function certificateFingerprint(der: Uint8Array): string {
+  const digest = cryptoFramework.createMd('SHA256');
+  digest.updateSync({ data: der });
+  return Array.from(digest.digestSync().data).map((byte: number) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 class ConnectorBridge {
   private show: () => void;
@@ -36,7 +44,6 @@ struct Index {
   @State private savingResumeToWorkspace: boolean = false;
   @State private selectedComputerId: string = '';
   @State private addressInput: string = '';
-  @State private linkFocused: boolean = false;
   @State private activeName: string = '';
   @State private phase: string = 'idle';
   @State private connectionState: string = 'connecting';
@@ -50,7 +57,7 @@ struct Index {
   @State private removing: boolean = false;
   @StorageLink('dshLaunchUrl') @Watch('consumeLaunch') private launchUrl: string = '';
   @StorageLink('dshBottomInset') private bottomInset: number = 0;
-  @StorageLink('dshKeyboardVisible') private keyboardVisible: boolean = false;
+  @StorageLink('dshKeyboardVisible') @Watch('keyboardVisibilityChanged') private keyboardVisible: boolean = false;
   @StorageLink('dshForeground') @Watch('foregroundChanged') private foreground: number = 0;
   private webController: webview.WebviewController = new webview.WebviewController();
   private panelScroller: Scroller = new Scroller();
@@ -62,6 +69,10 @@ struct Index {
   private savedAddress: string = '';
   private retryAddress: string = '';
   private currentOrigin: string = '';
+  private certificatePin: string = '';
+  private certificateVerified: boolean = false;
+  private pairingFragment: string = '';
+  private pendingConnectionState: string = '';
   private attached: boolean = false;
   @State private loaded: boolean = false;
   private startup: boolean = true;
@@ -89,7 +100,7 @@ struct Index {
       if (this.launchUrl) { this.consumeLaunch(); return; }
       if (!this.startup || !this.autoConnect || this.panelVisible) { this.managerVisible = true; return; }
       this.startup = false;
-      if (rows.length > 0) { const latest = this.latestComputer(); if (latest.lastConnectedAt > 0) { this.openAddress(latest.address, latest.name); return; } }
+      if (rows.length > 0) { const latest = this.latestComputer(); if (latest.lastConnectedAt > 0) { this.continueComputer(latest); return; } }
       this.managerVisible = true;
     }).catch(() => { this.loaded = true; this.managerVisible = true; this.message = '暂时无法读取已保存的电脑，可以重新添加。'; });
   }
@@ -123,14 +134,19 @@ struct Index {
     if (!this.loaded || !this.launchUrl) return;
     this.startup = false; const address = this.launchUrl; this.launchUrl = ''; this.openAddress(address, '');
   }
-  private openAddress(value: string, name: string): void {
+  private openAddress(value: string, name: string, storedPin: string = ''): void {
     try {
-      const parsed = parseAddress(value); this.attempt++; this.clearTimer(); this.startup = false;
+      const parsed = parseAddress(value, storedPin); this.attempt++; this.clearTimer(); this.startup = false;
       this.finishFiles([]);
-      if (!this.attached) this.initialUrl = parsed.entry;
-      this.currentOrigin = parsed.origin; this.activeUrl = parsed.entry; this.savedAddress = parsed.saved;
-      this.retryAddress = parsed.entry;
       const known = this.computers.find((computer: Computer) => computer.address === parsed.saved);
+      this.certificatePin = parsed.certificatePin || known?.certificatePin || '';
+      this.certificateVerified = !this.certificatePin;
+      this.pendingConnectionState = '';
+      const entry = this.certificatePin ? parsed.entry.split('#', 1)[0] : parsed.entry;
+      this.pairingFragment = this.certificatePin ? parsed.entry.slice(entry.length) : '';
+      if (!this.attached) this.initialUrl = entry;
+      this.currentOrigin = parsed.origin; this.activeUrl = entry; this.savedAddress = parsed.saved;
+      this.retryAddress = parsed.entry;
       const hostname = new url.URL(parsed.origin).hostname;
       this.activeName = name.trim() || known?.name || (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' ? '我的电脑' : hostname.split('.')[0]);
       this.phase = 'connecting'; this.connectionState = 'connecting'; this.message = ''; this.connectorAvailable = false;
@@ -164,6 +180,7 @@ struct Index {
   private async onConnection(state: string): Promise<void> {
     if (!this.activeUrl || this.phase === 'idle') return;
     if (state !== 'connected' && state !== 'connecting' && state !== 'offline' && state !== 'auth-required') return;
+    if (!this.certificateVerified) { this.pendingConnectionState = state; return; }
     this.connectionState = state;
     if (state === 'connected') {
       this.retryAddress = this.savedAddress;
@@ -172,7 +189,8 @@ struct Index {
       try { await webview.WebCookieManager.saveCookieAsync(); } catch (_) {}
       if (current !== this.attempt) return;
       const rows = this.computers.slice(); const index = rows.findIndex((computer: Computer) => computer.address === this.savedAddress);
-      const computer = new Computer(index >= 0 ? rows[index].id : Date.now().toString(), this.activeName, this.savedAddress, Date.now());
+      const computer = new Computer(index >= 0 ? rows[index].id : Date.now().toString(), this.activeName,
+        this.savedAddress, Date.now(), this.certificatePin);
       if (index >= 0) rows[index] = computer;
       else if (rows.length < 20) rows.push(computer);
       else { this.getUIContext().getPromptAction().showToast({ message: '已连接。电脑列表已满，移除不再使用的电脑后可保存。' }); return; }
@@ -185,14 +203,48 @@ struct Index {
   }
   private async documentLoaded(page: string): Promise<void> {
     try {
-      if (new url.URL(page).origin !== this.currentOrigin) return;
+      const target = new url.URL(page);
+      if (target.origin !== this.currentOrigin) return;
       if (this.mainHttpError >= 400) return;
-      if (new url.URL(page).pathname.startsWith('/mobile-access/')) { this.phase = 'pairing'; this.clearTimer(); return; }
+      if (this.certificatePin) {
+        const current = this.attempt;
+        let matches = false;
+        try {
+          const chain = await this.webController.getCertificate();
+          if (chain.length) matches = certificateFingerprint((await chain[0].getEncoded()).data) === this.certificatePin;
+        } catch (_) {}
+        if (current !== this.attempt || !this.trustedPage()) return;
+        if (!matches) { this.connectionFailed('电脑身份校验失败，请重新扫码。'); return; }
+        this.certificateVerified = true;
+        if (this.pendingConnectionState) {
+          const state = this.pendingConnectionState; this.pendingConnectionState = '';
+          await this.onConnection(state);
+          if (current !== this.attempt) return;
+        }
+        if (this.pairingFragment && target.pathname === '/mobile-access/pair') {
+          const fragment = this.pairingFragment; this.pairingFragment = '';
+          await this.webController.runJavaScript('if (location.pathname === "/mobile-access/pair") location.hash = ' + JSON.stringify(fragment));
+          if (current !== this.attempt) return;
+        }
+      }
+      if (target.pathname.startsWith('/mobile-access/')) { this.phase = 'pairing'; this.clearTimer(); return; }
       this.retryAddress = this.savedAddress;
       const current = this.attempt;
       if (this.phase !== 'ready') { this.phase = 'connecting'; this.waitForConnection(); }
       this.probeConnector(current);
     } catch (_) {}
+  }
+  private checkLocalCertificate(event: SslErrorEvent): void {
+    try {
+      const request = new url.URL(event.url);
+      const origin = request.protocol === 'wss:' ? 'https://' + request.host : request.origin;
+      if (this.certificatePin && origin === this.currentOrigin && event.error === SslError.Untrusted
+        && event.certChainData?.length && certificateFingerprint(event.certChainData[0]) === this.certificatePin) {
+        event.handler.handleConfirm();
+        return;
+      }
+    } catch (_) {}
+    event.handler.handleCancel();
   }
   private probeConnector(current: number): void {
     if (current !== this.attempt || this.phase !== 'connecting' || !this.attached || !this.trustedPage()) return;
@@ -208,6 +260,11 @@ struct Index {
   private resumeConnection(): void {
     if (!this.attached || !this.trustedPage()) return;
     this.webController.runJavaScript('window.__DSH_CONNECT_UI__?.resume(); "requested"').catch(() => {});
+  }
+  private keyboardVisibilityChanged(): void {
+    if (!this.keyboardVisible && this.attached && !this.managerVisible && this.trustedPage()) {
+      this.webController.runJavaScript('window.__DSH_CONNECT_UI__?.keyboardDismissed()').catch(() => {});
+    }
   }
   private foregroundChanged(): void {
     if (!this.loaded) return;
@@ -234,7 +291,7 @@ struct Index {
     if (this.attached && this.phase === 'ready' && this.savedAddress === computer.address && this.trustedPage()) {
       this.managerVisible = false; this.message = ''; this.resumeConnection(); return;
     }
-    this.openAddress(computer.address, computer.name);
+    this.openAddress(computer.address, computer.name, computer.certificatePin);
   }
   private finishFiles(items: string[]): void {
     this.fileRequest++; const callback = this.pendingFiles; this.pendingFiles = null; this.pickerBusy = false;
@@ -309,7 +366,7 @@ struct Index {
   private restoreParentPanel(): boolean {
     const parent = this.panelHistory.pop();
     if (parent === undefined) return false;
-    this.linkFocused = false; this.message = ''; this.panel = parent;
+    this.message = ''; this.panel = parent;
     this.panelScroller.scrollEdge(Edge.Top);
     return true;
   }
@@ -320,7 +377,7 @@ struct Index {
     if (this.panelVisible) return;
     if (this.panel === ConnectPanel.Attachments && this.pendingFiles) this.finishFiles([]);
     if (this.panel === ConnectPanel.ConnectionError && this.phase === 'failed') this.phase = 'idle';
-    this.panelHistory = []; this.linkFocused = false; this.editingId = '';
+    this.panelHistory = []; this.editingId = '';
   }
   private panelTitle(): string {
     switch (this.panel) {
@@ -361,7 +418,8 @@ struct Index {
     const id = this.editingId;
     const value = this.editName.trim();
     if (!id || !value) return;
-    const rows = this.computers.map((item: Computer) => new Computer(item.id, item.id === id ? value : item.name, item.address, item.lastConnectedAt));
+    const rows = this.computers.map((item: Computer) => new Computer(item.id, item.id === id ? value : item.name,
+      item.address, item.lastConnectedAt, item.certificatePin));
     try {
       await this.store?.save(rows); this.computers = rows;
       const renamed = rows.find((item: Computer) => item.id === id);
@@ -373,7 +431,9 @@ struct Index {
     Row({ space: 6 }) {
       Image($r('app.media.cn_mark')).width(30).height(30).flexShrink(0).accessibilityText('DSH Connect')
       Text('DSH Connect').fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.showPanel(ConnectPanel.Settings); })
+      Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }
+        .width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).clickEffect(ACTION_PRESS)
+        .accessibilityText('连接设置').onClick(() => { this.showPanel(ConnectPanel.Settings); })
     }.width('100%').height(48).margin({ bottom: 16 })
   }
   @Builder private recoveryOptions() {
@@ -410,7 +470,8 @@ struct Index {
           Text('使用帮助').fontSize(13).fontColor($r('app.color.ink'))
           SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(12).fontColor([$r('app.color.muted')])
         }.height(44).padding({ left: 20, right: 18 }).borderRadius(14).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
-      }.height(44).padding(0).borderRadius(14).backgroundColor(Color.Transparent).margin({ top: 8, bottom: 4 }).accessibilityText('使用帮助').onClick(() => { this.showPanel(ConnectPanel.Help); })
+      }.height(44).padding(0).borderRadius(14).backgroundColor(Color.Transparent).margin({ top: 8, bottom: 4 })
+        .clickEffect(ACTION_PRESS).accessibilityText('使用帮助').onClick(() => { this.showPanel(ConnectPanel.Help); })
     }.width('100%').layoutWeight(1).alignItems(HorizontalAlign.Center)
   }
   @Builder private settingRow(label: string, value: string, action: () => void) {
@@ -420,7 +481,8 @@ struct Index {
         Text(value).fontSize(12).fontColor($r('app.color.muted')).maxLines(1).constraintSize({ maxWidth: '46%' }).textOverflow({ overflow: TextOverflow.Ellipsis })
         SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(12).fontColor([$r('app.color.muted')])
       }.width('100%')
-    }.width('100%').height(58).padding({ left: 16, right: 16 }).backgroundColor(Color.Transparent).borderRadius(0).onClick(action)
+    }.width('100%').height(58).padding({ left: 16, right: 16 }).backgroundColor(Color.Transparent).borderRadius(0)
+      .clickEffect(ACTION_PRESS).onClick(action)
   }
   @Builder private addForm() {
     Column({ space: 0 }) {
@@ -430,10 +492,12 @@ struct Index {
             Text('扫描电脑二维码').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1)
             SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(13).fontColor([$r('app.color.muted')])
           }.width('100%')
-        }.height(58).width('100%').padding(14).borderRadius(16).backgroundColor($r('app.color.surface_alt')).accessibilityText('扫描电脑二维码').onClick(() => { this.scan(); })
+        }.height(58).width('100%').padding(14).borderRadius(16).backgroundColor($r('app.color.surface_alt'))
+          .clickEffect(ACTION_PRESS).accessibilityText('扫描电脑二维码').onClick(() => { this.scan(); })
         Text('或输入配对链接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 20, bottom: 10 })
-        TextInput({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).type(InputType.URL).enterKeyType(EnterKeyType.Go).fontSize(14).placeholderFont({ size: 13 }).height(52).borderRadius(14).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; }).onFocus(() => { this.linkFocused = true; this.panelScroller.scrollEdge(Edge.Bottom); }).onBlur(() => { this.linkFocused = false; }).onSubmit(() => { if (this.addressInput.trim()) this.openAddress(this.addressInput, ''); })
-        Button('连接电脑').height(48).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.addressInput.trim().length > 0).margin({ top: 18 }).onClick(() => { this.openAddress(this.addressInput, ''); })
+        TextInput({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).type(InputType.URL).enterKeyType(EnterKeyType.Go).fontSize(14).placeholderFont({ size: 13 }).height(52).borderRadius(14).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; }).onFocus(() => { this.panelScroller.scrollEdge(Edge.Bottom); }).onSubmit(() => { if (this.addressInput.trim()) this.openAddress(this.addressInput, ''); })
+        Button('连接电脑').height(48).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White).backgroundColor('#4D6BFE')
+          .enabled(this.addressInput.trim().length > 0).margin({ top: 18 }).clickEffect(ACTION_PRESS).onClick(() => { this.openAddress(this.addressInput, ''); })
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private settings() {
@@ -463,19 +527,25 @@ struct Index {
         if (this.message && this.panel !== ConnectPanel.ConnectionError) {
           Text(this.message).fontSize(13).lineHeight(21).fontColor($r('app.color.ink')).width('100%')
         }
-        if (this.panel === ConnectPanel.Settings) { this.settings() }
-        else if (this.panel === ConnectPanel.Help) { this.help() }
-        else if (this.panel === ConnectPanel.Add) { this.addForm() }
-        else if (this.panel === ConnectPanel.Rename) { this.renameForm() }
-        else if (this.panel === ConnectPanel.Remove) { this.removeForm() }
-        else if (this.panel === ConnectPanel.ConnectionError) { this.connectionErrorPanel() }
-        else { this.uploadSheet() }
+        ForEach([this.panel], (panel: ConnectPanel) => {
+          Column() {
+            if (panel === ConnectPanel.Settings) { this.settings() }
+            else if (panel === ConnectPanel.Help) { this.help() }
+            else if (panel === ConnectPanel.Add) { this.addForm() }
+            else if (panel === ConnectPanel.Rename) { this.renameForm() }
+            else if (panel === ConnectPanel.Remove) { this.removeForm() }
+            else if (panel === ConnectPanel.ConnectionError) { this.connectionErrorPanel() }
+            else { this.uploadSheet() }
+          }.width('100%').transition(TransitionEffect.asymmetric(
+            TransitionEffect.translate({ y: 4 }).combine(TransitionEffect.opacity(0.65))
+              .animation({ duration: 190, curve: Curve.Friction }),
+            TransitionEffect.IDENTITY))
+        }, (panel: ConnectPanel) => panel.toString())
       }.width('100%').constraintSize({ maxWidth: 560 })
         .padding({ left: 20, right: 20, top: 8, bottom: this.keyboardVisible ? 12 : Math.max(20, this.bottomInset + 4) })
     }.width('100%').height(this.panelHeight() === SheetSize.FIT_CONTENT ? 'auto' : '100%')
       .constraintSize({ maxHeight: this.panelHeight() === SheetSize.FIT_CONTENT ? this.pageHeight * 0.58 : '100%' })
       .align(Alignment.Top).scrollBar(BarState.Auto).edgeEffect(EdgeEffect.Spring)
-      .onAreaChange(() => { if (this.linkFocused) this.panelScroller.scrollEdge(Edge.Bottom); })
   }
   @Builder private help() {
     Column({ space: 14 }) {
@@ -485,14 +555,17 @@ struct Index {
         Text('2  进入「设置 → DSH Connect」，生成配对二维码或链接。').fontSize(14).lineHeight(24).fontColor($r('app.color.ink')).width('100%')
         Text('3  在手机上扫描二维码，或粘贴完整配对链接。').fontSize(14).lineHeight(24).fontColor($r('app.color.ink')).width('100%')
       }.width('100%').padding(16).borderRadius(18).backgroundColor($r('app.color.surface_alt'))
-      Button('扫描电脑二维码').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE').onClick(() => { this.scan(); })
-      Button('使用配对链接').height(48).width('100%').borderRadius(15).fontSize(13).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.showPanel(ConnectPanel.Add); })
+      Button('扫描电脑二维码').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE')
+        .clickEffect(ACTION_PRESS).onClick(() => { this.scan(); })
+      Button('使用配对链接').height(48).width('100%').borderRadius(15).fontSize(13).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt'))
+        .clickEffect(ACTION_PRESS).onClick(() => { this.showPanel(ConnectPanel.Add); })
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private renameForm() {
     Column({ space: 18 }) {
       TextInput({ text: this.editName, placeholder: '电脑名称' }).fontSize(14).height(52).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).maxLength(40).accessibilityText('电脑名称').onChange((value: string) => { this.editName = value; })
-      Button('保存名称').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.editName.trim().length > 0).onClick(() => { this.saveName(); })
+      Button('保存名称').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE')
+        .enabled(this.editName.trim().length > 0).clickEffect(ACTION_PRESS).onClick(() => { this.saveName(); })
     }.width('100%')
   }
   @Builder private removeForm() {
@@ -501,9 +574,9 @@ struct Index {
         .width('100%').fontSize(14).lineHeight(23).fontColor($r('app.color.ink'))
       Row({ space: 12 }) {
         Button('取消').layoutWeight(1).height(48).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt'))
-          .enabled(!this.removing).onClick(() => { this.goBackInPanel(); })
+          .enabled(!this.removing).clickEffect(ACTION_PRESS).onClick(() => { this.goBackInPanel(); })
         Button('移除', { role: ButtonRole.ERROR }).layoutWeight(1).height(48)
-          .enabled(!this.removing).onClick(() => { this.forget(this.removalTarget); })
+          .enabled(!this.removing).clickEffect(ACTION_PRESS).onClick(() => { this.forget(this.removalTarget); })
       }.width('100%')
     }.width('100%')
   }
@@ -511,14 +584,17 @@ struct Index {
     Column({ space: 14 }) {
       Text(this.message).width('100%').fontSize(14).lineHeight(23).fontColor($r('app.color.ink'))
       Button('重新连接').height(48).width('100%').fontColor(Color.White).backgroundColor('#4D6BFE')
-        .onClick(() => { this.openAddress(this.retryAddress || this.activeUrl, this.activeName); })
+        .clickEffect(ACTION_PRESS).onClick(() => { this.openAddress(this.retryAddress || this.activeUrl, this.activeName, this.certificatePin); })
     }.width('100%')
   }
   @Builder private uploadSheet() {
     Column({ space: 12 }) {
-      Button('拍照').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('camera'); })
-      Button('从相册选择').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('album'); })
-      Button('浏览文件').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('documents'); })
+      Button('拍照').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink'))
+        .clickEffect(ACTION_PRESS).onClick(() => { this.chooseFiles('camera'); })
+      Button('从相册选择').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink'))
+        .clickEffect(ACTION_PRESS).onClick(() => { this.chooseFiles('album'); })
+      Button('浏览文件').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink'))
+        .clickEffect(ACTION_PRESS).onClick(() => { this.chooseFiles('documents'); })
     }.width('100%')
   }
   @Builder private workspaceWeb() {
@@ -527,11 +603,21 @@ struct Index {
         .horizontalScrollBarAccess(false)
         .onControllerAttached(() => {
           this.attached = true;
-          try { this.webController.setCustomUserAgent(this.webController.getUserAgent() + ' DSH-Connect/' + APP_VERSION); this.files?.downloads(this.webController); } catch (_) {}
+          try {
+            const userAgent = this.webController.getUserAgent();
+            // Use the mobile compatibility token so Harness applies its touch focus policy.
+            const mobileAgent = userAgent.includes('Android') ? userAgent :
+              userAgent.replace(/\((Phone|Tablet);/i, '($1; Android;');
+            const deviceName = deviceInfo.marketName || deviceInfo.productModel;
+            this.webController.setCustomUserAgent(mobileAgent + ' DSH-Connect/' + APP_VERSION +
+              (deviceName ? ' DSH-Device/' + encodeURIComponent(deviceName) : ''));
+            this.files?.downloads(this.webController);
+          } catch (_) {}
           this.registerBridge(); this.waitForConnection();
         })
         .onPageEnd((event) => { this.documentLoaded(event?.url || ''); })
         .onPageBegin(() => { this.mainHttpError = 0; })
+        .onSslErrorEvent((event: SslErrorEvent) => { this.checkLocalCertificate(event); })
         .onHttpErrorReceive((event) => {
           if (!event?.request.isMainFrame()) return;
           this.mainHttpError = event.response.getResponseCode();
@@ -567,9 +653,8 @@ struct Index {
       if (this.activeUrl.length > 0) {
         this.workspaceWeb()
       }
-      if (!this.loaded || this.phase === 'connecting') {
+      if (!this.loaded || (!this.managerVisible && this.phase === 'connecting')) {
         ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })
-          .accessibilityLevel(this.managerVisible ? 'no-hide-descendants' : 'auto')
           .transition(TransitionEffect.asymmetric(TransitionEffect.IDENTITY,
             TransitionEffect.opacity(0).animation({ duration: 160, curve: Curve.Friction })))
       }
@@ -582,9 +667,7 @@ struct Index {
             .padding({ left: 20, right: 20, top: 12, bottom: this.bottomInset + 8 }).backgroundColor($r('app.color.connector_background'))
         }.width('100%').height('100%').backgroundColor($r('app.color.connector_background'))
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-          .transition(TransitionEffect.asymmetric(
-            TransitionEffect.translate({ y: 16 }).combine(TransitionEffect.opacity(0)).animation({ duration: 260, curve: Curve.Friction }),
-            TransitionEffect.translate({ y: -12 }).combine(TransitionEffect.opacity(0)).animation({ duration: 220, curve: Curve.FastOutSlowIn })))
+          .transition(TransitionEffect.opacity(0).animation({ duration: 180, curve: Curve.Friction }))
       }
     }.width('100%').height('100%').backgroundColor(this.managerVisible || this.phase === 'connecting' ? $r('app.color.connector_background') : $r('app.color.surface'))
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])

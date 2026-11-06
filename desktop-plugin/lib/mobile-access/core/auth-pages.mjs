@@ -93,6 +93,13 @@ main{width:min(100%,480px);margin:clamp(0px,5vh,48px) auto;padding:clamp(24px,6v
 form{display:grid;gap:18px}label{display:grid;gap:8px;font-weight:650}input,textarea,button,a{font:inherit}input,textarea{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-size:16px}
 button,main a{min-height:48px;padding:12px 18px;border-radius:18px;touch-action:manipulation}button{border:0;background:var(--accent);color:var(--inverse);font-weight:600;cursor:pointer}button:disabled{opacity:.65;cursor:wait}main a{display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--accent);font-weight:500;text-decoration:none;border:1px solid var(--line)}form+ a{margin-top:16px}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}input[aria-invalid=true]{border-color:#b3261e}p{color:var(--muted);margin:0 0 18px;overflow-wrap:anywhere}#pair-token-hint{font-size:.875rem;margin:-8px 0 0}output{display:block;min-height:1.5em;font-size:.925rem;overflow-wrap:anywhere}#login-retry{width:100%;margin-top:8px}[hidden]{display:none!important}
+button:not(:disabled):active,main a:active{filter:brightness(.94)}
+@media(prefers-reduced-motion:no-preference){
+  button,main a{transition:scale 140ms cubic-bezier(.2,.7,.25,1)}
+  button:not(:disabled):active,main a:active{scale:.97;transition-duration:85ms}
+  main{animation:dsc-auth-enter 190ms cubic-bezier(.2,.7,.25,1)}
+  @keyframes dsc-auth-enter{from{opacity:.65;translate:0 4px}to{opacity:1;translate:0 0}}
+}
 @media(prefers-color-scheme:dark){:root{--bg:#15171b;--surface:#202329;--text:#f2f4f8;--muted:#a0a6b2;--line:#323741;--accent:#657fff;--focus:#8fa3ff;--inverse:#fff}input[aria-invalid=true]{border-color:#e58e85}}
 `;
 export function resolveAuthPageLocale(header) {
@@ -148,6 +155,16 @@ export function renderPairScript(locale) {
   const form = document.getElementById('pair-form')
   const token = document.getElementById('pair-token')
   const label = document.getElementById('device-label')
+  const agent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  const namedDevice = agent.match(/DSH-Device[/]([^ ;]+)/)?.[1]
+  const platform = /Windows/.test(agent) ? 'Windows' : /OpenHarmony|HarmonyOS/.test(agent) ? 'HarmonyOS'
+    : /Android/.test(agent) ? 'Android' : /iPad/.test(agent) ? 'iPad' : /iPhone/.test(agent) ? 'iPhone'
+    : /Macintosh|Mac OS X/.test(agent) ? 'macOS' : /Linux/.test(agent) ? 'Linux' : ''
+  const client = /DSH-Connect[/]/.test(agent) ? 'DSH Connect' : /Edg[/]/.test(agent) ? 'Edge'
+    : /Firefox[/]/.test(agent) ? 'Firefox' : /Chrome[/]/.test(agent) ? 'Chrome' : /Safari[/]/.test(agent) ? 'Safari' : ''
+  let deviceName = platform
+  try { if (namedDevice) deviceName = decodeURIComponent(namedDevice) } catch (_) {}
+  if (!label.value && client) label.value = [deviceName, client].filter(Boolean).join(' · ').slice(0, 64)
   const status = document.getElementById('pair-status')
   const submit = form.querySelector('button[type="submit"]')
   let submitting = false

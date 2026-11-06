@@ -1,3 +1,5 @@
+export const ACTION_PRESS: ClickEffect = { level: ClickEffectLevel.LIGHT, scale: 0.97 };
+
 @Component
 export struct ComputerCover {
   @Prop computerName: string = '我的电脑';
@@ -52,7 +54,8 @@ export struct ConnectionLoading {
       Text('DSH Connect').fontSize(21).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink'))
       LoadingProgress().width(28).height(28).color('#4D6BFE')
       Text(this.computerName ? '正在连接' + this.computerName : '正在打开工作区').fontSize(14).fontColor($r('app.color.muted')).textAlign(TextAlign.Center)
-      Button('查看我的电脑').height(48).fontSize(13).fontColor($r('app.color.muted')).backgroundColor(Color.Transparent).onClick(this.onBack)
+        .width('100%').padding({ left: 24, right: 24 }).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+      Button('查看我的电脑').height(48).fontSize(13).fontColor($r('app.color.muted')).backgroundColor(Color.Transparent).clickEffect(ACTION_PRESS).onClick(this.onBack)
     }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor($r('app.color.connector_background'))
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }

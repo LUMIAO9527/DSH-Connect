@@ -1,16 +1,18 @@
 // DSH Connect gateway orchestration. Licensed protocol primitives are maintained
 // as part of this project in core/; see NOTICE and LICENSE.
 import http from 'node:http';
-import { connect as connectSocket } from 'node:net';
+import https from 'node:https';
+import { connect as connectSocket, isIPv4 } from 'node:net';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolve, isAbsolute } from 'node:path';
 import { promisify } from 'node:util';
-import { gunzip, inflate, brotliDecompress, createGzip, constants as zlibConstants } from 'node:zlib';
+import { gunzip, inflate, brotliDecompress, createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import QRCode from 'qrcode';
 import { AccessController, AccessError, BoundedRateLimiter } from './core/access.mjs';
 import { JsonDeviceStore } from './core/storage.mjs';
 import { RequestTrustPolicy, parseCidr, parseAuthority, isLoopbackAddress } from './core/network.mjs';
+import { isPrivateSubnet } from './lan.mjs';
 import { HttpError, parseRequestTarget, assertExternalTrust, assertLocalAdminTrust,
   readJsonObject, sendJson, cookie, setSecurityHeaders,
   SESSION_COOKIE, DEVICE_COOKIE, CSRF_COOKIE, CSRF_HEADER, WS_PATHS } from './core/http-security.mjs';
@@ -23,7 +25,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.0.14';
+export const VERSION = '1.0.17';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 const META = '<meta name="dsh-foreverweb-gateway" content="authenticated">';
@@ -44,9 +46,17 @@ export function gatewayConfig(input) {
     || upstreamOrigin.username || upstreamOrigin.password || upstreamOrigin.pathname !== '/' || upstreamOrigin.search || upstreamOrigin.hash) {
     throw new Error('DSH Connect upstream must be a loopback HTTP origin');
   }
-  const origin = new URL(input.publicOrigin);
-  if ((origin.protocol !== 'https:' && !(origin.protocol === 'http:' && isLoopbackAddress(origin.hostname)))
-    || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('DSH Connect requires an HTTPS public origin');
+  const origin = input.publicOrigin ? new URL(input.publicOrigin) : undefined;
+  const lan = input.lan;
+  if (origin && ((origin.protocol !== 'https:' && !(origin.protocol === 'http:' && !lan && isLoopbackAddress(origin.hostname)))
+    || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash)) {
+    throw new Error('DSH Connect requires an HTTPS origin');
+  }
+  if (lan) {
+    const subnet = parseCidr(lan.cidr);
+    const localTest = isIPv4(lan.host) && isLoopbackAddress(lan.host) && subnet.source === '127.0.0.0/8';
+    if ((!localTest && !isPrivateSubnet(lan.host, subnet)) || !/^[a-f\d]{64}$/.test(lan.fingerprint)) throw new Error('Invalid LAN listener');
+  }
   const listenHost = input.listenHost ?? '127.0.0.1';
   if (!isLoopbackAddress(listenHost)) throw new Error('DSH Connect listener must remain on loopback');
   const stateFile = resolve(input.stateFile);
@@ -55,8 +65,8 @@ export function gatewayConfig(input) {
   const deviceTtlMs = limit(input.deviceTtlMs, 90 * 86400000, 60000, 366 * 86400000);
   const sessionTtlMs = limit(input.sessionTtlMs, 8 * 3600000, 30000, 86400000);
   if (sessionTtlMs > deviceTtlMs) throw new Error('Session lifetime exceeds device lifetime');
-  return Object.freeze({ ...input, stateFile, instanceId, upstreamOrigin, publicOrigin: origin.origin, listenHost,
-    listenPort: limit(input.listenPort, 3446, 0, 65535), secure: origin.protocol === 'https:',
+  return Object.freeze({ ...input, stateFile, instanceId, upstreamOrigin, publicOrigin: origin?.origin ?? '', listenHost,
+    listenPort: limit(input.listenPort, 3446, 0, 65535), secure: origin?.protocol !== 'http:',
     pairingTtlMs: limit(input.pairingTtlMs, 600000, 10000, 600000), deviceTtlMs, sessionTtlMs,
     maxDevices: limit(input.maxDevices, 20, 1, 256), maxSessions: limit(input.maxSessions, 40, 1, 1024),
     maxConnections: limit(input.maxConnections, 128, 1, 1024), maxActiveRequests: limit(input.maxActiveRequests, 128, 1, 1024),
@@ -99,40 +109,46 @@ function responseHeaders(incoming, upstream, publicOrigin) {
   return headers;
 }
 
-function acceptsGzip(value) {
-  let gzip, wildcard;
+function encodingQuality(value, encoding) {
+  let exact, wildcard;
   for (const part of String(value || '').split(',')) {
     const [coding, ...parameters] = part.trim().toLowerCase().split(';');
-    if (coding !== 'gzip' && coding !== '*') continue;
+    if (coding !== encoding && coding !== '*') continue;
     const quality = parameters.find(parameter => parameter.trim().startsWith('q='));
     const match = quality?.trim().match(/^q=(0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/);
-    const accepted = quality === undefined || (!!match && Number(match[1]) > 0);
-    if (coding === 'gzip') gzip = accepted; else wildcard = accepted;
+    const weight = quality === undefined ? 1 : match ? Number(match[1]) : 0;
+    if (coding === encoding) exact = weight; else wildcard = weight;
   }
-  return gzip ?? wildcard ?? false;
+  return exact ?? wildcard ?? 0;
 }
 
-function compressResponse(req, target, upstream, headers) {
-  // Compress the full Session list and changed plugin bundles while streaming.
-  // Native cached assets can miss after a Host/plugin update, so that fallback
-  // must also remain practical over a mobile link.
+function responseCompression(req, target, upstream, headers) {
+  // Keep JSON RPC compression fast and reduce the larger cold-start asset downloads.
   const type = String(headers['content-type']).split(';', 1)[0].trim().toLowerCase();
   const rpc = req.method === 'POST' && target.decodedPathname.startsWith('/api/') && /^application\/(?:json|[\w.+-]+\+json)$/.test(type);
   const asset = READ_METHODS.has(req.method) && /^\/(?:plugins|assets)\//.test(target.decodedPathname)
     && /^(?:text\/(?:javascript|css)|application\/(?:javascript|json)|image\/svg\+xml)$/.test(type);
-  if ((!rpc && !asset) || upstream.statusCode !== 200
+  const font = READ_METHODS.has(req.method) && /^font\/(?:ttf|otf)$/.test(type)
+    && /\.(?:ttf|otf)$/i.test(target.decodedPathname);
+  if ((!rpc && !asset && !font) || upstream.statusCode !== 200
     || req.headers.range || headers['content-range']
     || (headers['content-encoding'] && headers['content-encoding'] !== 'identity')
     || /(?:^|,)\s*no-transform\s*(?:,|$)/i.test(String(headers['cache-control']))
-    || /(?:^|,)\s*no-transform\s*(?:,|$)/i.test(String(req.headers['cache-control']))) return false;
+    || /(?:^|,)\s*no-transform\s*(?:,|$)/i.test(String(req.headers['cache-control']))) return;
   const vary = String(headers.vary || '').split(',').map(value => value.trim()).filter(Boolean);
   if (!vary.some(value => value === '*' || value.toLowerCase() === 'accept-encoding')) vary.push('Accept-Encoding');
   headers.vary = vary.join(', ');
-  if (!acceptsGzip(req.headers['accept-encoding'])) return false;
+  const accepted = req.headers['accept-encoding'];
+  const gzip = encodingQuality(accepted, 'gzip');
+  const br = asset || font ? encodingQuality(accepted, 'br') : 0;
+  const encoding = br > 0 && br >= gzip ? 'br' : gzip > 0 ? 'gzip' : undefined;
+  if (!encoding) return;
   delete headers['content-length']; delete headers['accept-ranges'];
-  headers['content-encoding'] = 'gzip';
+  headers['content-encoding'] = encoding;
   if (typeof headers.etag === 'string' && headers.etag.startsWith('"')) headers.etag = 'W/' + headers.etag;
-  return true;
+  return encoding === 'br'
+    ? createBrotliCompress({ params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5 } })
+    : createGzip({ level: zlibConstants.Z_BEST_SPEED });
 }
 
 async function boundedBody(stream, maximum) {
@@ -179,12 +195,14 @@ async function waitWithSignal(task, signal) {
 }
 
 export class DSHConnectGateway {
-  constructor(input, { authenticatedUrl, store, now } = {}) {
+  constructor(input, { authenticatedUrl, store, now, remoteReady = () => true, configurationEditable = () => false } = {}) {
     this.config = gatewayConfig(input); this.authenticatedUrl = authenticatedUrl;
+    this.remoteReady = remoteReady;
+    this.configurationEditable = configurationEditable;
     this.access = new AccessController(store ?? new JsonDeviceStore(this.config.stateFile, this.config.maxDevices), {
       ...this.config, rateLimitWindowMs: 60000, maxPairingAttempts: 8, maxRateLimitKeys: 256,
       pairingInstanceId: this.config.instanceId, legacyInstanceId: this.config.instanceId, ...(now ? { now } : {}) });
-    this.sockets = new Set(); this.operations = new Set(); this.webSockets = new Set();
+    this.sockets = new Set(); this.operations = new Set(); this.webSockets = new Set(); this.listeners = new Map();
     this.connectorInstanceId = randomUUID();
     this.hostState = Object.freeze({ state: 'unknown' });
     this.diagnostics = new ConnectionDiagnostics(64);
@@ -220,14 +238,59 @@ export class DSHConnectGateway {
     if (this.ready) return;
     if (this.closing) throw new Error('Gateway has been closed');
     await this.access.initialize();
-    const server = http.createServer((req, res) => this.handle(req, res).catch(error => fail(res, error, this.config.secure, this.diagnostics)));
-    this.server = server;
+    try {
+      if (this.config.publicOrigin) {
+        const publicUrl = new URL(this.config.publicOrigin);
+        this.server = await this.listen(this.config.listenHost, publicUrl, ['127.0.0.0/8', '::1/128']);
+        this.config = Object.freeze({ ...this.config, publicOrigin: publicUrl.origin });
+      }
+      if (this.config.lan) {
+        try { await this.configureLan(this.config.lan); }
+        catch (error) { if (!this.server) throw error; }
+      }
+      this.ready = true;
+    } catch (error) { await this.close(); throw error; }
+  }
+
+  async configureLan(lan) {
+    if (this.closing) return;
+    const next = gatewayConfig({ ...this.config, lan });
+    const previous = this.lanServer;
+    this.lanServer = undefined; this.lanOrigin = '';
+    await this.stopListener(previous);
+    if (this.closing) return;
+    this.config = next;
+    if (!lan) return;
+    const { host, cidr, key, cert } = lan;
+    const origin = new URL('https://' + host + ':' + this.config.listenPort);
+    this.lanServer = await this.listen(host, origin, [cidr], { key, cert, minVersion: 'TLSv1.2' });
+    this.lanOrigin = origin.origin;
+  }
+
+  async stopListener(server) {
+    if (!server) return;
+    const stopped = server.listening ? new Promise(done => server.close(done)) : Promise.resolve();
+    for (const socket of this.listeners.get(server) ?? []) socket.destroy();
+    this.listeners.delete(server);
+    await stopped;
+  }
+
+  async listen(host, origin, cidrs, tls) {
+    const subnet = cidrs.map(parseCidr);
+    let policy;
+    const request = (req, res) => this.handle(req, res, policy, origin.origin, tls ? 'lan' : undefined)
+      .catch(error => fail(res, error, this.config.secure, this.diagnostics));
+    const server = tls ? https.createServer(tls, request) : http.createServer(request);
+    const sockets = new Set();
+    this.listeners.set(server, sockets);
     server.requestTimeout = 120000; server.headersTimeout = 20000; server.keepAliveTimeout = 5000; server.maxHeadersCount = 128;
     server.on('connection', socket => {
       if (this.sockets.size >= this.config.maxConnections) { socket.destroy(); return; }
-      this.sockets.add(socket); socket.on('error', () => {}); socket.once('close', () => this.sockets.delete(socket));
+      this.sockets.add(socket); sockets.add(socket);
+      socket.on('error', () => {});
+      socket.once('close', () => { this.sockets.delete(socket); sockets.delete(socket); });
     });
-    server.on('upgrade', (req, socket, head) => this.handleUpgrade(req, socket, head).catch(error => {
+    server.on('upgrade', (req, socket, head) => this.handleUpgrade(req, socket, head, policy).catch(error => {
       if (socket.destroyed) return;
       const status = error instanceof HttpError || error instanceof AccessError ? error.status : 502;
       const code = error instanceof HttpError || error instanceof AccessError ? error.code : 'upstream_unavailable';
@@ -236,18 +299,16 @@ export class DSHConnectGateway {
       socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\nx-dsh-foreverweb-error-scope: ${connection.scope}\r\nx-dsh-foreverweb-error-code: ${connection.code}\r\nContent-Length: 0\r\n\r\n`);
     }));
     await new Promise((done, reject) => {
-      const onError = error => { server.off('listening', done); reject(error); };
-      server.once('error', onError);
-      server.listen(this.config.listenPort, this.config.listenHost, () => { server.off('error', onError); done(); });
-    }).catch(async error => { await this.close(); throw error; });
-    const publicUrl = new URL(this.config.publicOrigin);
-    if (publicUrl.protocol === 'http:' && publicUrl.port === '0') {
-      publicUrl.port = String(server.address().port); this.config = Object.freeze({ ...this.config, publicOrigin: publicUrl.origin });
-    }
-    const origin = new URL(this.config.publicOrigin);
-    this.policy = new RequestTrustPolicy([parseAuthority(origin.host)], Number(origin.port || (this.config.secure ? 443 : 80)),
-      [parseCidr('127.0.0.0/8'), parseCidr('::1/128')], this.config.secure);
-    this.ready = true;
+      server.once('error', reject);
+      server.listen(this.config.listenPort, host, () => {
+        server.off('error', reject);
+        if (origin.port === '0') origin.port = String(server.address().port);
+        policy = new RequestTrustPolicy([parseAuthority(origin.host)], Number(origin.port || (this.config.secure ? 443 : 80)), subnet, this.config.secure);
+        done();
+      });
+    }).catch(error => { this.listeners.delete(server); throw error; });
+    if (this.closing) { await this.stopListener(server); throw new Error('Gateway has been closed'); }
+    return server;
   }
 
   authorize(req) {
@@ -275,14 +336,14 @@ export class DSHConnectGateway {
       { tls: true, httpOnly: true, path: '/', maxAgeSeconds: (expiresAt - Date.now()) / 1000 })]);
   }
 
-  async auth(req, res, action) {
+  async auth(req, res, action, scope) {
     if (!['pair', 'renew', 'logout'].includes(action)) throw new HttpError(404, 'not_found');
     if (!this.authLimiter.take(req.socket.remoteAddress ?? 'unknown', Date.now())) throw new HttpError(429, 'rate_limited');
     const body = await readJsonObject(req, CONTROL_LIMIT);
     if (action === 'pair') {
       if (typeof body.token !== 'string' || (body.label !== undefined && typeof body.label !== 'string')
         || (body.instance !== undefined && body.instance !== this.config.instanceId)) throw new HttpError(400, 'bad_request');
-      const result = await this.access.pair(req.socket.remoteAddress ?? 'unknown', body.token, body.label);
+      const result = await this.access.pair(req.socket.remoteAddress ?? 'unknown', body.token, body.label, scope);
       this.sessionCookies(res, result);
       res.setHeader('Set-Cookie', [...res.getHeader('Set-Cookie'), cookie(DEVICE_COOKIE, result.deviceToken,
         { tls: this.config.secure, httpOnly: true, path: '/mobile-access/auth/renew', maxAgeSeconds: (result.deviceExpiresAt - Date.now()) / 1000 })]);
@@ -313,9 +374,9 @@ export class DSHConnectGateway {
       sessionExpiresAt: result.sessionExpiresAt, deviceExpiresAt: result.deviceExpiresAt, connection: this.connectionState(result) }, this.config.secure);
   }
 
-  async handle(req, res) {
+  async handle(req, res, policy, origin, scope) {
     if (!this.ready || this.closing) throw new HttpError(503, 'unavailable');
-    const target = parseRequestTarget(req.url); assertExternalTrust(req, this.policy, !READ_METHODS.has(req.method));
+    const target = parseRequestTarget(req.url); assertExternalTrust(req, policy, !READ_METHODS.has(req.method));
     const p = target.decodedPathname;
     if (p === '/api/mobile-access' || p.startsWith('/api/mobile-access/') || p === '/api/foreverweb' || p.startsWith('/api/foreverweb/')) throw new HttpError(404, 'not_found');
     if (req.method === 'TRACE' || req.method === 'CONNECT') throw new HttpError(405, 'method_not_allowed');
@@ -338,7 +399,7 @@ export class DSHConnectGateway {
     }
     if (p.startsWith('/mobile-access/auth/') && req.method === 'POST' && !target.search) {
       const action = p.slice('/mobile-access/auth/'.length);
-      try { await this.auth(req, res, action); }
+      try { await this.auth(req, res, action, scope); }
       catch (error) {
         if (!error.connectionScope && ['renew', 'pair'].includes(action)) {
           scopeFailure(error, action.endsWith('pair') ? 'pairing' : 'device');
@@ -361,7 +422,7 @@ export class DSHConnectGateway {
       sendJson(res, 200, this.connectionState(authorization), this.config.secure); return;
     }
     if (p === '/mobile-access' || p.startsWith('/mobile-access/')) throw new HttpError(404, 'not_found');
-    await this.proxyHttp(req, res, authorization, target);
+    await this.proxyHttp(req, res, authorization, target, origin);
   }
 
   operation(req, res, authorization) {
@@ -432,7 +493,7 @@ export class DSHConnectGateway {
     });
   }
 
-  async proxyHttp(req, res, authorization, target) {
+  async proxyHttp(req, res, authorization, target, origin) {
     const declared = req.headers['content-length'];
     if (declared !== undefined && (!/^\d+$/.test(declared) || Number(declared) > this.config.maxBodyBytes)) throw new HttpError(413, 'payload_too_large');
     const op = this.operation(req, res, authorization); let inputBytes = 0, requestHostGeneration, receivedHostResponse = false;
@@ -444,7 +505,7 @@ export class DSHConnectGateway {
       requestHostGeneration = hostCredentialGeneration;
       const up = await this.upstreamRequest(req.method, target.pathname + target.search, requestHeaders(req, this.config.upstreamOrigin, credential), op.controller.signal, req);
       receivedHostResponse = true;
-      const outgoing = responseHeaders(up.headers, this.config.upstreamOrigin, this.config.publicOrigin);
+      const outgoing = responseHeaders(up.headers, this.config.upstreamOrigin, origin);
       if (hostCredentialGeneration === this.credentialGeneration) {
         this.observeHost(up.statusCode === 401 ? 'authentication-failed' : 'reachable', up.statusCode === 401 ? 'upstream_authentication_failed' : undefined);
       }
@@ -466,9 +527,9 @@ export class DSHConnectGateway {
         outgoing['content-length'] = String(body.length); outgoing['cache-control'] = 'no-store'; outgoing['content-type'] = 'text/html; charset=utf-8';
         setSecurityHeaders(res, this.config.secure, 'proxied'); res.writeHead(up.statusCode, outgoing); res.end(body);
       } else {
-        const compressed = compressResponse(req, target, up, outgoing);
+        const compression = responseCompression(req, target, up, outgoing);
         res.writeHead(up.statusCode || 502, outgoing);
-        if (compressed) await pipeline(up, createGzip({ level: zlibConstants.Z_BEST_SPEED }), res, { signal: op.controller.signal });
+        if (compression) await pipeline(up, compression, res, { signal: op.controller.signal });
         else await pipeline(up, res, { signal: op.controller.signal });
       }
     } catch (error) {
@@ -496,9 +557,9 @@ export class DSHConnectGateway {
     } finally { req.off('data', countBody); op.finish(); }
   }
 
-  async handleUpgrade(req, client, head) {
+  async handleUpgrade(req, client, head, policy) {
     if (!this.ready || this.closing) throw new HttpError(503, 'unavailable');
-    const target = parseRequestTarget(req.url); assertExternalTrust(req, this.policy, true);
+    const target = parseRequestTarget(req.url); assertExternalTrust(req, policy, true);
     if (!WS_PATHS.has(target.decodedPathname)) throw new HttpError(404, 'not_found');
     if (req.method !== 'GET' || String(req.headers.upgrade).toLowerCase() !== 'websocket'
       || !String(req.headers.connection).toLowerCase().split(/\s*,\s*/).includes('upgrade') || req.headers['sec-websocket-version'] !== '13') throw new HttpError(400, 'bad_request');
@@ -559,7 +620,11 @@ export class DSHConnectGateway {
         const target = parseRequestTarget(req.url); if (target.search) throw new HttpError(400, 'bad_request');
         const route = target.decodedPathname.slice(prefix.length);
         if (req.method === 'GET' && route === '/status') {
-          sendJson(res, 200, { gateway: this.address(), pairing: this.access.pairingStatus(), deviceCount: this.access.listDevices().length,
+          sendJson(res, 200, { configured: Boolean(this.config.publicOrigin || this.lanOrigin),
+            gateway: this.address(), localNetwork: Boolean(this.lanOrigin), editable: this.configurationEditable(),
+            message: '电脑接入家庭或办公局域网后，可生成同网配对二维码。',
+            remoteAvailable: Boolean(this.config.publicOrigin && this.remoteReady()),
+            pairing: this.access.pairingStatus(), deviceCount: this.access.listDevices().length,
             resources: { connections: this.sockets.size, activeRequests: this.operations.size, webSockets: this.webSockets.size,
               compressedQueues: this.queueBudget.snapshot() }, version: VERSION, hostId: this.access.hostId,
             connectorInstanceId: this.connectorInstanceId, host: this.hostState, diagnostics: this.diagnostics.snapshot() }, false); return;
@@ -569,15 +634,26 @@ export class DSHConnectGateway {
         if (req.method !== 'POST') throw new HttpError(404, 'not_found');
         const body = await readJsonObject(req, CONTROL_LIMIT);
         if (route === '/pairing/open') {
-          const opened = await this.access.openPairing(body.ttlMs);
-          const pairUrl = this.config.publicOrigin + '/mobile-access/pair#instance=' + this.config.instanceId + '&token=' + opened.token;
+          const mode = body.mode ?? (this.config.publicOrigin ? 'remote' : 'lan');
+          if (mode !== 'lan' && mode !== 'remote') throw new HttpError(400, 'bad_request');
+          const origin = mode === 'lan' ? this.lanOrigin : this.config.publicOrigin;
+          if (!origin || mode === 'remote' && !this.remoteReady()) throw new HttpError(409, 'connection_unavailable');
+          const opened = await this.access.openPairing(body.ttlMs, mode === 'lan' ? 'lan' : undefined);
+          const pin = mode === 'lan' ? '&pin=' + this.config.lan.fingerprint : '';
+          const pairUrl = origin + '/mobile-access/pair#instance=' + this.config.instanceId + '&token=' + opened.token + pin;
           const qrSvg = await QRCode.toString(pairUrl, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
-          sendJson(res, 201, { ...opened, pairUrl, qrSvg }, false); return;
+          sendJson(res, 201, { ...opened, pairUrl, qrSvg, mode }, false); return;
         }
         if (route === '/devices/revoke') {
           if (typeof body.deviceId !== 'string' || !/^[a-f\d]{32}$/.test(body.deviceId)) throw new HttpError(400, 'bad_request');
           if (!await this.access.revokeDevice(body.deviceId)) throw new HttpError(404, 'not_found');
           sendJson(res, 200, { revoked: true }, false); return;
+        }
+        if (route === '/devices/rename') {
+          if (typeof body.deviceId !== 'string' || !/^[a-f\d]{32}$/.test(body.deviceId) || typeof body.label !== 'string') throw new HttpError(400, 'bad_request');
+          const device = await this.access.renameDevice(body.deviceId, body.label);
+          if (device === undefined) throw new HttpError(404, 'not_found');
+          sendJson(res, 200, { device }, false); return;
         }
         if (route === '/devices/reset') {
           if (body.confirm !== true) throw new HttpError(400, 'bad_request');
@@ -594,9 +670,10 @@ export class DSHConnectGateway {
     this.closeTask = (async () => {
       this.credentialController?.abort();
       for (const item of [...this.operations, ...this.webSockets]) item.abort();
-      const stopped = this.server?.listening ? new Promise(done => this.server.close(done)) : Promise.resolve();
+      const stopped = [this.server, this.lanServer].filter(server => server?.listening).map(server => new Promise(done => server.close(done)));
       for (const socket of this.sockets) socket.destroy();
-      await Promise.allSettled([stopped, this.access.close(), this.credentialTask]);
+      await Promise.allSettled([...stopped, this.access.close(), this.credentialTask]);
+      this.listeners.clear();
       this.unsubscribe(); this.credential = undefined; this.credentialExpires = 0;
     })();
     return this.closeTask;
