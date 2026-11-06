@@ -329,16 +329,11 @@ struct Index {
       case ConnectPanel.Attachments: return '添加附件';
     }
   }
-  private panelHeight(): string {
-    switch (this.panel) {
-      case ConnectPanel.Settings: return '70%';
-      case ConnectPanel.Help: return '59%';
-      case ConnectPanel.Add: return this.keyboardVisible ? '77%' : '52%';
-      case ConnectPanel.Rename: return this.keyboardVisible ? '72%' : '38%';
-      case ConnectPanel.Remove: return '39%';
-      case ConnectPanel.ConnectionError: return '42%';
-      case ConnectPanel.Attachments: return '49%';
-    }
+  private panelHeight(): SheetSize | string {
+    if (this.panel === ConnectPanel.Settings) return '70%';
+    if (this.keyboardVisible && this.panel === ConnectPanel.Add) return '77%';
+    if (this.keyboardVisible && this.panel === ConnectPanel.Rename) return '72%';
+    return SheetSize.FIT_CONTENT;
   }
   private renameComputer(computer: Computer): void {
     this.editingId = computer.id; this.editName = computer.name; this.showPanel(ConnectPanel.Rename);
@@ -471,8 +466,11 @@ struct Index {
         else if (this.panel === ConnectPanel.Remove) { this.removeForm() }
         else if (this.panel === ConnectPanel.ConnectionError) { this.connectionErrorPanel() }
         else { this.uploadSheet() }
-      }.width('100%').constraintSize({ maxWidth: 560 }).padding({ left: 20, right: 20, top: 8, bottom: this.bottomInset + 14 })
-    }.width('100%').height('100%').align(Alignment.Top).scrollBar(BarState.Auto).edgeEffect(EdgeEffect.Spring)
+      }.width('100%').constraintSize({ maxWidth: 560 })
+        .padding({ left: 20, right: 20, top: 8, bottom: this.keyboardVisible ? 12 : Math.max(20, this.bottomInset + 4) })
+    }.width('100%').height(this.panelHeight() === SheetSize.FIT_CONTENT ? 'auto' : '100%')
+      .constraintSize({ maxHeight: this.panelHeight() === SheetSize.FIT_CONTENT ? this.pageHeight * 0.58 : '100%' })
+      .align(Alignment.Top).scrollBar(BarState.Auto).edgeEffect(EdgeEffect.Spring)
       .onAreaChange(() => { if (this.linkFocused) this.panelScroller.scrollEdge(Edge.Bottom); })
   }
   @Builder private help() {
