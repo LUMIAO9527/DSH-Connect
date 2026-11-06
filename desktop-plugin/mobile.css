@@ -155,3 +155,9 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 /* The reconnecting state breathes instead of looking stuck. */
 @keyframes dsc-status-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media(prefers-reduced-motion:no-preference){.dsc-status[data-state=connecting] .dsc-status-dot{animation:dsc-status-pulse 1.4s ease-in-out infinite}}
+/* Tabs and the More button keep their 32px look; the hit area spreads sideways
+   into the 12px gap so a thumb does not have to hit the glyph itself. */
+[data-dsh-connect-mobile] [data-conversation-tabs] [role=tab],
+[data-dsh-connect-mobile] [data-dsc-conversation-tabs-row] button[aria-haspopup=menu]{position:relative}
+[data-dsh-connect-mobile] [data-conversation-tabs] [role=tab]::after,
+[data-dsh-connect-mobile] [data-dsc-conversation-tabs-row] button[aria-haspopup=menu]::after{content:"";position:absolute;inset:0 -5px}
