@@ -152,3 +152,6 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-sidebar-right-expand]{position:relative}
 [data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer] [data-sidebar-opener]::after,
 [data-dsh-connect-mobile] [data-sidebar-right-expand]::after{content:"";position:absolute;inset:-5px -4px}
+/* The reconnecting state breathes instead of looking stuck. */
+@keyframes dsc-status-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(prefers-reduced-motion:no-preference){.dsc-status[data-state=connecting] .dsc-status-dot{animation:dsc-status-pulse 1.4s ease-in-out infinite}}

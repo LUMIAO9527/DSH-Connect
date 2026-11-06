@@ -18,7 +18,8 @@
     if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value);
   };
   const layout = () => {
-    root.toggleAttribute('data-dsh-connect-mobile', media.matches || native);
+    const mobile = media.matches || native;
+    if (root.hasAttribute('data-dsh-connect-mobile') !== mobile) root.toggleAttribute('data-dsh-connect-mobile', mobile);
     const view = window.visualViewport;
     // ArkUI resizes the Web surface with the IME. Browsers may instead resize only
     // the visual viewport, so only that case needs a CSS viewport override.
