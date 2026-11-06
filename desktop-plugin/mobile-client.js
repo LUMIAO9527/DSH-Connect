@@ -292,7 +292,7 @@
     releasing?.cancel();
     press = releasing = undefined;
   });
-  let banner, caption, retry;
+  let banner, caption, retry, lastCaption = '', detailTimer = 0;
   const headerSlot = '[data-slot="conversation.session.header"]';
   const tabsSelector = '[data-conversation-tabs]';
   const composerSelector = '[data-composer-card]';
@@ -410,6 +410,14 @@
     banner = document.createElement('div'); banner.className = 'dsc-status'; banner.hidden = true; banner.setAttribute('role', 'status');
     const dot = document.createElement('span'); dot.className = 'dsc-status-dot'; dot.setAttribute('aria-hidden', 'true');
     caption = document.createElement('span'); retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '重试';
+    // Tap the notice for the values that decide which recovery step to take.
+    caption.addEventListener('click', () => {
+      if (!lastCaption) return;
+      clearTimeout(detailTimer);
+      const device = access?.device?.name || '未命名设备';
+      caption.textContent = `传输 ${transport} · ${device} · ${location.host || location.origin}`;
+      detailTimer = setTimeout(() => { caption.textContent = lastCaption; }, 4000);
+    });
     retry.addEventListener('click', () => {
       if (banner.dataset.state === 'auth-required') location.assign('/mobile-access/login?return=' + encodeURIComponent(location.pathname + location.search));
       else void window.__DSH_FOREVERWEB_ACCESS__?.resume('user-retry');
@@ -479,6 +487,7 @@
     timer = setTimeout(() => {
       mount(); if (!banner) return; banner.dataset.state = next;
       caption.textContent = ({ offline: '网络已断开', 'auth-required': '需要重新配对这台设备', connecting: '正在重新连接…' })[next];
+      lastCaption = caption.textContent;
       retry.textContent = next === 'auth-required' ? '去配对' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
     }, next === 'connecting' ? 3500 : 0);
   };
