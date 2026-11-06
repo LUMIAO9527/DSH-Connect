@@ -163,14 +163,14 @@ window.__ModuleLoader__.load({
       // for a reconnect when the existing transport is already disconnected.
       if (!document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]')) return;
       const connection = ctx.connection;
-      function WorkspaceFiles() {
-        return h('button', { type: 'button', className: 'dsc-workspace-files', 'aria-label': '浏览电脑文件', onClick(event) {
-          const target = ctx.sidebarRight.commandTarget(event.currentTarget);
+      window.__DSH_CONNECT_UI__?.configure({
+        toggleSidebar: () => ctx.layout?.toggleSidebar(),
+        closeRightbar: () => ctx.sidebarRight?.toggleExpanded(),
+        openWorkspaceFiles(button) {
+          const target = ctx.sidebarRight?.commandTarget(button);
           if (target !== undefined) ctx.sidebarRight.openTabFromTarget('files', target);
-        } }, h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: 'M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3V7Z' })));
-      }
-      ctx.effect(() => ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: 'dsh-connect-files', order: -11 }, WorkspaceFiles)), 'mobile workspace files');
-      window.__DSH_CONNECT_UI__?.configure({toggleSidebar:()=>ctx.layout?.toggleSidebar(),closeRightbar:()=>ctx.sidebarRight?.toggleExpanded()});
+        }
+      });
       if (ctx.layout?.panelInfo) {
         let panel = ctx.layout.panelInfo.getSnapshot().activePanelId;
         const offPanel=ctx.layout.panelInfo.subscribe(()=>{

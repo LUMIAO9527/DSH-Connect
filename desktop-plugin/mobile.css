@@ -16,14 +16,12 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-dsc-frame][data-rightbar-collapsed]:not([data-rightbar-fullscreen]) [data-rightbar-col]{display:none!important}
 [data-dsh-connect-mobile] [data-sidebar-right-panel=fullscreen]{inset:0!important;width:100%!important;height:100%!important;max-width:100%;border-radius:0!important}
 .dsc-toolbar{display:none}.dsc-drawer-mask{display:none}
-.dsc-workspace-files{display:none}
-[data-dsh-connect-mobile] .dsc-workspace-files{display:grid;place-items:center;flex:none;width:36px;height:36px;padding:7px;border:0;border-radius:10px;background:transparent;color:var(--dsc-ink);cursor:pointer}
-[data-dsh-connect-mobile] .dsc-workspace-files svg{width:20px;height:20px}
-/* Opening a host application belongs to the desktop. Mobile uses the file pane. */
-[data-dsh-connect-mobile] [data-open-target]{display:none!important}
+/* Keep the conversation folder control and route its tap to the in-app file pane. */
+[data-dsh-connect-mobile] [data-open-target]:not([data-slot="conversation.session.header.utilities"] [data-open-target="directory"]),
+[data-dsh-connect-mobile] [data-slot="conversation.session.header.utilities"] [data-open-target="directory"] button[aria-haspopup="menu"]{display:none!important}
 [data-dsh-connect-mobile] [data-composer-card] button[data-dsc-file-picker]{min-width:40px;min-height:40px}
-[data-dsh-connect-mobile] .dsc-toolbar{box-sizing:border-box;position:fixed;inset:0 0 auto;height:var(--dsc-toolbar-height);z-index:44;display:flex;align-items:center;gap:8px;padding:0 12px;background:transparent;border:0;box-shadow:none;color:var(--dsc-muted);font:12px/1.4 system-ui,sans-serif}
-.dsc-toolbar button{display:grid;place-items:center;width:36px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--dsc-ink);cursor:pointer;flex:none}.dsc-toolbar button:first-child{margin-left:-8px}.dsc-toolbar button:last-child{margin-right:-8px}.dsc-toolbar svg{width:19px;height:19px}.dsc-toolbar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}.dsc-toolbar-badge{font-size:10px;line-height:1;color:#4d6bfe;background:#4d6bfe12;padding:5px 7px;border-radius:6px}
+[data-dsh-connect-mobile] .dsc-toolbar{box-sizing:border-box;position:fixed;inset:0 0 auto;height:var(--dsc-toolbar-height);z-index:44;display:flex;align-items:center;gap:8px;padding:0 var(--dsc-page-gutter);background:transparent;border:0;box-shadow:none;color:var(--dsc-muted);font:12px/1.4 system-ui,sans-serif}
+.dsc-toolbar button{display:grid;place-items:center;width:36px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--dsc-ink);cursor:pointer;flex:none}.dsc-toolbar button:first-child{margin-left:calc(-1 * var(--dsc-page-gutter))}.dsc-toolbar button:last-child{margin-right:-8px}.dsc-toolbar svg{width:19px;height:19px}.dsc-toolbar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}.dsc-toolbar-badge{font-size:10px;line-height:1;color:#4d6bfe;background:#4d6bfe12;padding:5px 7px;border-radius:6px}
 .dsc-toolbar-badge[data-brand-mark]{display:grid;place-items:center;width:24px;height:24px;padding:0;background:transparent;border-radius:8px;flex:none}.dsc-toolbar-badge[data-brand-mark]>svg{width:24px;height:24px}
 [data-dsh-connect-mobile] .dsc-drawer-mask[data-open=true]{display:block;position:fixed;inset:var(--dsc-toolbar-height) 0 0;z-index:45;border:0;background:#0005;cursor:pointer}
 /* Mobile owns column geometry once; desktop width preferences and scrollbar gutters must not move the composer. */
@@ -40,6 +38,8 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-dsc-conversation-title] button,[data-dsh-connect-mobile] [data-dsc-conversation-title] a{font-size:15px!important;line-height:24px!important;font-weight:600!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] svg{width:16px;height:16px}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] nav{min-width:0;max-width:100%;overflow:hidden}
+[data-dsh-connect-mobile] [data-dsc-conversation-title] nav > :first-child,
+[data-dsh-connect-mobile] [data-dsc-conversation-title] nav > :first-child > :first-child{padding-inline-start:0!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title]~[data-conversation-header-corner]{margin-right:0!important;margin-left:6px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-tabs-row]{margin-top:0!important;min-height:30px;gap:12px!important;align-items:center}
 [data-dsh-connect-mobile] [data-conversation-tabs]{max-width:100%;overflow-x:auto;scrollbar-width:none}

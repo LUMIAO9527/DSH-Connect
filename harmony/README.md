@@ -1,10 +1,10 @@
 # DSH Connect 鸿蒙应用
 
-维护版本 1.0.9。通过鸿蒙手机或平板，继续使用电脑上的完整 DeepSeek Harness。首页、电脑管理与系统交互使用 ArkUI，连接后的工作区由 ArkWeb 展示。
+维护版本 1.0.10。通过鸿蒙手机或平板，继续使用电脑上的完整 DeepSeek Harness。首页、电脑管理与系统交互使用 ArkUI，连接后的工作区由 ArkWeb 展示。
 
 ## 安装
 
-本地 `artifacts/` 提供 `DSH-Connect-1.0.9-unsigned.hap`，已发布构建见项目 Release。该文件是未签名的 release 构建，需要在 DevEco 中配置自己的开发签名，并在已授权设备上安装。
+本地 `artifacts/` 提供 `DSH-Connect-1.0.10-unsigned.hap`，已发布构建见项目 Release。该文件是未签名的 release 构建，需要在 DevEco 中配置自己的开发签名，并在已授权设备上安装。
 
 正式包名为 `com.lumiao.dshconnect`，版本代码为 10009。已有同包名安装升级时，需使用匹配签名以保留应用数据。设备专用调试包沿用原应用身份与签名。
 

@@ -18,6 +18,15 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     focus() { this.focused = true; }
   }
   const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [];
+  const folderButton = new Element('button');
+  folderButton.setAttribute('aria-label', '用 文件资源管理器 打开');
+  const isFolderSelector = selector => selector.includes('[data-open-target="directory"]');
+  const click = (button, matches) => {
+    const event = new Event('click', { cancelable: true });
+    Object.defineProperty(event, 'target', { value: { closest: selector => matches(selector) ? button : null } });
+    document.dispatchEvent(event);
+    return event;
+  };
   const fileButton=new Element('button'),fileInput=new Element('input'),tools=new Element('div');
   fileButton.setAttribute('aria-haspopup','listbox');fileButton.setAttribute('aria-label','添加文件或调用指令');fileButton.parentElement=tools;fileInput.parentElement=tools;
   tools.querySelector=selector=>selector==='input[type="file"]'?fileInput:fileButton;
@@ -44,7 +53,7 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     : conversation && query === '[data-slot="conversation.session.header"]' ? sessionHeader
     : settings && query === '[data-shortcut-modal="settings"]' ? settingsPanel
     : settings && query === '[data-shortcut-modal="settings"][data-dsc-settings-detail]' && settingsPanel.hasAttribute('data-dsc-settings-detail') ? settingsPanel : null;
-  document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
+  document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : isFolderSelector(query) ? (conversation ? [folderButton] : []) : settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
   const media=Object.assign(new EventTarget(),{matches:!wide});window.matchMedia=()=>media;
   if (viewport) { window.innerHeight = viewport.innerHeight; window.visualViewport = Object.assign(new EventTarget(), { height: viewport.height }); }
   window.__DSH_CONNECT_TRANSPORT__ = transport;
@@ -54,12 +63,31 @@ function page({ authenticated = true, native = false, wide = false, files = fals
   vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
     MutationObserver: class { observe() {} disconnect() {} }, KeyboardEvent: Event, getComputedStyle:element=>({visibility:element.visibility||'visible'}) });
-  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, category, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,
-    pick(){const event=new Event('click',{cancelable:true});Object.defineProperty(event,'target',{value:{closest:()=>fileButton}});document.dispatchEvent(event);return event;},
+  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, category, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,folderButton,
+    pick: () => click(fileButton, selector => selector === 'button[data-dsc-file-picker]'),
+    openFolder: () => click(folderButton, isFolderSelector),
     banner: () => document.body.children.find(node => node.className === 'dsc-status'),
     flush() { const pending = [...timers.values()]; timers.clear(); for (const callback of pending) callback(); },
     access(detail) { const event = new Event('dsh-foreverweb:access-state'); event.detail = detail; window.dispatchEvent(event); } };
 }
+
+test('the original conversation folder opens in-app on mobile and keeps its upstream action on desktop', () => {
+  const current = page({ conversation: true });
+  const opened = [];
+  let upstreamClicks = 0;
+  current.window.__DSH_CONNECT_UI__.configure({ openWorkspaceFiles: button => opened.push(button) });
+  current.document.addEventListener('click', () => upstreamClicks++);
+  assert.equal(current.folderButton.getAttribute('aria-label'), '浏览电脑文件');
+  assert.equal(current.openFolder().defaultPrevented, true);
+  assert.deepEqual(opened, [current.folderButton]);
+  assert.equal(upstreamClicks, 0);
+  current.media.matches = false;
+  current.media.dispatchEvent(new Event('change'));
+  assert.equal(current.folderButton.getAttribute('aria-label'), '用 文件资源管理器 打开');
+  assert.equal(current.openFolder().defaultPrevented, false);
+  assert.equal(opened.length, 1);
+  assert.equal(upstreamClicks, 1);
+});
 
 test('mobile attachment tap opens the existing file input without focusing the editor or launching commands',()=>{
   const mobile=page({files:true});

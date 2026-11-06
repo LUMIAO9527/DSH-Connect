@@ -54,8 +54,31 @@
       button.setAttribute('aria-haspopup',mobile?'dialog':'listbox');
     }
   };
+  const folderSelector = '[data-slot="conversation.session.header.utilities"] [data-open-target="directory"] button[aria-label]:not([aria-haspopup="menu"])';
+  const folderLabel = '浏览电脑文件';
+  const originalFolderLabels = new WeakMap();
+  const markWorkspaceFolders = () => {
+    const mobile = media.matches || native;
+    for (const button of document.querySelectorAll(folderSelector)) {
+      const label = button.getAttribute('aria-label');
+      if (mobile && label !== folderLabel) {
+        originalFolderLabels.set(button, label);
+        button.setAttribute('aria-label', folderLabel);
+      } else if (!mobile && originalFolderLabels.has(button)) {
+        if (label === folderLabel) button.setAttribute('aria-label', originalFolderLabels.get(button));
+        originalFolderLabels.delete(button);
+      }
+    }
+  };
   document.addEventListener('click',event=>{
     if(!(media.matches||native))return;
+    const folder = event.target.closest?.(folderSelector);
+    if (folder) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (!folder.disabled) controls.openWorkspaceFiles?.(folder);
+      return;
+    }
     const button=event.target.closest?.('button[data-dsc-file-picker]');
     const input=button?.parentElement?.querySelector('input[type="file"]');
     if(!button||!input||button.disabled||input.disabled)return;
@@ -63,6 +86,7 @@
     document.activeElement?.blur();input.click();
   },true);
   media.addEventListener('change',markFilePickers);
+  media.addEventListener('change',markWorkspaceFolders);
   const mount = () => {
     if (banner || !document.body) return;
     banner = document.createElement('div'); banner.className = 'dsc-status'; banner.hidden = true; banner.setAttribute('role', 'status');
@@ -105,8 +129,8 @@
       if(row&&row.closest('[data-dsc-sidebar]')&&!event.target.closest('button')) window.__DSH_CONNECT_UI__.closeSidebar();
     });
     let queued=false;
-    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();markConversationHeader();markFilePickers();});}).observe(document.body,{childList:true,subtree:true});
-    markSettings();markConversationHeader();markFilePickers();
+    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();markConversationHeader();markFilePickers();markWorkspaceFolders();});}).observe(document.body,{childList:true,subtree:true});
+    markSettings();markConversationHeader();markFilePickers();markWorkspaceFolders();
   };
   const state = () => navigator.onLine === false ? 'offline'
     : ['invalid','revoked','expired'].includes(access?.device?.state) || access?.lastError?.action === 'pair' ? 'auth-required'
