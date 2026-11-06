@@ -23,3 +23,19 @@ test('unconfigured installations expose connection setup and version controls', 
   assert.equal(nodes.find(node => node.type === 'button' && node.children.includes('检查更新')).props.disabled, false);
   assert.equal(nodes.find(node => node.type === 'a' && node.children.includes('发布记录')).props.href, 'https://github.com/LUMIAO9527/DSH-Connect/releases/latest');
 });
+
+test('remote workspace file control opens the current DSH file pane through its public service',()=>{
+  let module,component,target;
+  const opened=[],element={};
+  const react={createElement:(type,props,...children)=>({type,props,children}),useState(){},useEffect(){},useRef(){}};
+  const window={addEventListener(){},removeEventListener(){},__ModuleLoader__:{load(value){module=value.factory(()=>react);}}};
+  vm.runInNewContext(source,{window,document:{querySelector:query=>query.includes('dsh-foreverweb-gateway')?{}:null},navigator:{onLine:true}});
+  const ctx={effect:setup=>setup(),slots:{inject:(_name,setup)=>setup(),register:(options,value)=>{if(options.id==='dsh-connect-files')component=value;}},
+    connection:{state:{getSnapshot:()=> 'connected',subscribe:()=>()=>{}}},
+    sidebarRight:{commandTarget:current=>{assert.equal(current,element);return target;},openTabFromTarget:(kind,value)=>opened.push({kind,value})}};
+  module.apply(ctx);
+  const button=component();assert.equal(button.props['aria-label'],'浏览电脑文件');
+  button.props.onClick({currentTarget:element});assert.equal(opened.length,0);
+  target={sessionId:'current',paneId:'pane'};button.props.onClick({currentTarget:element});
+  assert.equal(opened.length,1);assert.equal(opened[0].kind,'files');assert.equal(opened[0].value,target);
+});

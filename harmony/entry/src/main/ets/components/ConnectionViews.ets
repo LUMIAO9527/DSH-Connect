@@ -2,23 +2,24 @@
 export struct ComputerCover {
   @Prop computerName: string = '我的电脑';
   @Prop cardHeight: number = 286;
-  @Prop unpaired: boolean = false;
+  @Prop adding: boolean = false;
   onContinue: () => void = () => {};
-  onManage: () => void = () => {};
   build() {
-    Column({ space: 0 }) {
+    Button({ type: ButtonType.Normal }) {
       Column() {
-        Row() {
-          Text(this.computerName).fontSize(17).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-          if (this.unpaired) {
-            Text('未配对').fontSize(11).fontColor($r('app.color.muted')).padding({ left: 9, right: 9, top: 6, bottom: 6 }).borderRadius(8).backgroundColor($r('app.color.surface_alt')).margin({ right: 8 })
-          } else {
-            Button({ type: ButtonType.Circle }) { Text('⋯').fontSize(24).fontColor($r('app.color.muted')) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('管理' + this.computerName).onClick(this.onManage)
-          }
-        }.width('100%').height(50).padding({ left: 18, right: 10, top: 6 })
-        Image($r('app.media.computer_cover')).width('100%').height(this.cardHeight - 60).objectFit(ImageFit.Contain).accessibilityText('电脑上的 DSH Connect')
-      }.width('100%').height(this.cardHeight).borderRadius(24).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface')).onClick(this.onContinue)
-    }.width('100%').alignItems(HorizontalAlign.Start)
+        if (this.adding) {
+          Blank().layoutWeight(1)
+          Stack() { SymbolGlyph($r('sys.symbol.plus')).fontSize(36).fontColor([$r('app.color.muted')]) }.width(76).height(76).backgroundColor($r('app.color.surface_alt')).borderRadius(24)
+          Text('添加电脑').fontSize(19).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).margin({ top: 20 })
+          Blank().layoutWeight(1)
+        } else {
+          Text(this.computerName).fontSize(21).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%').maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis }).padding({ left: 24, right: 24, top: 26 })
+          Stack() {
+            Image($r('app.media.computer_cover')).width('124%').height('100%').objectFit(ImageFit.Contain).accessibilityText('电脑上的 DSH Connect')
+          }.width('100%').layoutWeight(1).clip(true).padding({ bottom: 16 })
+        }
+      }.width('100%').height('100%').borderRadius(28).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
+    }.width('100%').height(this.cardHeight).padding(0).borderRadius(28).backgroundColor(Color.Transparent).accessibilityText(this.adding ? '添加电脑' : '连接' + this.computerName).onClick(this.onContinue)
   }
 }
 

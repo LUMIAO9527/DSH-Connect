@@ -32,8 +32,8 @@ struct Index {
   @State private autoConnect: boolean = true;
   @State private resumeToWorkspace: boolean = true;
   @State private selectedComputerId: string = '';
-  @State private nameInput: string = '';
   @State private addressInput: string = '';
+  @State private linkFocused: boolean = false;
   @State private activeName: string = '';
   @State private phase: string = 'idle';
   @State private connectionState: string = 'connecting';
@@ -41,14 +41,15 @@ struct Index {
   @State private pageWidth: number = 390;
   @State private pageHeight: number = 780;
   @State private primaryId: string = '';
-  @State private nameExpanded: boolean = false;
   @State private helpVisible: boolean = false;
   @State private editingId: string = '';
   @State private editName: string = '';
   @StorageLink('dshLaunchUrl') @Watch('consumeLaunch') private launchUrl: string = '';
   @StorageLink('dshBottomInset') private bottomInset: number = 0;
+  @StorageLink('dshKeyboardVisible') private keyboardVisible: boolean = false;
   @StorageLink('dshForeground') @Watch('foregroundChanged') private foreground: number = 0;
   private webController: webview.WebviewController = new webview.WebviewController();
+  private addScroller: Scroller = new Scroller();
   private store?: ComputerStore;
   private files?: FileSupport;
   @State private activeUrl: string = '';
@@ -157,6 +158,7 @@ struct Index {
       else { this.getUIContext().getPromptAction().showToast({ message: '已连接。电脑列表已满，移除不再使用的电脑后可保存。' }); return; }
       try {
         await this.store?.save(rows); this.computers = rows;
+        this.selectedComputerId = computer.id;
         if (!rows.some((item: Computer) => item.id === this.primaryId)) { await this.store?.savePrimaryComputer(computer.id); this.primaryId = computer.id; }
       } catch (_) { this.message = '已连接，电脑列表暂时未能保存。'; }
     } else if (state === 'auth-required') { this.clearTimer(); this.phase = 'pairing'; }
@@ -189,6 +191,7 @@ struct Index {
   }
   private foregroundChanged(): void {
     if (!this.loaded) return;
+    if (this.pickerBusy) return;
     if (!this.resumeToWorkspace) { this.managerVisible = true; return; }
     this.resumeConnection();
   }
@@ -208,11 +211,6 @@ struct Index {
       this.managerVisible = false; this.message = ''; this.resumeConnection(); return;
     }
     this.openAddress(computer.address, computer.name);
-  }
-  private computerStatus(computer: Computer): string {
-    if (!this.activeUrl || this.savedAddress !== computer.address) return '点击连接';
-    if (this.phase === 'ready') return this.connectionState === 'connected' ? '已连接 · 继续工作' : this.connectionState === 'offline' ? '网络已断开 · 返回工作区' : '恢复连接中 · 返回工作区';
-    return this.phase === 'pairing' ? '等待配对' : '点击连接';
   }
   private finishFiles(items: string[]): void { this.fileRequest++; const callback = this.pendingFiles; this.pendingFiles = null; this.uploadVisible = false; this.pickerBusy = false; if (callback) callback(items); }
   private async chooseFiles(kind: string): Promise<void> {
@@ -242,6 +240,8 @@ struct Index {
   }
   onBackPress(): boolean {
     if (this.uploadVisible) { this.finishFiles([]); return true; }
+    if (this.adding) { this.adding = false; return true; }
+    if (this.editingId) { this.editingId = ''; this.message = ''; return true; }
     if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) { this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.message = ''; return true; }
     if (this.managerVisible && this.phase === 'failed') { this.phase = 'idle'; this.message = ''; return true; }
     if (this.managerVisible && this.activeUrl && this.phase === 'ready') { this.managerVisible = false; this.resumeConnection(); return true; }
@@ -257,19 +257,27 @@ struct Index {
     return this.latestComputer();
   }
   private selectedIndex(): number {
+    if (this.selectedComputerId === 'add-computer') return this.computers.length;
     const index = this.computers.findIndex((item: Computer) => item.id === this.selectedComputerId);
     if (index >= 0) return index;
     const primary = this.computers.findIndex((item: Computer) => item.id === this.mainComputer().id);
     return primary >= 0 ? primary : 0;
   }
-  private selectedComputer(): Computer { return this.computers[this.selectedIndex()] || this.mainComputer(); }
-  private computerCardHeight(): number { return Math.min(360, Math.max(250, this.pageHeight - 446)); }
+  private computerCardHeight(): number { return Math.min(360, Math.max(220, Math.min(this.pageWidth, 560) - 40), this.pageHeight - 184); }
   private latestComputer(): Computer {
     let latest: Computer = this.computers[0] || new Computer('', '我的电脑', '');
     for (const item of this.computers) if (item.lastConnectedAt > latest.lastConnectedAt) latest = item;
     return latest;
   }
-  private openAdd(): void { this.startup = false; this.adding = true; this.helpVisible = false; this.settingsVisible = false; this.message = ''; this.nameExpanded = false; }
+  private openAdd(): void { this.startup = false; this.adding = true; this.message = ''; }
+  private async chooseRecovery(startup: boolean): Promise<void> {
+    try {
+      const result = await this.getUIContext().getPromptAction().showActionMenu({ title: startup ? '启动应用时' : '返回应用时', buttons: [
+        { text: startup ? '自动恢复' : '继续原位置', color: $r('app.color.ink') }, { text: '先选电脑', color: $r('app.color.ink') }
+      ] });
+      if (startup) this.changeAutoConnect(result.index === 0); else this.changeResumeToWorkspace(result.index === 0);
+    } catch (_) {}
+  }
   private async manageComputer(computer: Computer): Promise<void> {
     try {
       const result = await this.getUIContext().getPromptAction().showActionMenu({ title: computer.name, buttons: [
@@ -296,99 +304,92 @@ struct Index {
   }
   @Builder private header() {
     Row({ space: 6 }) {
-      if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) {
-        Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(20).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('返回').onClick(() => {
-          if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) { this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.message = ''; }
-          else { this.managerVisible = false; this.resumeConnection(); }
+      if (this.settingsVisible || this.helpVisible || this.editingId) {
+        Button({ type: ButtonType.Normal }) {
+          Stack() { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(19).fontColor([$r('app.color.ink')]) }.width(40).height(40).borderRadius(13).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
+        }.width(40).height(40).padding(0).borderRadius(13).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('返回').onClick(() => {
+          this.onBackPress();
         })
       }
       Image($r('app.media.cn_mark')).width(30).height(30).flexShrink(0).accessibilityText('DSH Connect')
       Text('DSH Connect').fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      if (!this.adding && !this.settingsVisible && !this.helpVisible && !this.editingId) {
-        Button({ type: ButtonType.Circle }) { Text('+').fontSize(27).fontColor($r('app.color.ink')) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('添加电脑').onClick(() => { this.openAdd(); })
+      if (!this.settingsVisible && !this.helpVisible && !this.editingId) {
         Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.startup = false; this.settingsVisible = true; this.message = ''; })
       }
-    }.width('100%').margin({ bottom: 20 })
+    }.width('100%').height(48).margin({ bottom: 16 })
   }
   @Builder private recoveryOptions() {
     Column() {
-      Row({ space: 10 }) {
-        Column({ space: 5 }) {
-          Text('重新打开').fontSize(13).fontColor($r('app.color.ink'))
-          Text('恢复最近的工作页面').fontSize(11).fontColor($r('app.color.muted'))
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Select([{ value: '自动恢复' }, { value: '先选电脑' }]).selected(this.autoConnect ? 0 : 1).value(this.autoConnect ? '自动恢复' : '先选电脑').font({ size: 12 }).fontColor($r('app.color.ink')).optionFont({ size: 14 }).optionFontColor($r('app.color.ink')).selectedOptionFontColor('#4D6BFE').menuBackgroundColor($r('app.color.surface')).backgroundColor(Color.Transparent).width(128).height(44).accessibilityText('重新打开应用').onSelect((index: number) => { this.changeAutoConnect(index === 0); })
-      }.width('100%').padding({ top: 10, bottom: 10 })
-      Divider().color($r('app.color.line'))
-      Row({ space: 10 }) {
-        Column({ space: 5 }) {
-          Text('从后台回来').fontSize(13).fontColor($r('app.color.ink'))
-          Text('保留当前会话与草稿').fontSize(11).fontColor($r('app.color.muted'))
-        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Select([{ value: '继续原位置' }, { value: '先选电脑' }]).selected(this.resumeToWorkspace ? 0 : 1).value(this.resumeToWorkspace ? '继续原位置' : '先选电脑').font({ size: 12 }).fontColor($r('app.color.ink')).optionFont({ size: 14 }).optionFontColor($r('app.color.ink')).selectedOptionFontColor('#4D6BFE').menuBackgroundColor($r('app.color.surface')).backgroundColor(Color.Transparent).width(128).height(44).accessibilityText('从后台返回应用').onSelect((index: number) => { this.changeResumeToWorkspace(index === 0); })
-      }.width('100%').padding({ top: 10, bottom: 10 })
-    }.width('100%').padding({ left: 16, right: 10 }).borderRadius(20).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
+      this.settingRow('启动应用时', this.autoConnect ? '自动恢复' : '先选电脑', () => { this.chooseRecovery(true); })
+      Divider().color($r('app.color.line')).margin({ left: 16, right: 16 }).width('auto')
+      this.settingRow('返回应用时', this.resumeToWorkspace ? '继续原位置' : '先选电脑', () => { this.chooseRecovery(false); })
+    }.width('100%').borderRadius(20).clip(true).backgroundColor($r('app.color.surface'))
   }
   @Builder private home() {
     Column({ space: 0 }) {
-        Text('我的电脑').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-        Text(this.computers.length === 0 ? '添加电脑，连接你的 DeepSeek Harness。' : this.computers.length > 1 ? '左右滑动，选择要连接的电脑。' : '已保存的连接，随时继续。').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 7, bottom: 20 })
-        if (this.computers.length === 0) {
-          ComputerCover({ computerName: '添加第一台电脑', cardHeight: this.computerCardHeight(), unpaired: true, onContinue: () => { this.openAdd(); } })
-        } else {
+      Column() {
         Swiper() {
           ForEach(this.computers, (computer: Computer) => {
-            ComputerCover({ computerName: computer.name, cardHeight: this.computerCardHeight(), onContinue: () => { this.continueComputer(computer); }, onManage: () => { this.manageComputer(computer); } })
+            Column() { ComputerCover({ computerName: computer.name, cardHeight: this.computerCardHeight(), onContinue: () => { this.continueComputer(computer); } }) }.width('100%')
           }, (computer: Computer) => computer.id)
-        }.index(this.selectedIndex()).loop(false).indicator(this.computers.length > 1 ? Indicator.dot().itemWidth(6).itemHeight(6).selectedItemWidth(18).selectedItemHeight(6).color($r('app.color.line')).selectedColor('#4D6BFE') : false).disableSwipe(this.computers.length < 2).width('100%').height(this.computerCardHeight() + (this.computers.length > 1 ? 28 : 0)).onChange((index: number) => { if (this.computers[index]) this.selectedComputerId = this.computers[index].id; })
-        }
-        if (this.computers.length === 0) {
-          Button('添加电脑').height(50).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).backgroundColor('#4D6BFE').fontColor(Color.White).margin({ top: 16, bottom: 18 }).onClick(() => { this.openAdd(); })
-          Text('在电脑「设置 → DSH Connect」中生成配对码，扫码或粘贴链接即可添加。').fontSize(12).lineHeight(21).fontColor($r('app.color.muted')).width('100%')
-        } else {
-        Button(this.phase === 'ready' && this.savedAddress === this.selectedComputer().address ? '返回工作区' : '连接电脑').height(50).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).backgroundColor('#4D6BFE').fontColor(Color.White).margin({ top: 16, bottom: 18 }).accessibilityText('连接' + this.selectedComputer().name).onClick(() => { this.continueComputer(this.selectedComputer()); })
-        this.recoveryOptions()
-        }
-        Button('配对与连接帮助  ›').height(44).padding(0).fontSize(12).fontColor('#4D6BFE').backgroundColor(Color.Transparent).margin({ top: 12 }).onClick(() => { this.helpVisible = true; this.message = ''; })
-      }.width('100%').alignItems(HorizontalAlign.Start)
+          Column() { ComputerCover({ adding: true, cardHeight: this.computerCardHeight(), onContinue: () => { this.openAdd(); } }) }.width('100%')
+        }.index(this.selectedIndex()).loop(false).indicator(this.computers.length > 0 ? Indicator.dot().itemWidth(5).itemHeight(5).selectedItemWidth(16).selectedItemHeight(5).color($r('app.color.line')).selectedColor($r('app.color.ink')) : false).width('100%').height(this.computerCardHeight() + 28).onChange((index: number) => { this.selectedComputerId = this.computers[index]?.id || 'add-computer'; })
+      }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
+      Button({ type: ButtonType.Normal }) {
+        Row({ space: 10 }) {
+          Text('使用帮助').fontSize(13).fontColor($r('app.color.ink'))
+          SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(12).fontColor([$r('app.color.muted')])
+        }.height(44).padding({ left: 20, right: 18 }).borderRadius(14).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
+      }.height(44).padding(0).borderRadius(14).backgroundColor(Color.Transparent).margin({ top: 8, bottom: 4 }).accessibilityText('使用帮助').onClick(() => { this.helpVisible = true; this.message = ''; })
+    }.width('100%').layoutWeight(1).alignItems(HorizontalAlign.Center)
+  }
+  @Builder private settingRow(label: string, value: string, action: () => void) {
+    Button({ type: ButtonType.Normal }) {
+      Row({ space: 12 }) {
+        Text(label).fontSize(15).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(value).fontSize(12).fontColor($r('app.color.muted')).maxLines(1).constraintSize({ maxWidth: '46%' }).textOverflow({ overflow: TextOverflow.Ellipsis })
+        SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(12).fontColor([$r('app.color.muted')])
+      }.width('100%')
+    }.width('100%').height(58).padding({ left: 16, right: 16 }).backgroundColor(Color.Transparent).borderRadius(0).onClick(action)
   }
   @Builder private addForm() {
+    Scroll(this.addScroller) {
     Column({ space: 0 }) {
-      Text('添加电脑').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-      Text('使用电脑插件生成的配对码或完整链接。').fontSize(13).lineHeight(22).fontColor($r('app.color.muted')).width('100%').margin({ top: 10, bottom: 24 })
-      Column({ space: 0 }) {
+      Text('添加电脑').fontSize(20).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%').padding({ right: 48 }).margin({ bottom: 22 })
         Button({ type: ButtonType.Normal }) {
           Row({ space: 10 }) {
             SymbolGlyph($r('sys.symbol.computer')).fontSize(23).fontColor([$r('app.color.ink')])
-            Column({ space: 5 }) { Text('扫描电脑二维码').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')); Text('在电脑的 DSH Connect 设置中获取').fontSize(10).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+            Text('扫描电脑二维码').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1)
             SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(13).fontColor([$r('app.color.muted')])
           }.width('100%')
-        }.height(72).width('100%').padding(13).borderRadius(16).backgroundColor($r('app.color.surface_alt')).accessibilityText('扫描电脑二维码').onClick(() => { this.scan(); })
-        Text('或使用配对链接').fontSize(12).fontColor($r('app.color.ink')).width('100%').margin({ top: 22, bottom: 10 })
-        TextArea({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).fontSize(14).placeholderFont({ size: 13 }).height(88).borderRadius(13).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.connector_background')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; })
-        Button((this.nameExpanded ? '−  ' : '+  ') + '电脑名称（选填）').height(46).padding(0).fontSize(11).fontColor($r('app.color.muted')).backgroundColor(Color.Transparent).onClick(() => { this.nameExpanded = !this.nameExpanded; })
-        if (this.nameExpanded) { TextInput({ text: this.nameInput, placeholder: '我的电脑' }).fontSize(14).placeholderFont({ size: 13 }).height(48).borderRadius(13).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.connector_background')).fontColor($r('app.color.ink')).accessibilityText('电脑名称').maxLength(40).margin({ bottom: 14 }).onChange((value: string) => { this.nameInput = value; }) }
-        Button('连接并记住').height(50).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.addressInput.trim().length > 0).onClick(() => { this.openAddress(this.addressInput, this.nameInput); })
-      }.width('100%').padding(20).borderRadius(24).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface')).alignItems(HorizontalAlign.Start)
-    }.width('100%').alignItems(HorizontalAlign.Start)
+        }.height(58).width('100%').padding(14).borderRadius(16).backgroundColor($r('app.color.surface_alt')).accessibilityText('扫描电脑二维码').onClick(() => { this.scan(); })
+        Text('或输入配对链接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 20, bottom: 10 })
+        TextInput({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).type(InputType.URL).enterKeyType(EnterKeyType.Go).fontSize(14).placeholderFont({ size: 13 }).height(52).borderRadius(14).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; }).onFocus(() => { this.linkFocused = true; this.addScroller.scrollEdge(Edge.Bottom); }).onBlur(() => { this.linkFocused = false; }).onSubmit(() => { if (this.addressInput.trim()) this.openAddress(this.addressInput, ''); })
+        if (this.message) { Text(this.message).fontSize(12).lineHeight(20).fontColor($r('app.color.ink')).width('100%').margin({ top: 10 }) }
+        Button('连接电脑').height(48).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.addressInput.trim().length > 0).margin({ top: 18 }).onClick(() => { this.openAddress(this.addressInput, ''); })
+    }.width('100%').padding({ left: 24, right: 24, top: 18, bottom: this.bottomInset + 20 }).alignItems(HorizontalAlign.Start)
+    }.width('100%').height('100%').scrollBar(BarState.Off).onAreaChange(() => { if (this.linkFocused) this.addScroller.scrollEdge(Edge.Bottom); })
   }
   @Builder private settings() {
     Column({ space: 18 }) {
-      Text('连接设置').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-      Text('版本 ' + APP_VERSION).fontSize(12).fontColor($r('app.color.muted')).width('100%')
+      Text('设置').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
+      Text('连接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 8, bottom: -8 })
       this.recoveryOptions()
-      Column({ space: 12 }) {
-        Text('版本更新').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%')
-        Text(this.updateMessage).fontSize(12).lineHeight(21).fontColor($r('app.color.muted')).width('100%')
-        Button(this.updateChecking ? '正在检查…' : this.updateAvailable ? '查看新版' : '检查更新').width('100%').height(44).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).enabled(!this.updateChecking).onClick(() => { if (this.updateAvailable) this.openProject(true); else this.checkUpdate(); })
-        Text('从发布页获取适配当前设备的安装包。覆盖安装会保留已保存的电脑。').fontSize(11).lineHeight(20).fontColor($r('app.color.muted')).width('100%')
-      }.width('100%').padding(20).borderRadius(20).backgroundColor($r('app.color.surface'))
-      Column({ space: 12 }) {
-        Text('使用与卸载').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%')
-        Button('首次连接说明').width('100%').height(42).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.settingsVisible = false; this.helpVisible = true; })
-        Button('项目与问题反馈').width('100%').height(42).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.openProject(false); })
-        Text('卸载：在手机桌面长按 DSH Connect 图标，选择卸载。本机保存的电脑连接和登录状态会被移除；电脑上的 DSH 工作区和文件仍由 DSH 管理。').fontSize(11).lineHeight(20).fontColor($r('app.color.muted')).width('100%')
-      }.width('100%').padding(20).borderRadius(20).backgroundColor($r('app.color.surface'))
+      Text('电脑').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 4, bottom: -8 })
+      Column() {
+        ForEach(this.computers, (computer: Computer) => {
+          this.settingRow(computer.name, computer.id === this.mainComputer().id ? '主电脑' : '', () => { this.manageComputer(computer); })
+          Divider().color($r('app.color.line')).margin({ left: 16, right: 16 }).width('auto')
+        }, (computer: Computer) => computer.id)
+        this.settingRow('添加电脑', '', () => { this.openAdd(); })
+      }.width('100%').borderRadius(20).clip(true).backgroundColor($r('app.color.surface'))
+      Text('关于').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 4, bottom: -8 })
+      Column() {
+        this.settingRow(this.updateChecking ? '正在检查…' : this.updateAvailable ? '获取新版本' : '检查更新', APP_VERSION, () => { if (this.updateAvailable) this.openProject(true); else this.checkUpdate(); })
+        Divider().color($r('app.color.line')).margin({ left: 16, right: 16 }).width('auto')
+        this.settingRow('问题反馈', '', () => { this.openProject(false); })
+      }.width('100%').borderRadius(20).clip(true).backgroundColor($r('app.color.surface'))
+      if (this.updateMessage !== '检查是否有新版本') { Text(this.updateMessage).fontSize(12).lineHeight(20).fontColor($r('app.color.muted')).width('100%') }
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private help() {
@@ -463,14 +464,21 @@ struct Index {
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       }
       if (this.managerVisible && this.loaded) {
-        Scroll() {
-          Column() {
-            this.header()
+        Column() {
+          this.header()
+          if (!this.editingId && !this.helpVisible && !this.settingsVisible) {
+            this.home()
+          } else {
+          Scroll() {
+            Column() {
             if (this.message) { Text(this.message).fontSize(13).lineHeight(22).fontColor($r('app.color.ink')).padding(16).width('100%').backgroundColor($r('app.color.surface')).borderRadius(16).margin({ bottom: 20 }) }
-            if (this.editingId) { this.renameForm() } else if (this.helpVisible) { this.help() } else if (this.settingsVisible) { this.settings() } else if (this.adding) { this.addForm() } else { this.home() }
-          }.constraintSize({ maxWidth: 560 }).width('100%').padding({ left: 20, right: 20, top: 12, bottom: 24 })
-        }.width('100%').height('100%').align(Alignment.Top).scrollBar(BarState.Off).backgroundColor($r('app.color.connector_background'))
+            if (this.editingId) { this.renameForm() } else if (this.helpVisible) { this.help() } else { this.settings() }
+            }.width('100%').padding({ bottom: 20 })
+          }.width('100%').layoutWeight(1).align(Alignment.Top).scrollBar(BarState.Off)
+          }
+        }.constraintSize({ maxWidth: 560 }).width('100%').height('100%').padding({ left: 20, right: 20, top: 12, bottom: this.bottomInset + 8 }).backgroundColor($r('app.color.connector_background'))
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+          .bindSheet($$this.adding, this.addForm(), { height: this.keyboardVisible ? SheetSize.LARGE : 380, showClose: true, backgroundColor: $r('app.color.surface'), keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE })
       }
       if (!this.loaded || !this.managerVisible && this.phase === 'connecting') {
         ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })

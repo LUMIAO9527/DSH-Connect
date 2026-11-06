@@ -43,6 +43,26 @@
     back.addEventListener('click',()=>{panel.removeAttribute('data-dsc-settings-detail');nav.querySelector('[aria-current="true"]')?.focus();});header.prepend(back);
     nav.addEventListener('click',event=>{const item=event.target.closest('button');if(!item)return;panel.setAttribute('data-dsc-settings-detail','');back.textContent='‹ '+item.textContent.trim();back.focus();});
   };
+  const markFilePickers=()=>{
+    for(const input of document.querySelectorAll('[data-composer-card] input[type="file"]')) {
+      const button=input.parentElement?.querySelector('button[aria-haspopup="listbox"],button[data-dsc-file-picker]');
+      if(!button)continue;
+      if(!button.hasAttribute('data-dsc-file-picker'))button.dataset.dscOriginalLabel=button.getAttribute('aria-label')||'';
+      button.setAttribute('data-dsc-file-picker','');
+      const mobile=media.matches||native;
+      button.setAttribute('aria-label',mobile?'添加附件':button.dataset.dscOriginalLabel);
+      button.setAttribute('aria-haspopup',mobile?'dialog':'listbox');
+    }
+  };
+  document.addEventListener('click',event=>{
+    if(!(media.matches||native))return;
+    const button=event.target.closest?.('button[data-dsc-file-picker]');
+    const input=button?.parentElement?.querySelector('input[type="file"]');
+    if(!button||!input||button.disabled||input.disabled)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    document.activeElement?.blur();input.click();
+  },true);
+  media.addEventListener('change',markFilePickers);
   const mount = () => {
     if (banner || !document.body) return;
     banner = document.createElement('div'); banner.className = 'dsc-status'; banner.hidden = true; banner.setAttribute('role', 'status');
@@ -62,7 +82,7 @@
     if (window.__DSH_CONNECT_BRAND__) { badge.innerHTML = window.__DSH_CONNECT_BRAND__; badge.setAttribute('aria-label', native ? 'DSH Connect' : 'DSH Connect'); badge.setAttribute('title', native ? 'DSH Connect' : 'DSH Connect'); badge.setAttribute('data-brand-mark', ''); }
     const home = document.createElement('button'); home.type='button'; home.setAttribute('aria-label',native?'电脑与连接':'复制访问入口');
     home.innerHTML = native?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8m-4-4v4"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg>';
-    home.addEventListener('click',()=>{if(native)window.HarmonyConnector.showComputers();else void navigator.clipboard.writeText(location.origin+'/').then(()=>{home.setAttribute('aria-label','入口已复制');title.textContent='入口已复制';setTimeout(()=>{title.textContent='DeepSeek Harness';home.setAttribute('aria-label','复制访问入口');},2000);}).catch(()=>{title.textContent='请收藏当前网页';});});
+    home.addEventListener('click',()=>{if(native){document.activeElement?.blur();window.HarmonyConnector.showComputers();}else void navigator.clipboard.writeText(location.origin+'/').then(()=>{home.setAttribute('aria-label','入口已复制');title.textContent='入口已复制';setTimeout(()=>{title.textContent='DeepSeek Harness';home.setAttribute('aria-label','复制访问入口');},2000);}).catch(()=>{title.textContent='请收藏当前网页';});});
     toolbar.append(menu,title,badge,home); document.body.append(toolbar);
     mask=document.createElement('button');mask.className='dsc-drawer-mask';mask.type='button';mask.setAttribute('aria-label','关闭会话侧栏');mask.addEventListener('click',()=>controls.toggleSidebar?.());document.body.append(mask);
     const markFrame=()=>{
@@ -85,8 +105,8 @@
       if(row&&row.closest('[data-dsc-sidebar]')&&!event.target.closest('button')) window.__DSH_CONNECT_UI__.closeSidebar();
     });
     let queued=false;
-    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();markConversationHeader();});}).observe(document.body,{childList:true,subtree:true});
-    markSettings();markConversationHeader();
+    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();markConversationHeader();markFilePickers();});}).observe(document.body,{childList:true,subtree:true});
+    markSettings();markConversationHeader();markFilePickers();
   };
   const state = () => navigator.onLine === false ? 'offline'
     : ['invalid','revoked','expired'].includes(access?.device?.state) || access?.lastError?.action === 'pair' ? 'auth-required'
@@ -113,7 +133,7 @@
   }, closeSidebar() {
     if(frame&&!frame.hasAttribute('data-sidebar-collapsed')&&(media.matches||native)) controls.toggleSidebar?.();
   }, back() {
-    const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(element => element.getClientRects().length);
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible');
     const settings=document.querySelector('[data-shortcut-modal="settings"][data-dsc-settings-detail]');
     if(settings&&dialogs.at(-1)===settings){settings.removeAttribute('data-dsc-settings-detail');settings.querySelector('nav [aria-current="true"]')?.focus();return 'consumed';}
     if (dialogs.length) { dialogs.at(-1).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true })); return 'consumed'; }

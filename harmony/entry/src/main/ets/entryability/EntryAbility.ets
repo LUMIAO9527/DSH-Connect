@@ -35,6 +35,7 @@ export default class EntryAbility extends UIAbility {
       const ui = this.mainWindow.getUIContext();
       // ArkUI owns the safe layout. Only the attachment sheet needs an explicit bottom inset.
       AppStorage.setOrCreate<number>('dshBottomInset', keyboard.bottomRect.height > 0 ? 0 : ui.px2vp(Math.max(system.bottomRect.height, indicator.bottomRect.height, cutout.bottomRect.height)));
+      AppStorage.setOrCreate<boolean>('dshKeyboardVisible', keyboard.bottomRect.height > 0);
     } catch (_) {}
   }
   private appearance(): void {

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
+function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
@@ -18,6 +18,10 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
     focus() { this.focused = true; }
   }
   const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [];
+  const fileButton=new Element('button'),fileInput=new Element('input'),tools=new Element('div');
+  fileButton.setAttribute('aria-haspopup','listbox');fileButton.setAttribute('aria-label','添加文件或调用指令');fileButton.parentElement=tools;fileInput.parentElement=tools;
+  tools.querySelector=selector=>selector==='input[type="file"]'?fileInput:fileButton;
+  fileInput.click=()=>calls.push('pick-file');document.activeElement={blur:()=>calls.push('blur')};
   document.documentElement = new Element('html'); document.head = new Element('head'); document.body = new Element('body'); document.readyState = 'complete';
   document.createElement = tag => new Element(tag);
   const viewportMeta = new Element('meta'); viewportMeta.setAttribute('content', 'width=device-width,initial-scale=1,viewport-fit=contain');
@@ -40,8 +44,8 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
     : conversation && query === '[data-slot="conversation.session.header"]' ? sessionHeader
     : settings && query === '[data-shortcut-modal="settings"]' ? settingsPanel
     : settings && query === '[data-shortcut-modal="settings"][data-dsc-settings-detail]' && settingsPanel.hasAttribute('data-dsc-settings-detail') ? settingsPanel : null;
-  document.querySelectorAll = () => settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
-  window.matchMedia = () => ({ matches: true, addEventListener() {} });
+  document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
+  const media=Object.assign(new EventTarget(),{matches:!wide});window.matchMedia=()=>media;
   if (viewport) { window.innerHeight = viewport.innerHeight; window.visualViewport = Object.assign(new EventTarget(), { height: viewport.height }); }
   window.__DSH_CONNECT_TRANSPORT__ = transport;
   window.__DSH_FOREVERWEB_ACCESS__ = { getSnapshot: () => ({ device: { state: 'valid' }, session: { state: 'valid' } }), resume: async reason => calls.push(reason) };
@@ -49,12 +53,32 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
   const navigator = { onLine: true, userAgent: native ? 'ArkWeb DSH-Connect/0.2.0' : 'Browser', clipboard: { writeText: async () => {} } };
   vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
-    MutationObserver: class { observe() {} disconnect() {} }, KeyboardEvent: Event });
-  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, category, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow,
+    MutationObserver: class { observe() {} disconnect() {} }, KeyboardEvent: Event, getComputedStyle:element=>({visibility:element.visibility||'visible'}) });
+  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, category, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,
+    pick(){const event=new Event('click',{cancelable:true});Object.defineProperty(event,'target',{value:{closest:()=>fileButton}});document.dispatchEvent(event);return event;},
     banner: () => document.body.children.find(node => node.className === 'dsc-status'),
     flush() { const pending = [...timers.values()]; timers.clear(); for (const callback of pending) callback(); },
     access(detail) { const event = new Event('dsh-foreverweb:access-state'); event.detail = detail; window.dispatchEvent(event); } };
 }
+
+test('mobile attachment tap opens the existing file input without focusing the editor or launching commands',()=>{
+  const mobile=page({files:true});
+  assert.equal(mobile.fileButton.getAttribute('aria-label'),'添加附件');
+  assert.equal(mobile.fileButton.getAttribute('aria-haspopup'),'dialog');
+  assert.equal(mobile.pick().defaultPrevented,true);
+  assert.deepEqual(mobile.calls,['blur','pick-file']);
+  mobile.fileInput.disabled=true;mobile.pick();assert.deepEqual(mobile.calls,['blur','pick-file']);
+});
+
+test('wide browser keeps the upstream command launcher and responds to viewport changes',()=>{
+  const desktop=page({files:true,wide:true});
+  assert.equal(desktop.fileButton.getAttribute('aria-label'),'添加文件或调用指令');
+  assert.equal(desktop.pick().defaultPrevented,false);assert.deepEqual(desktop.calls,[]);
+  desktop.media.matches=true;desktop.media.dispatchEvent(new Event('change'));
+  assert.equal(desktop.fileButton.getAttribute('aria-haspopup'),'dialog');desktop.pick();assert.deepEqual(desktop.calls,['blur','pick-file']);
+  desktop.media.matches=false;desktop.media.dispatchEvent(new Event('change'));
+  assert.equal(desktop.fileButton.getAttribute('aria-haspopup'),'listbox');assert.equal(desktop.fileButton.getAttribute('aria-label'),'添加文件或调用指令');
+});
 
 test('ordinary local desktop receives no mobile shell or native bridge', () => {
   const local = page({ authenticated: false, native: true });
@@ -130,6 +154,12 @@ test('a child dialog closes before the settings detail moves back', () => {
   assert.equal(native.window.__DSH_CONNECT_UI__.back(), 'consumed');
   assert.equal(native.settingsPanel.hasAttribute('data-dsc-settings-detail'), true);
   assert.deepEqual(native.escapes, ['nested:keydown']);
+});
+
+test('a hidden navigation dialog never consumes Back ahead of an open file pane',()=>{
+  const native=page({native:true,fullscreen:true,settings:true});native.settingsPanel.visibility='hidden';
+  let closed=0;native.window.__DSH_CONNECT_UI__.configure({closeRightbar:()=>closed++});
+  assert.equal(native.window.__DSH_CONNECT_UI__.back(),'consumed');assert.equal(closed,1);assert.deepEqual(native.escapes,[]);
 });
 
 test('native Web immersion and browsers retain system safe insets while the keyboard is closed', () => {

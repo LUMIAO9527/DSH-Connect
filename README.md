@@ -4,7 +4,7 @@
 
 DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完整 DeepSeek Harness：会话、工作区、文件、模型、工具与任务共用同一份数据。模型调用和工具执行由连接的电脑完成。
 
-**维护版本：1.0.6。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
+**维护版本：1.0.9。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
 
 ## 选择打开方式
 
@@ -19,16 +19,16 @@ DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完�
 
 <p align="center"><img src="docs/images/home.jpg" width="245" alt="首次使用"><img src="docs/images/computers.jpg" width="245" alt="已保存电脑"><img src="docs/images/add.jpg" width="245" alt="添加电脑"></p>
 
-页面来自官方 SDK 的原生渲染，使用演示电脑数据。[查看页面图册](artifacts/DSH-Connect-1.0.6-preview.html)。
+页面来自官方 SDK 的原生渲染，使用演示电脑数据。[查看页面图册](artifacts/DSH-Connect-1.0.9-preview.html)。
 
 ## 下载
 
-已发布版本从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取。本地 1.0.6 构建位于 `artifacts/`：
+已发布版本从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取。本地 1.0.9 构建位于 `artifacts/`：
 
-- `dsh-connect-1.0.6.tgz`：安装在电脑 DSH 中的插件。
-- `DSH-Connect-1.0.6-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
-- `DSH-Connect-1.0.6-source.zip`：完整源码、构建脚本和说明。
-- `DSH-Connect-1.0.6-icon.svg`：固定黑底白字的 Cn 矢量图标。
+- `dsh-connect-1.0.9.tgz`：安装在电脑 DSH 中的插件。
+- `DSH-Connect-1.0.9-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
+- `DSH-Connect-1.0.9-source.zip`：完整源码、构建脚本和说明。
+- `DSH-Connect-1.0.9-icon.svg`：固定黑底白字的 Cn 矢量图标。
 - `SHA256SUMS.txt`：文件校验和。
 
 HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装包。首次体验也可以先使用浏览器入口。
@@ -45,9 +45,9 @@ HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装�
 
 ## 主要体验
 
-- 统一首页呈现未配对与已保存电脑两种状态；顶部始终显示 Cn 与 DSH Connect。电脑卡片突出名称与封面，左右滑动切换。
-- 冷启动恢复最近使用的电脑和原工作页面；从后台回来保留当前会话和草稿。首页可分别选择重新打开与后台返回时的行为。
-- 手机使用纵向布局、会话抽屉和设置二级页面；输入框及字号适应窄屏。
+- 首页点击电脑卡片即可进入工作区；左右滑动切换电脑，末尾的同尺寸卡片用于添加电脑。设置位于右上角，帮助跳转按钮位于底部；添加电脑使用原生底部面板。
+- 冷启动恢复最近使用的电脑和原工作页面；从后台回来保留当前会话和草稿。恢复行为与电脑管理集中在设置中。
+- 手机使用紧凑的标题和页签、会话抽屉与分组设置；文件夹在手机内浏览电脑文件，“＋”直接选择附件。
 - 使用鸿蒙原生沉浸式安全区和键盘避让，背景延伸到系统手势条下方；输入框下方保留 Token／上下文信息，上方保留排队消息与扩展位置。
 - Cn 图标采用圆角底板和圆润笔画，启动图标、应用、电脑封面和网页入口均固定黑底白字。
 
