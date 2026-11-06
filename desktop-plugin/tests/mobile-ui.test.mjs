@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, nativeToolbar = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
+function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, openMenu = false, viewport } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
@@ -44,22 +44,24 @@ function page({ authenticated = true, native = false, nativeToolbar = false, wid
   const conversationHeader = new Element('header'), sessionHeader = new Element('div'), titleRow = new Element('div'), titleCluster = new Element('div'), tabsRow = new Element('div'), tabs = new Element('div');
   sessionHeader.parentElement = conversationHeader; sessionHeader.firstElementChild = titleRow; sessionHeader.nextElementSibling = tabsRow;
   titleRow.firstElementChild = titleCluster; tabs.setAttribute('data-conversation-tabs',''); tabs.parentElement=tabsRow; tabsRow.append(tabs); sessionHeader.append(titleRow,tabsRow); conversationHeader.append(sessionHeader);
-  const settingsPanel = new Element('div'), category = new Element('button'), dialog = new Element('div'), escapes = [];
+  const settingsPanel = new Element('div'), category = new Element('button'), dialog = new Element('div'), menu = new Element('div'), escapes = [];
   settingsPanel.setAttribute('data-dsc-settings', ''); settingsPanel.setAttribute('data-dsc-settings-detail', '');
   settingsPanel.querySelector = () => category;
   settingsPanel.addEventListener('keydown', event => escapes.push('settings:' + event.type));
   dialog.addEventListener('keydown', event => escapes.push('nested:' + event.type));
+  menu.addEventListener('keydown', event => escapes.push('menu:' + event.type));
   document.querySelector = query => query.startsWith('meta[name="dsh-foreverweb-gateway"]') && authenticated ? {} : query === 'meta[name="viewport"]' ? viewportMeta : query === '[data-shell-overlay]' && (fullscreen || shell) ? overlay
     : conversation && query === '[data-slot="conversation.session.header"]' ? sessionHeader
     : settings && query === '[data-shortcut-modal="settings"]' ? settingsPanel
     : settings && query === '[data-shortcut-modal="settings"][data-dsc-settings-detail]' && settingsPanel.hasAttribute('data-dsc-settings-detail') ? settingsPanel : null;
-  document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : isFolderSelector(query) ? (conversation ? [folderButton] : []) : settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
+  document.querySelectorAll = query => query==='[data-composer-card] input[type="file"]' ? (files?[fileInput]:[]) : isFolderSelector(query) ? (conversation ? [folderButton] : [])
+    : query === '[role="menu"]' && openMenu ? [menu]
+    : query === '[role="dialog"]' && settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
   const media=Object.assign(new EventTarget(),{matches:!wide});window.matchMedia=()=>media;
   if (viewport) { window.innerHeight = viewport.innerHeight; window.visualViewport = Object.assign(new EventTarget(), { height: viewport.height }); }
   window.__DSH_CONNECT_TRANSPORT__ = transport;
   window.__DSH_FOREVERWEB_ACCESS__ = { getSnapshot: () => ({ device: { state: 'valid' }, session: { state: 'valid' } }), resume: async reason => calls.push(reason) };
   if (native) window.HarmonyConnector = { connectionChanged: state => calls.push(state), showComputers() {} };
-  if (nativeToolbar) window.HarmonyConnector.workspaceToolbarReady = () => true;
   const navigator = { onLine: true, userAgent: native ? 'ArkWeb DSH-Connect/0.2.0' : 'Browser', clipboard: { writeText: async () => {} } };
   vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
@@ -90,17 +92,12 @@ test('the original conversation folder opens in-app on mobile and keeps its upst
   assert.equal(upstreamClicks, 1);
 });
 
-test('the app hands off its toolbar only when native navigation is ready', () => {
-  for (const current of [page({native: true, nativeToolbar: true}), page({native: true}), page()]) {
-    const { window, document } = current;
-    const usesNativeToolbar = document.documentElement.hasAttribute('data-dsc-native-toolbar');
-    assert.equal(usesNativeToolbar, false);
-    let toggled = 0;
-    window.__DSH_CONNECT_UI__.configure({toggleSidebar: () => toggled++});
-    assert.equal(document.documentElement.hasAttribute('data-dsc-native-toolbar'), !!window.HarmonyConnector?.workspaceToolbarReady);
-    window.__DSH_CONNECT_UI__.toggleSidebar();
-    assert.equal(toggled, 1);
-  }
+test('phone navigation uses the Harness shell and native Back dismisses its open menu', () => {
+  const native = page({ native: true, openMenu: true, settings: true });
+  assert.deepEqual(native.document.body.children, [native.banner()]);
+  assert.equal(native.window.__DSH_CONNECT_UI__.back(), 'consumed');
+  assert.deepEqual(native.escapes, ['menu:keydown']);
+  assert.equal(native.settingsPanel.hasAttribute('data-dsc-settings-detail'), true);
 });
 
 test('mobile attachment tap opens the existing file input without focusing the editor or launching commands',()=>{
@@ -168,7 +165,7 @@ test('a native mask before the sidebar does not become a white sidebar column', 
   assert.equal(native.nativeMask.hasAttribute('data-dsc-center'), false);
   assert.equal(native.sidebar.hasAttribute('data-dsc-sidebar'), true);
   assert.equal(native.center.hasAttribute('data-dsc-center'), true);
-  assert.equal(native.document.body.children.find(node => node.className === 'dsc-drawer-mask').dataset.open, 'false');
+  assert.deepEqual(native.document.body.children, [native.banner()]);
 });
 
 test('returning from the native home coalesces access recovery without navigation', async () => {

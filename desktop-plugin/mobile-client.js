@@ -2,7 +2,7 @@
   if (!document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]') || window.__DSH_CONNECT_UI__) return;
   const media = window.matchMedia('(max-width: 900px)');
   const native = /DSH-Connect\//.test(navigator.userAgent) && !!window.HarmonyConnector;
-  let transport = window.__DSH_CONNECT_TRANSPORT__ || 'connecting', access = window.__DSH_FOREVERWEB_ACCESS__?.getSnapshot(), timer, lastBridge = '', controls = {}, frame, mask;
+  let transport = window.__DSH_CONNECT_TRANSPORT__ || 'connecting', access = window.__DSH_FOREVERWEB_ACCESS__?.getSnapshot(), timer, lastBridge = '', controls = {}, frame;
   let foregroundTask;
   const style = document.createElement('style'); style.id = 'dsh-connect-mobile-style';
   style.textContent = window.__DSH_CONNECT_MOBILE_STYLE__ || ''; delete window.__DSH_CONNECT_MOBILE_STYLE__;
@@ -70,14 +70,6 @@
       }
     }
   };
-  const syncWorkspaceToolbar = () => {
-    if (!native || !controls.toggleSidebar || document.documentElement.hasAttribute('data-dsc-native-toolbar')) return;
-    try {
-      if (window.HarmonyConnector.workspaceToolbarReady?.() === true) {
-        document.documentElement.setAttribute('data-dsc-native-toolbar', '');
-      }
-    } catch (_) {}
-  };
   document.addEventListener('click',event=>{
     if(!(media.matches||native))return;
     const folder = event.target.closest?.(folderSelector);
@@ -105,18 +97,6 @@
       else void window.__DSH_FOREVERWEB_ACCESS__?.resume('user-retry');
     });
     banner.append(dot, caption, retry); document.body.append(banner);
-    const toolbar = document.createElement('nav'); toolbar.className = 'dsc-toolbar'; toolbar.setAttribute('aria-label', '移动端导航');
-    const menu = document.createElement('button'); menu.type = 'button'; menu.setAttribute('aria-label','会话与工作区');
-    menu.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M4 12h16M4 18h10"/></svg>';
-    menu.addEventListener('click',()=>controls.toggleSidebar?.());
-    const title = document.createElement('span'); title.className='dsc-toolbar-title'; title.textContent='DeepSeek Harness';
-    const badge = document.createElement('span'); badge.className='dsc-toolbar-badge'; badge.textContent=native?'Connect':'Web';
-    if (window.__DSH_CONNECT_BRAND__) { badge.innerHTML = window.__DSH_CONNECT_BRAND__; badge.setAttribute('aria-label', native ? 'DSH Connect' : 'DSH Connect'); badge.setAttribute('title', native ? 'DSH Connect' : 'DSH Connect'); badge.setAttribute('data-brand-mark', ''); }
-    const home = document.createElement('button'); home.type='button'; home.setAttribute('aria-label',native?'电脑与连接':'复制访问入口');
-    home.innerHTML = native?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8m-4-4v4"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></svg>';
-    home.addEventListener('click',()=>{if(native){document.activeElement?.blur();window.HarmonyConnector.showComputers();}else void navigator.clipboard.writeText(location.origin+'/').then(()=>{home.setAttribute('aria-label','入口已复制');title.textContent='入口已复制';setTimeout(()=>{title.textContent='DeepSeek Harness';home.setAttribute('aria-label','复制访问入口');},2000);}).catch(()=>{title.textContent='请收藏当前网页';});});
-    toolbar.append(menu,title,badge,home); document.body.append(toolbar);
-    mask=document.createElement('button');mask.className='dsc-drawer-mask';mask.type='button';mask.setAttribute('aria-label','关闭会话侧栏');mask.addEventListener('click',()=>controls.toggleSidebar?.());document.body.append(mask);
     const markFrame=()=>{
       const overlay=document.querySelector('[data-shell-overlay]');if(!overlay)return false;
       frame=overlay.parentElement;
@@ -127,8 +107,7 @@
       frame.setAttribute('data-dsc-frame','');
       for(const column of columns){column.removeAttribute('data-dsc-sidebar');column.removeAttribute('data-dsc-center');}
       sidebar.setAttribute('data-dsc-sidebar','');center.setAttribute('data-dsc-center','');
-      const reflect=()=>mask.dataset.open=String(!frame.hasAttribute('data-sidebar-collapsed'));reflect();
-      new MutationObserver(reflect).observe(frame,{attributes:true,attributeFilter:['data-sidebar-collapsed']});return true;
+      return true;
     };
     if(!markFrame()){const observer=new MutationObserver(()=>{if(markFrame())observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(()=>observer.disconnect(),60000);}
     document.addEventListener('click',event=>{
@@ -145,7 +124,6 @@
     : transport === 'connected' && access?.session?.state === 'valid' ? 'connected' : 'connecting';
   const update = () => {
     mount(); const next = state();
-    syncWorkspaceToolbar();
     if (native && next !== lastBridge) {
       try { window.HarmonyConnector.connectionChanged(next); lastBridge = next; } catch (_) {}
     }
@@ -157,9 +135,7 @@
       retry.textContent = next === 'auth-required' ? '去配对' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
     }, next === 'connecting' ? 3500 : 0);
   };
-  window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; syncWorkspaceToolbar(); }, toggleSidebar() {
-    controls.toggleSidebar?.();
-  }, setTransport(value) { transport = value; update(); }, resume() {
+  window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; }, setTransport(value) { transport = value; update(); }, resume() {
     layout();
     if (foregroundTask) return foregroundTask;
     const task = Promise.resolve().then(() => window.__DSH_FOREVERWEB_ACCESS__?.resume('native-foreground')).then(() => { update(); })
@@ -168,6 +144,8 @@
   }, closeSidebar() {
     if(frame&&!frame.hasAttribute('data-sidebar-collapsed')&&(media.matches||native)) controls.toggleSidebar?.();
   }, back() {
+    const menu = [...document.querySelectorAll('[role="menu"]')].findLast(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible');
+    if (menu) { menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true })); return 'consumed'; }
     const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(element => element.getClientRects().length && getComputedStyle(element).visibility === 'visible');
     const settings=document.querySelector('[data-shortcut-modal="settings"][data-dsc-settings-detail]');
     if(settings&&dialogs.at(-1)===settings){settings.removeAttribute('data-dsc-settings-detail');settings.querySelector('nav [aria-current="true"]')?.focus();return 'consumed';}

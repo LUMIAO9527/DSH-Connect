@@ -156,12 +156,40 @@ window.__ModuleLoader__.load({
       }, 'plugin settings glyph');
     }
     /* settings-icon:end */
+    function MobileViewActions({ entries, onPinnedChange, onDismiss, views }) {
+      if (!document.documentElement.hasAttribute('data-dsh-connect-mobile')) return null;
+      const { MenuItemButton } = require('@deepseek-ai/dsh-client-ui-primitives');
+      const chinese = document.documentElement.lang.startsWith('zh');
+      const visible = new Set([...document.querySelectorAll('[data-conversation-tabs] [role="tab"]')]
+        .map(tab => tab.textContent.trim()));
+      const options = views.flatMap(({ id, label }) => {
+        const entry = entries.find(item => item.id === id);
+        const name = (typeof label === 'function' ? label() : label) ?? id;
+        return entry || visible.has(name) ? [{ id, name, folded: entry?.pinned === false }] : [];
+      });
+      return options.map(({ id, name, folded }, index) => {
+        const action = chinese ? (folded ? '展开' : '收起') : (folded ? 'Show ' : 'Hide ');
+        return h(MenuItemButton, {
+          key: id,
+          separatorBefore: index === 0,
+          onSelect: () => { onPinnedChange(id, folded); onDismiss(); }
+        }, action + name);
+      });
+    }
     function apply(ctx) {
       installSettingsIcon(ctx);
       ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'dsh-connect', order: 35, label: 'DSH Connect' }, Settings)), 'DSH Connect settings');
       // DSH owns reconnection and data synchronization. Access renewal only asks
       // for a reconnect when the existing transport is already disconnected.
       if (!document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]')) return;
+      const viewActions = 'conversation.session.header.views.actions';
+      ctx.effect(() => ctx.slots.inject(viewActions, () => ctx.slots.register({
+        name: viewActions, id: 'dsh-connect-mobile-tabs', order: 90,
+        inject: () => ({
+          views: ctx.slots.entries('conversation.view').map(entry => entry.options)
+            .filter(entry => ['trajectory', 'context', 'fleet'].includes(entry.id))
+        })
+      }, MobileViewActions)), 'DSH Connect mobile view pins');
       const connection = ctx.connection;
       window.__DSH_CONNECT_UI__?.configure({
         toggleSidebar: () => ctx.layout?.toggleSidebar(),

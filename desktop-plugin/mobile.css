@@ -1,31 +1,22 @@
 /* Shared touch layout for the Harmony app and paired browser. */
-:root[data-dsh-connect-mobile]{--dsc-accent:#4d6bfe;--dsc-page-gutter:12px;--dsc-toolbar-height:40px;--dsc-inset-bottom:env(safe-area-inset-bottom,0px);--dsc-viewport:100dvh;--dsc-bg:var(--dsw-alias-bg-base,#fff);--dsc-ink:var(--dsw-alias-label-primary,#202329);--dsc-muted:var(--dsw-alias-label-secondary,#7b808b)}
-:root[data-dsh-connect-mobile][data-dsc-native-toolbar]{--dsc-toolbar-height:0px}
+:root[data-dsh-connect-mobile]{--dsc-accent:#4d6bfe;--dsc-page-gutter:12px;--dsc-inset-bottom:env(safe-area-inset-bottom,0px);--dsc-viewport:100dvh}
 html[data-dsh-connect-mobile],html[data-dsh-connect-mobile] body,html[data-dsh-connect-mobile] #root{height:var(--dsc-viewport);min-height:0;overscroll-behavior:none}
 html[data-dsh-connect-mobile]{overflow:hidden}
 html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transparent;overflow:hidden}
 [data-dsh-connect-mobile] #root{min-width:0;max-width:100%;overflow-x:hidden}
-[data-dsh-connect-mobile] [data-dsc-frame]{grid-template-columns:0 minmax(0,1fr) 0!important;padding-top:var(--dsc-toolbar-height);position:relative;height:100%;min-height:0;max-width:100%;box-sizing:border-box}
-[data-dsh-connect-mobile] [data-dsc-sidebar]{box-sizing:border-box;position:absolute!important;inset:var(--dsc-toolbar-height) auto 0 0!important;width:min(320px,85vw)!important;height:auto!important;border:0!important;z-index:46;background:var(--dsw-specific-sidebar-fill,var(--dsc-bg));box-shadow:none;transition:transform 180ms ease,visibility 180ms;transform:translateX(0)}
+[data-dsh-connect-mobile] [data-dsc-frame]{height:100%;min-height:0;max-width:100%}
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]{grid-template-columns:0 minmax(0,1fr) 0!important}
 [data-dsh-connect-mobile] [data-dsc-sidebar] [data-slot=sidebar]>*{box-sizing:border-box;width:100%!important;max-width:100%!important;height:100%!important;min-height:0;margin:0!important;border-radius:0!important;padding-bottom:calc(6px + var(--dsc-inset-bottom))!important}
 [data-dsh-connect-mobile] [data-dsc-sidebar] button[data-dsh-market-nav-icon]:has([data-slot="dsh-focus.icon"] svg)::before{content:none}
-[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-collapsed] [data-dsc-sidebar]{visibility:hidden;transform:translateX(-105%);pointer-events:none}
-[data-dsh-connect-mobile] [data-dsc-center]{grid-column:2!important;min-width:0;width:100%;border:0!important}
-[data-dsh-connect-mobile] [data-dsc-frame]>[data-side]{display:none!important}
-[data-dsh-connect-mobile] [data-dsc-frame]>[data-sidebar-mask]{display:none!important}
-[data-dsh-connect-mobile] [data-dsc-frame]>[data-shell-leading]{display:none!important}
-[data-dsh-connect-mobile] [data-rightbar-col]{box-sizing:border-box;position:absolute!important;grid-area:auto!important;inset:var(--dsc-toolbar-height) 0 0!important;width:100%!important;max-width:100%;padding-bottom:var(--dsc-inset-bottom);z-index:43;border:0!important;background:var(--dsw-alias-bg-base,#fff)}
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer]>[data-shell-leading]{top:4px;inset-inline-start:var(--dsc-page-gutter)}
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer] [data-sidebar-opener]{width:32px;height:36px}
+[data-dsh-connect-mobile] [data-rightbar-col]{box-sizing:border-box;position:absolute!important;grid-area:auto!important;inset:0!important;width:100%!important;max-width:100%;padding-bottom:var(--dsc-inset-bottom);z-index:43;border:0!important;background:var(--dsw-alias-bg-base,#fff)}
 [data-dsh-connect-mobile] [data-dsc-frame][data-rightbar-collapsed]:not([data-rightbar-fullscreen]) [data-rightbar-col]{display:none!important}
 [data-dsh-connect-mobile] [data-sidebar-right-panel=fullscreen]{inset:0!important;width:100%!important;height:100%!important;max-width:100%;border-radius:0!important}
-.dsc-toolbar{display:none}.dsc-drawer-mask{display:none}
 /* Keep the conversation folder control and route its tap to the in-app file pane. */
 [data-dsh-connect-mobile] [data-open-target]:not([data-slot="conversation.session.header.utilities"] [data-open-target="directory"]),
 [data-dsh-connect-mobile] [data-slot="conversation.session.header.utilities"] [data-open-target="directory"] button[aria-haspopup="menu"]{display:none!important}
 [data-dsh-connect-mobile] [data-composer-card] button[data-dsc-file-picker]{min-width:40px;min-height:40px}
-[data-dsh-connect-mobile]:not([data-dsc-native-toolbar]) .dsc-toolbar{box-sizing:border-box;position:fixed;inset:0 0 auto;height:var(--dsc-toolbar-height);z-index:44;display:flex;align-items:center;gap:8px;padding:0 var(--dsc-page-gutter);background:transparent;border:0;box-shadow:none;color:var(--dsc-muted);font:12px/1.4 system-ui,sans-serif}
-.dsc-toolbar button{display:grid;place-items:center;width:36px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--dsc-ink);cursor:pointer;flex:none}.dsc-toolbar button:first-child{margin-left:calc(-1 * var(--dsc-page-gutter))}.dsc-toolbar button:last-child{margin-right:-8px}.dsc-toolbar svg{width:19px;height:19px}.dsc-toolbar-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}.dsc-toolbar-badge{font-size:10px;line-height:1;color:#4d6bfe;background:#4d6bfe12;padding:5px 7px;border-radius:6px}
-.dsc-toolbar-badge[data-brand-mark]{display:grid;place-items:center;width:18px;height:18px;padding:0;background:transparent;flex:none}.dsc-toolbar-badge[data-brand-mark]>svg{width:18px;height:18px}
-[data-dsh-connect-mobile] .dsc-drawer-mask[data-open=true]{display:block;position:fixed;inset:var(--dsc-toolbar-height) 0 0;z-index:45;border:0;background:#0005;cursor:pointer}
 /* Mobile owns column geometry once; desktop width preferences and scrollbar gutters must not move the composer. */
 [data-dsh-connect-mobile] [data-conversation-region]{box-sizing:border-box;min-width:0!important;width:100%;max-width:100%}
 [data-dsh-connect-mobile] [data-conversation-region=chat]{overflow:hidden}
@@ -34,8 +25,9 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-conversation-scroll]::-webkit-scrollbar{width:0;height:0}
 [data-dsh-connect-mobile] [data-conversation-header-leading]{min-width:0;gap:8px}
 [data-dsh-connect-mobile] [data-conversation-header-corner]{flex-shrink:0;gap:4px}
-[data-dsh-connect-mobile] [data-dsc-conversation-header]{box-sizing:border-box;min-height:0!important;padding:0 var(--dsc-page-gutter)!important;grid-template-columns:0 minmax(0,1fr)!important;row-gap:0!important}
-[data-dsh-connect-mobile] [data-dsc-conversation-title-row]{box-sizing:border-box;min-width:0!important;min-height:36px!important;padding-left:0!important}
+[data-dsh-connect-mobile] [data-dsc-conversation-header]{box-sizing:border-box;min-height:0!important;padding:0 var(--dsc-page-gutter)!important;row-gap:0!important;container-type:inline-size}
+[data-dsh-connect-mobile] [data-dsc-conversation-title-row]{box-sizing:border-box;min-width:0!important;min-height:36px!important;padding-inline-start:0!important}
+[data-dsh-connect-mobile] [data-sidebar-drawer] [data-dsc-conversation-title-row]{min-height:44px!important;padding-inline-start:max(0px,calc(var(--dsh-frame-leading-clearance,48px) - var(--dsc-page-gutter)))!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title]{min-width:0!important;padding-inline:0!important;margin-inline:0!important;gap:6px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title-row] > :has([data-slot="conversation.session.header.utilities"]){margin-inline-start:8px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] button,[data-dsh-connect-mobile] [data-dsc-conversation-title] a{font-size:15px!important;line-height:24px!important;font-weight:600!important}
@@ -45,6 +37,13 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-dsc-conversation-title] nav > :first-child > :first-child{padding-inline-start:0!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title]~[data-conversation-header-corner]{margin-right:0!important;margin-left:6px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-tabs-row]{margin-top:0!important;min-height:32px;gap:12px!important;align-items:center;flex-wrap:nowrap}
+/* Harness measures the row at 120px per view plus 48px for More. Reserve four slots while the flex content keeps the real header width. */
+[data-dsh-connect-mobile] [data-dsc-conversation-tabs-row] {
+  --dsc-tab-reserve:max(0px, calc(528px - 100cqi));
+  box-sizing:content-box;
+  padding-inline:0 var(--dsc-tab-reserve);
+  margin-inline-end:calc(-1 * var(--dsc-tab-reserve));
+}
 [data-dsh-connect-mobile] [data-conversation-tabs]{max-width:100%;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
 [data-dsh-connect-mobile] [data-conversation-tabs] [role=tab]{display:flex;align-items:center;font-size:12px!important;line-height:18px!important;min-height:32px!important;margin-block:0;padding-block:0!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-tabs-row] button[aria-haspopup=menu]{min-width:32px;min-height:32px;margin-block:0}
@@ -54,10 +53,10 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-conversation-composer-overlay] > [role=toolbar] input[type=search]{font-size:14px}
 [data-dsh-connect-mobile] [data-composer-card]{border-radius:22px!important;border:1px solid var(--dsw-alias-border-l2,#dfe3eb)!important;box-shadow:0 3px 18px #161c2b08!important}
 [data-dsh-connect-mobile] [data-composer-input]{font-size:14px!important;line-height:1.65!important;min-height:44px;max-height:32dvh}
-[data-dsh-connect-mobile] [data-composer-dock]{box-sizing:border-box;width:100%;min-width:0;padding:4px 2px 0;gap:8px}
+[data-dsh-connect-mobile] [data-composer-dock]{box-sizing:border-box;width:100%;min-width:0;padding:2px 2px 0;gap:8px}
 [data-dsh-connect-mobile] [data-composer-placeholder]{font-size:13px!important;line-height:1.7!important}
-/* Auxiliary content keeps its upstream slots. Only a browser reserves CSS safe insets; menus can extend above the seat. */
-[data-dsh-connect-mobile] [data-composer-seat]{box-sizing:border-box;min-width:0;max-width:100%;padding:0 0 var(--dsc-inset-bottom);overflow:visible}
+/* Use the platform inset or the minimum breathing room, whichever is larger. */
+[data-dsh-connect-mobile] [data-composer-seat]{box-sizing:border-box;min-width:0;max-width:100%;padding:0 0 max(6px,var(--dsc-inset-bottom));overflow:visible}
 [data-dsh-connect-mobile] :is([data-composer-seat],[data-conversation-composer-overlay]) div:has(> [data-composer-card] + [data-composer-dock]){padding-block-end:0}
 [data-dsh-connect-mobile] [data-conversation-content] pre{max-width:100%;overflow-x:auto;border-radius:14px}
 [data-dsh-connect-mobile] [data-conversation-content] table{display:block;max-width:100%;overflow-x:auto}
@@ -95,7 +94,5 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] input,[data-dsh-connect-mobile] textarea{font-size:max(16px,1em)}
 .dsc-status{position:fixed;z-index:10001;left:50%;top:64px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:10px 14px;background:var(--dsw-alias-bg-elevated,#fff);color:var(--dsw-alias-label-primary,#202329);border:1px solid var(--dsw-alias-border-l2,#e7e9ee);border-radius:16px;box-shadow:0 8px 32px #141b2d16;font:13px/1.5 system-ui,sans-serif}
 .dsc-status[hidden]{display:none}.dsc-status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#e6a23c}.dsc-status[data-state=offline] .dsc-status-dot{background:#969ba6}.dsc-status[data-state=auth-required] .dsc-status-dot{background:#d66c61}.dsc-status button{flex:none;min-height:32px;padding:4px 10px;border:0;border-radius:9px;background:#4d6bfe;color:#fff;font:inherit;cursor:pointer}
-.dsc-native-home{position:fixed;z-index:10002;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:42px;height:42px;border:1px solid var(--dsw-alias-border-l2,#e7e9ee);border-radius:15px;background:var(--dsw-alias-bg-elevated,#fff);color:var(--dsw-alias-label-secondary,#69707d);box-shadow:0 3px 16px #141b2d10;cursor:pointer;display:grid;place-items:center}
-.dsc-native-home svg{width:20px;height:20px}
 @media(prefers-reduced-motion:no-preference){.dsc-status{animation:dsc-appear 180ms ease-out}@keyframes dsc-appear{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}}
 @media(min-width:901px){.dsc-status{top:16px}}
