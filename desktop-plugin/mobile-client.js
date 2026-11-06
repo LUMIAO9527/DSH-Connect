@@ -70,6 +70,14 @@
       }
     }
   };
+  const syncWorkspaceToolbar = () => {
+    if (!native || !controls.toggleSidebar || document.documentElement.hasAttribute('data-dsc-native-toolbar')) return;
+    try {
+      if (window.HarmonyConnector.workspaceToolbarReady?.() === true) {
+        document.documentElement.setAttribute('data-dsc-native-toolbar', '');
+      }
+    } catch (_) {}
+  };
   document.addEventListener('click',event=>{
     if(!(media.matches||native))return;
     const folder = event.target.closest?.(folderSelector);
@@ -137,6 +145,7 @@
     : transport === 'connected' && access?.session?.state === 'valid' ? 'connected' : 'connecting';
   const update = () => {
     mount(); const next = state();
+    syncWorkspaceToolbar();
     if (native && next !== lastBridge) {
       try { window.HarmonyConnector.connectionChanged(next); lastBridge = next; } catch (_) {}
     }
@@ -148,7 +157,9 @@
       retry.textContent = next === 'auth-required' ? '去配对' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
     }, next === 'connecting' ? 3500 : 0);
   };
-  window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; }, setTransport(value) { transport = value; update(); }, resume() {
+  window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; syncWorkspaceToolbar(); }, toggleSidebar() {
+    controls.toggleSidebar?.();
+  }, setTransport(value) { transport = value; update(); }, resume() {
     layout();
     if (foregroundTask) return foregroundTask;
     const task = Promise.resolve().then(() => window.__DSH_FOREVERWEB_ACCESS__?.resume('native-foreground')).then(() => { update(); })

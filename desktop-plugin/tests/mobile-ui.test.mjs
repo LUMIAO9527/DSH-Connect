@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
+function page({ authenticated = true, native = false, nativeToolbar = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
@@ -59,6 +59,7 @@ function page({ authenticated = true, native = false, wide = false, files = fals
   window.__DSH_CONNECT_TRANSPORT__ = transport;
   window.__DSH_FOREVERWEB_ACCESS__ = { getSnapshot: () => ({ device: { state: 'valid' }, session: { state: 'valid' } }), resume: async reason => calls.push(reason) };
   if (native) window.HarmonyConnector = { connectionChanged: state => calls.push(state), showComputers() {} };
+  if (nativeToolbar) window.HarmonyConnector.workspaceToolbarReady = () => true;
   const navigator = { onLine: true, userAgent: native ? 'ArkWeb DSH-Connect/0.2.0' : 'Browser', clipboard: { writeText: async () => {} } };
   vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
@@ -87,6 +88,19 @@ test('the original conversation folder opens in-app on mobile and keeps its upst
   assert.equal(current.openFolder().defaultPrevented, false);
   assert.equal(opened.length, 1);
   assert.equal(upstreamClicks, 1);
+});
+
+test('the app hands off its toolbar only when native navigation is ready', () => {
+  for (const current of [page({native: true, nativeToolbar: true}), page({native: true}), page()]) {
+    const { window, document } = current;
+    const usesNativeToolbar = document.documentElement.hasAttribute('data-dsc-native-toolbar');
+    assert.equal(usesNativeToolbar, false);
+    let toggled = 0;
+    window.__DSH_CONNECT_UI__.configure({toggleSidebar: () => toggled++});
+    assert.equal(document.documentElement.hasAttribute('data-dsc-native-toolbar'), !!window.HarmonyConnector?.workspaceToolbarReady);
+    window.__DSH_CONNECT_UI__.toggleSidebar();
+    assert.equal(toggled, 1);
+  }
 });
 
 test('mobile attachment tap opens the existing file input without focusing the editor or launching commands',()=>{

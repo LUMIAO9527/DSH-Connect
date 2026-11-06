@@ -1,6 +1,6 @@
 {
   "name": "dsh-connect",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "displayName": "DSH Connect",
   "description": "通过鸿蒙应用或浏览器连接电脑上的完整 DeepSeek Harness。",
   "license": "Apache-2.0",

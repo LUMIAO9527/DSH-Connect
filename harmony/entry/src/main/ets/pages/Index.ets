@@ -14,9 +14,13 @@ enum ConnectPanel { Settings, Help, Add, Rename, Remove, ConnectionError, Attach
 class ConnectorBridge {
   private show: () => void;
   private changed: (state: string) => void;
-  constructor(show: () => void, changed: (state: string) => void) { this.show = show; this.changed = changed; }
+  private toolbar: () => boolean;
+  constructor(show: () => void, changed: (state: string) => void, toolbar: () => boolean) {
+    this.show = show; this.changed = changed; this.toolbar = toolbar;
+  }
   showComputers(): void { this.show(); }
   connectionChanged(state: string): void { this.changed(state); }
+  workspaceToolbarReady(): boolean { return this.toolbar(); }
 }
 
 @Entry
@@ -40,6 +44,7 @@ struct Index {
   @State private activeName: string = '';
   @State private phase: string = 'idle';
   @State private connectionState: string = 'connecting';
+  @State private workspaceToolbarVisible: boolean = false;
   @State private message: string = '';
   @State private pageWidth: number = 390;
   @State private pageHeight: number = 780;
@@ -74,7 +79,15 @@ struct Index {
   private accepts: string[] = [];
   private multiple: boolean = false;
   private fileRequest: number = 0;
-  private bridge: ConnectorBridge = new ConnectorBridge(() => { this.managerVisible = true; }, (state: string) => { this.onConnection(state); });
+  private bridge: ConnectorBridge = new ConnectorBridge(
+    () => { this.managerVisible = true; },
+    (state: string) => { this.onConnection(state); },
+    () => {
+      if (!this.trustedPage()) return false;
+      this.workspaceToolbarVisible = true;
+      return true;
+    }
+  );
 
   aboutToAppear(): void {
     this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
@@ -131,6 +144,7 @@ struct Index {
       const hostname = new url.URL(parsed.origin).hostname;
       this.activeName = name.trim() || known?.name || (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' ? '我的电脑' : hostname.split('.')[0]);
       this.phase = 'connecting'; this.connectionState = 'connecting'; this.message = ''; this.connectorAvailable = false;
+      this.workspaceToolbarVisible = false;
       this.panelVisible = false; this.panelHistory = []; this.editingId = ''; this.managerVisible = false;
       if (this.attached) this.loadActive();
     } catch (_) {
@@ -142,7 +156,8 @@ struct Index {
   private registerBridge(): void {
     if (!this.attached || !this.currentOrigin) return;
     try { this.webController.deleteJavaScriptRegister('HarmonyConnector'); } catch (_) {}
-    this.webController.registerJavaScriptProxy(this.bridge, 'HarmonyConnector', ['showComputers', 'connectionChanged'], [], connectorPermission(this.currentOrigin));
+    this.webController.registerJavaScriptProxy(this.bridge, 'HarmonyConnector',
+      ['showComputers', 'connectionChanged', 'workspaceToolbarReady'], [], connectorPermission(this.currentOrigin));
   }
   private loadActive(): void {
     try {
@@ -517,10 +532,28 @@ struct Index {
       Button('浏览文件').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('documents'); })
     }.width('100%')
   }
-  build() {
-    Stack() {
-      if (this.activeUrl.length > 0) {
-      Web({ src: this.initialUrl, controller: this.webController })
+  @Builder private workspaceToolbar() {
+    Row({ space: 4 }) {
+      Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        SymbolGlyph($r('sys.symbol.line_3_horizontal')).fontSize(19).fontColor([$r('app.color.ink')])
+      }.width(44).height(44).padding(0).accessibilityText('会话与工作区')
+        .onClick(() => {
+          if (this.trustedPage()) this.webController.runJavaScript('window.__DSH_CONNECT_UI__?.toggleSidebar()').catch(() => {});
+        })
+      Text('DeepSeek Harness').layoutWeight(1).fontSize(14).fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.ink')).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+      Image($r('app.media.cn_mark')).width(18).height(18).flexShrink(0).accessibilityText('DSH Connect')
+      Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        SymbolGlyph($r('sys.symbol.computer')).fontSize(20).fontColor([$r('app.color.ink')])
+      }.width(44).height(44).padding(0).accessibilityText('电脑与连接')
+        .onClick(() => {
+          if (this.trustedPage()) this.webController.runJavaScript('document.activeElement?.blur()').catch(() => {});
+          this.managerVisible = true;
+        })
+    }.width('100%').height(44).alignItems(VerticalAlign.Center)
+  }
+  @Builder private workspaceWeb() {
+    Web({ src: this.initialUrl, controller: this.webController })
         .javaScriptAccess(true).domStorageAccess(true).fileAccess(false).mixedMode(MixedMode.None).darkMode(WebDarkMode.Auto)
         .horizontalScrollBarAccess(false)
         .onControllerAttached(() => {
@@ -529,7 +562,7 @@ struct Index {
           this.registerBridge(); this.waitForConnection();
         })
         .onPageEnd((event) => { this.documentLoaded(event?.url || ''); })
-        .onPageBegin(() => { this.mainHttpError = 0; })
+        .onPageBegin(() => { this.mainHttpError = 0; this.workspaceToolbarVisible = false; })
         .onHttpErrorReceive((event) => {
           if (!event?.request.isMainFrame()) return;
           this.mainHttpError = event.response.getResponseCode();
@@ -556,9 +589,19 @@ struct Index {
           this.connectionFailed('暂时无法访问这台电脑，请检查网络后重试。');
         })
         .onRenderExited(() => { this.connectionFailed('页面已停止运行，请重新连接。'); })
-        .width('100%').height('100%')
-        .accessibilityLevel(this.managerVisible || this.phase === 'connecting' ? 'no-hide-descendants' : 'auto')
+        .width('100%').layoutWeight(1)
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+  }
+  build() {
+    Stack() {
+      if (this.activeUrl.length > 0) {
+        Column() {
+          if (this.workspaceToolbarVisible) {
+            this.workspaceToolbar()
+          }
+          this.workspaceWeb()
+        }.width('100%').height('100%')
+          .accessibilityLevel(this.managerVisible || this.phase === 'connecting' ? 'no-hide-descendants' : 'auto')
       }
       if (!this.loaded || this.phase === 'connecting') {
         ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })
