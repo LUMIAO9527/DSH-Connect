@@ -1,7 +1,7 @@
 {
   "modelVersion": "6.0.0",
   "name": "dsh-connect",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "DSH Connect HarmonyOS client",
   "dependencies": {},
   "devDependencies": {}

@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { KeyboardAvoidMode } from '@kit.ArkUI';
+import { curves, KeyboardAvoidMode } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { scanBarcode, scanCore } from '@kit.ScanKit';
 import { url } from '@kit.ArkTS';
@@ -7,7 +7,9 @@ import { Computer, ComputerStore, parseAddress, connectorPermission } from '../m
 import { FileSupport } from '../model/FileSupport';
 import { APP_VERSION } from '../model/Version';
 import { checkRelease, RELEASE_URL, PROJECT_URL, ReleaseResult } from '../model/ReleaseInfo';
-import { ComputerCover, ConnectionLoading, ConnectionIssue } from '../components/ConnectionViews';
+import { ComputerCover, ConnectionLoading } from '../components/ConnectionViews';
+
+enum ConnectPanel { Settings, Help, Add, Rename, Remove, ConnectionError, Attachments }
 
 class ConnectorBridge {
   private show: () => void;
@@ -22,15 +24,16 @@ class ConnectorBridge {
 struct Index {
   @State private computers: Computer[] = [];
   @State private managerVisible: boolean = false;
-  @State private adding: boolean = false;
-  @State private settingsVisible: boolean = false;
+  @State private panel: ConnectPanel = ConnectPanel.Settings;
+  @State private panelVisible: boolean = false;
   @State private updateChecking: boolean = false;
   @State private updateAvailable: boolean = false;
   @State private updateMessage: string = '检查是否有新版本';
-  @State private uploadVisible: boolean = false;
   @State private pickerBusy: boolean = false;
   @State private autoConnect: boolean = true;
   @State private resumeToWorkspace: boolean = true;
+  @State private savingAutoConnect: boolean = false;
+  @State private savingResumeToWorkspace: boolean = false;
   @State private selectedComputerId: string = '';
   @State private addressInput: string = '';
   @State private linkFocused: boolean = false;
@@ -41,15 +44,17 @@ struct Index {
   @State private pageWidth: number = 390;
   @State private pageHeight: number = 780;
   @State private primaryId: string = '';
-  @State private helpVisible: boolean = false;
   @State private editingId: string = '';
   @State private editName: string = '';
+  @State private removalTarget: Computer = new Computer('', '', '');
+  @State private removing: boolean = false;
   @StorageLink('dshLaunchUrl') @Watch('consumeLaunch') private launchUrl: string = '';
   @StorageLink('dshBottomInset') private bottomInset: number = 0;
   @StorageLink('dshKeyboardVisible') private keyboardVisible: boolean = false;
   @StorageLink('dshForeground') @Watch('foregroundChanged') private foreground: number = 0;
   private webController: webview.WebviewController = new webview.WebviewController();
-  private addScroller: Scroller = new Scroller();
+  private panelScroller: Scroller = new Scroller();
+  private panelHistory: ConnectPanel[] = [];
   private store?: ComputerStore;
   private files?: FileSupport;
   @State private activeUrl: string = '';
@@ -79,7 +84,7 @@ struct Index {
     this.store.loadAutoConnect().then((enabled: boolean) => { this.autoConnect = enabled; return this.store!.loadResumeToWorkspace(); }).then((enabled: boolean) => { this.resumeToWorkspace = enabled; return this.store!.loadPrimaryComputer(); }).then((id: string) => { this.primaryId = id; return this.store!.load(); }).then((rows: Computer[]) => {
       this.computers = rows; this.loaded = true;
       if (this.launchUrl) { this.consumeLaunch(); return; }
-      if (!this.startup || !this.autoConnect || this.adding) { this.managerVisible = true; return; }
+      if (!this.startup || !this.autoConnect || this.panelVisible) { this.managerVisible = true; return; }
       this.startup = false;
       if (rows.length > 0) { const latest = this.latestComputer(); if (latest.lastConnectedAt > 0) { this.openAddress(latest.address, latest.name); return; } }
       this.managerVisible = true;
@@ -108,8 +113,7 @@ struct Index {
     this.clearTimer(); const current = this.attempt;
     this.timer = setTimeout(() => {
       if (current !== this.attempt || this.phase !== 'connecting') return;
-      this.phase = 'failed'; this.managerVisible = true;
-      this.message = this.connectorAvailable ? '还没有连接上电脑。请确认电脑与 DSH 已打开，然后重试。' : '此地址没有提供可用的 DSH Connect 工作区。请在电脑设置中重新生成配对链接。';
+      this.connectionFailed(this.connectorAvailable ? '还没有连接上电脑。请确认电脑与 DSH 已打开，然后重试。' : '此地址没有提供可用的 DSH Connect 工作区。请在电脑设置中重新生成配对链接。');
     }, 45000);
   }
   private consumeLaunch(): void {
@@ -127,9 +131,13 @@ struct Index {
       const hostname = new url.URL(parsed.origin).hostname;
       this.activeName = name.trim() || known?.name || (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' ? '我的电脑' : hostname.split('.')[0]);
       this.phase = 'connecting'; this.connectionState = 'connecting'; this.message = ''; this.connectorAvailable = false;
-      this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.managerVisible = false;
+      this.panelVisible = false; this.panelHistory = []; this.editingId = ''; this.managerVisible = false;
       if (this.attached) this.loadActive();
-    } catch (_) { this.message = '请填写电脑端生成的完整 HTTPS 配对链接。'; this.managerVisible = true; }
+    } catch (_) {
+      this.managerVisible = true;
+      if (this.panel !== ConnectPanel.Add || !this.panelVisible) this.showPanel(ConnectPanel.Add);
+      this.message = '请填写电脑端生成的完整 HTTPS 配对链接。';
+    }
   }
   private registerBridge(): void {
     if (!this.attached || !this.currentOrigin) return;
@@ -139,7 +147,15 @@ struct Index {
   private loadActive(): void {
     try {
       this.registerBridge(); this.webController.loadUrl(this.activeUrl); this.waitForConnection();
-    } catch (_) { this.managerVisible = true; this.message = '页面暂时无法打开，请重试。'; }
+    } catch (_) { this.connectionFailed('页面暂时无法打开，请重试。'); }
+  }
+  private connectionFailed(detail: string): void {
+    this.clearTimer(); this.phase = 'failed'; this.managerVisible = true;
+    if (this.panelVisible && this.panel !== ConnectPanel.ConnectionError) {
+      this.getUIContext().getPromptAction().showToast({ message: detail });
+      return;
+    }
+    this.showPanel(ConnectPanel.ConnectionError); this.message = detail;
   }
   private async onConnection(state: string): Promise<void> {
     if (!this.activeUrl || this.phase === 'idle') return;
@@ -196,14 +212,18 @@ struct Index {
     this.resumeConnection();
   }
   private async changeAutoConnect(enabled: boolean): Promise<void> {
-    const previous = this.autoConnect; this.autoConnect = enabled;
+    if (this.savingAutoConnect) return;
+    const previous = this.autoConnect; this.autoConnect = enabled; this.savingAutoConnect = true;
     try { await this.store?.saveAutoConnect(enabled); }
     catch (_) { this.autoConnect = previous; this.getUIContext().getPromptAction().showToast({ message: '设置未能保存，请重试。' }); }
+    finally { this.savingAutoConnect = false; }
   }
   private async changeResumeToWorkspace(enabled: boolean): Promise<void> {
-    const previous = this.resumeToWorkspace; this.resumeToWorkspace = enabled;
+    if (this.savingResumeToWorkspace) return;
+    const previous = this.resumeToWorkspace; this.resumeToWorkspace = enabled; this.savingResumeToWorkspace = true;
     try { await this.store?.saveResumeToWorkspace(enabled); }
     catch (_) { this.resumeToWorkspace = previous; this.getUIContext().getPromptAction().showToast({ message: '设置未能保存，请重试。' }); }
+    finally { this.savingResumeToWorkspace = false; }
   }
   private continueComputer(computer: Computer): void {
     this.startup = false;
@@ -212,7 +232,11 @@ struct Index {
     }
     this.openAddress(computer.address, computer.name);
   }
-  private finishFiles(items: string[]): void { this.fileRequest++; const callback = this.pendingFiles; this.pendingFiles = null; this.uploadVisible = false; this.pickerBusy = false; if (callback) callback(items); }
+  private finishFiles(items: string[]): void {
+    this.fileRequest++; const callback = this.pendingFiles; this.pendingFiles = null; this.pickerBusy = false;
+    if (this.panel === ConnectPanel.Attachments) this.panelVisible = false;
+    if (callback) callback(items);
+  }
   private async chooseFiles(kind: string): Promise<void> {
     if (!this.files || !this.pendingFiles || this.pickerBusy) return;
     const request = this.fileRequest; this.pickerBusy = true;
@@ -229,20 +253,22 @@ struct Index {
     } catch (_) {}
   }
   private async forget(computer: Computer): Promise<void> {
+    if (this.removing) return;
+    this.removing = true;
     const rows = this.computers.filter((item: Computer) => item.id !== computer.id);
     try {
       await this.store?.save(rows); this.computers = rows;
       if (this.primaryId === computer.id) { const next = rows.length ? this.mainComputer().id : ''; await this.store?.savePrimaryComputer(next); this.primaryId = next; }
+      if (this.panelVisible && this.panel === ConnectPanel.Remove) this.goBackInPanel();
     } catch (_) { this.message = '暂时无法移除，请重试。'; }
+    finally { this.removing = false; }
   }
   private confirmForget(computer: Computer): void {
-    this.getUIContext().showAlertDialog({ title: '移除这台电脑？', message: '电脑上的会话会保留。以后可以重新扫码添加。', primaryButton: { value: '取消', action: () => {} }, secondaryButton: { value: '移除', action: () => { this.forget(computer); } } });
+    this.removalTarget = computer;
+    this.showPanel(ConnectPanel.Remove);
   }
   onBackPress(): boolean {
-    if (this.uploadVisible) { this.finishFiles([]); return true; }
-    if (this.adding) { this.adding = false; return true; }
-    if (this.editingId) { this.editingId = ''; this.message = ''; return true; }
-    if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) { this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.message = ''; return true; }
+    if (this.panelVisible) { this.goBackInPanel(); return true; }
     if (this.managerVisible && this.phase === 'failed') { this.phase = 'idle'; this.message = ''; return true; }
     if (this.managerVisible && this.activeUrl && this.phase === 'ready') { this.managerVisible = false; this.resumeConnection(); return true; }
     if (!this.managerVisible) {
@@ -269,14 +295,57 @@ struct Index {
     for (const item of this.computers) if (item.lastConnectedAt > latest.lastConnectedAt) latest = item;
     return latest;
   }
-  private openAdd(): void { this.startup = false; this.adding = true; this.message = ''; }
-  private async chooseRecovery(startup: boolean): Promise<void> {
-    try {
-      const result = await this.getUIContext().getPromptAction().showActionMenu({ title: startup ? '启动应用时' : '返回应用时', buttons: [
-        { text: startup ? '自动恢复' : '继续原位置', color: $r('app.color.ink') }, { text: '先选电脑', color: $r('app.color.ink') }
-      ] });
-      if (startup) this.changeAutoConnect(result.index === 0); else this.changeResumeToWorkspace(result.index === 0);
-    } catch (_) {}
+  private showPanel(panel: ConnectPanel): void {
+    this.startup = false; this.message = '';
+    if (!this.panelVisible) this.panelHistory = [];
+    else if (this.panel !== panel) this.panelHistory.push(this.panel);
+    this.panel = panel; this.panelVisible = true;
+    this.panelScroller.scrollEdge(Edge.Top);
+  }
+  private restoreParentPanel(): boolean {
+    const parent = this.panelHistory.pop();
+    if (parent === undefined) return false;
+    this.linkFocused = false; this.message = ''; this.panel = parent;
+    this.panelScroller.scrollEdge(Edge.Top);
+    return true;
+  }
+  private goBackInPanel(): void {
+    if (!this.restoreParentPanel()) this.panelVisible = false;
+  }
+  private panelClosed(): void {
+    if (this.panelVisible) return;
+    if (this.panel === ConnectPanel.Attachments && this.pendingFiles) this.finishFiles([]);
+    if (this.panel === ConnectPanel.ConnectionError && this.phase === 'failed') this.phase = 'idle';
+    this.panelHistory = []; this.linkFocused = false; this.editingId = '';
+  }
+  private panelTitle(): string {
+    switch (this.panel) {
+      case ConnectPanel.Settings: return '设置';
+      case ConnectPanel.Help: return '使用帮助';
+      case ConnectPanel.Add: return '添加电脑';
+      case ConnectPanel.Rename: return '电脑名称';
+      case ConnectPanel.Remove: return '移除电脑';
+      case ConnectPanel.ConnectionError: return '暂时无法连接';
+      case ConnectPanel.Attachments: return '添加附件';
+    }
+  }
+  private panelHeight(): string {
+    switch (this.panel) {
+      case ConnectPanel.Settings: return '70%';
+      case ConnectPanel.Help: return '59%';
+      case ConnectPanel.Add: return this.keyboardVisible ? '77%' : '52%';
+      case ConnectPanel.Rename: return this.keyboardVisible ? '72%' : '38%';
+      case ConnectPanel.Remove: return '39%';
+      case ConnectPanel.ConnectionError: return '42%';
+      case ConnectPanel.Attachments: return '49%';
+    }
+  }
+  private renameComputer(computer: Computer): void {
+    this.editingId = computer.id; this.editName = computer.name; this.showPanel(ConnectPanel.Rename);
+  }
+  private async makePrimary(computer: Computer): Promise<void> {
+    try { await this.store?.savePrimaryComputer(computer.id); this.primaryId = computer.id; }
+    catch (_) { this.getUIContext().getPromptAction().showToast({ message: '主电脑暂时未能保存，请重试。' }); }
   }
   private async manageComputer(computer: Computer): Promise<void> {
     try {
@@ -284,63 +353,65 @@ struct Index {
         { text: this.mainComputer().id === computer.id ? '当前主电脑' : '设为主电脑', color: $r('app.color.ink') },
         { text: '重命名', color: $r('app.color.ink') }, { text: '移除这台电脑', color: '#D45151' }
       ] });
-      if (result.index === 0) {
-        try { await this.store?.savePrimaryComputer(computer.id); this.primaryId = computer.id; }
-        catch (_) { this.message = '主电脑暂时未能保存，请重试。'; }
-      }
-      else if (result.index === 1) { this.editingId = computer.id; this.editName = computer.name; this.message = ''; }
+      if (result.index === 0) this.makePrimary(computer);
+      else if (result.index === 1) this.renameComputer(computer);
       else if (result.index === 2) this.confirmForget(computer);
     } catch (_) {}
   }
   private async saveName(): Promise<void> {
-    const value = this.editName.trim(); if (!value) return;
-    const rows = this.computers.map((item: Computer) => new Computer(item.id, item.id === this.editingId ? value : item.name, item.address, item.lastConnectedAt));
+    const id = this.editingId;
+    const value = this.editName.trim();
+    if (!id || !value) return;
+    const rows = this.computers.map((item: Computer) => new Computer(item.id, item.id === id ? value : item.name, item.address, item.lastConnectedAt));
     try {
       await this.store?.save(rows); this.computers = rows;
-      const renamed = rows.find((item: Computer) => item.id === this.editingId);
+      const renamed = rows.find((item: Computer) => item.id === id);
       if (renamed && renamed.address === this.savedAddress) this.activeName = renamed.name;
-      this.editingId = '';
-    } catch (_) { this.message = '名称暂时未能保存，请重试。'; }
+      if (this.panelVisible && this.panel === ConnectPanel.Rename && this.editingId === id) this.goBackInPanel();
+    } catch (_) { if (this.editingId === id) this.message = '名称暂时未能保存，请重试。'; }
   }
   @Builder private header() {
     Row({ space: 6 }) {
-      if (this.settingsVisible || this.helpVisible || this.editingId) {
-        Button({ type: ButtonType.Normal }) {
-          Stack() { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(19).fontColor([$r('app.color.ink')]) }.width(40).height(40).borderRadius(13).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
-        }.width(40).height(40).padding(0).borderRadius(13).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('返回').onClick(() => {
-          this.onBackPress();
-        })
-      }
       Image($r('app.media.cn_mark')).width(30).height(30).flexShrink(0).accessibilityText('DSH Connect')
       Text('DSH Connect').fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      if (!this.settingsVisible && !this.helpVisible && !this.editingId) {
-        Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.startup = false; this.settingsVisible = true; this.message = ''; })
-      }
+      Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.showPanel(ConnectPanel.Settings); })
     }.width('100%').height(48).margin({ bottom: 16 })
   }
   @Builder private recoveryOptions() {
     Column() {
-      this.settingRow('启动应用时', this.autoConnect ? '自动恢复' : '先选电脑', () => { this.chooseRecovery(true); })
+      this.recoverySwitch('启动时自动连接', '连接上次使用的电脑', this.autoConnect, this.savingAutoConnect, (enabled: boolean) => { this.changeAutoConnect(enabled); })
       Divider().color($r('app.color.line')).margin({ left: 16, right: 16 }).width('auto')
-      this.settingRow('返回应用时', this.resumeToWorkspace ? '继续原位置' : '先选电脑', () => { this.chooseRecovery(false); })
+      this.recoverySwitch('返回时恢复工作区', '继续当前会话和输入内容', this.resumeToWorkspace, this.savingResumeToWorkspace, (enabled: boolean) => { this.changeResumeToWorkspace(enabled); })
     }.width('100%').borderRadius(20).clip(true).backgroundColor($r('app.color.surface'))
+  }
+  @Builder private recoverySwitch(label: string, detail: string, enabled: boolean, saving: boolean, action: (value: boolean) => void) {
+    Row({ space: 16 }) {
+      Column({ space: 4 }) {
+        Text(label).fontSize(16).fontColor($r('app.color.ink')).width('100%')
+        Text(detail).fontSize(12).fontColor($r('app.color.muted')).width('100%')
+      }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+      Toggle({ type: ToggleType.Switch, isOn: enabled }).selectedColor('#4D6BFE').enabled(!saving).accessibilityText(label).onChange(action)
+    }.width('100%').constraintSize({ minHeight: 76 }).padding({ left: 16, right: 16, top: 12, bottom: 12 })
   }
   @Builder private home() {
     Column({ space: 0 }) {
       Column() {
         Swiper() {
           ForEach(this.computers, (computer: Computer) => {
-            Column() { ComputerCover({ computerName: computer.name, cardHeight: this.computerCardHeight(), onContinue: () => { this.continueComputer(computer); } }) }.width('100%')
+            Column() { ComputerCover({ computerName: computer.name, cardHeight: this.computerCardHeight(), primary: computer.id === this.mainComputer().id, onContinue: () => { this.continueComputer(computer); }, onMakePrimary: () => { this.makePrimary(computer); }, onRename: () => { this.renameComputer(computer); }, onForget: () => { this.confirmForget(computer); } }) }.width('100%')
           }, (computer: Computer) => computer.id)
-          Column() { ComputerCover({ adding: true, cardHeight: this.computerCardHeight(), onContinue: () => { this.openAdd(); } }) }.width('100%')
-        }.index(this.selectedIndex()).loop(false).indicator(this.computers.length > 0 ? Indicator.dot().itemWidth(5).itemHeight(5).selectedItemWidth(16).selectedItemHeight(5).color($r('app.color.line')).selectedColor($r('app.color.ink')) : false).width('100%').height(this.computerCardHeight() + 28).onChange((index: number) => { this.selectedComputerId = this.computers[index]?.id || 'add-computer'; })
+          Column() { ComputerCover({ adding: true, cardHeight: this.computerCardHeight(), onContinue: () => { this.showPanel(ConnectPanel.Add); } }) }.width('100%')
+        }.index(this.selectedIndex()).loop(false).itemSpace(10).curve(curves.interpolatingSpring(-1, 1, 390, 38))
+          .indicator(this.computers.length > 0 ? Indicator.dot().itemWidth(5).itemHeight(5).selectedItemWidth(16).selectedItemHeight(5).color($r('app.color.line')).selectedColor($r('app.color.ink')) : false)
+          .width('100%').height(this.computerCardHeight() + 28)
+          .onChange((index: number) => { this.selectedComputerId = this.computers[index]?.id || 'add-computer'; })
       }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
       Button({ type: ButtonType.Normal }) {
         Row({ space: 10 }) {
           Text('使用帮助').fontSize(13).fontColor($r('app.color.ink'))
           SymbolGlyph($r('sys.symbol.chevron_right')).fontSize(12).fontColor([$r('app.color.muted')])
         }.height(44).padding({ left: 20, right: 18 }).borderRadius(14).clip(true).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
-      }.height(44).padding(0).borderRadius(14).backgroundColor(Color.Transparent).margin({ top: 8, bottom: 4 }).accessibilityText('使用帮助').onClick(() => { this.helpVisible = true; this.message = ''; })
+      }.height(44).padding(0).borderRadius(14).backgroundColor(Color.Transparent).margin({ top: 8, bottom: 4 }).accessibilityText('使用帮助').onClick(() => { this.showPanel(ConnectPanel.Help); })
     }.width('100%').layoutWeight(1).alignItems(HorizontalAlign.Center)
   }
   @Builder private settingRow(label: string, value: string, action: () => void) {
@@ -353,9 +424,7 @@ struct Index {
     }.width('100%').height(58).padding({ left: 16, right: 16 }).backgroundColor(Color.Transparent).borderRadius(0).onClick(action)
   }
   @Builder private addForm() {
-    Scroll(this.addScroller) {
     Column({ space: 0 }) {
-      Text('添加电脑').fontSize(20).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%').padding({ right: 48 }).margin({ bottom: 22 })
         Button({ type: ButtonType.Normal }) {
           Row({ space: 10 }) {
             SymbolGlyph($r('sys.symbol.computer')).fontSize(23).fontColor([$r('app.color.ink')])
@@ -364,16 +433,13 @@ struct Index {
           }.width('100%')
         }.height(58).width('100%').padding(14).borderRadius(16).backgroundColor($r('app.color.surface_alt')).accessibilityText('扫描电脑二维码').onClick(() => { this.scan(); })
         Text('或输入配对链接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 20, bottom: 10 })
-        TextInput({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).type(InputType.URL).enterKeyType(EnterKeyType.Go).fontSize(14).placeholderFont({ size: 13 }).height(52).borderRadius(14).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; }).onFocus(() => { this.linkFocused = true; this.addScroller.scrollEdge(Edge.Bottom); }).onBlur(() => { this.linkFocused = false; }).onSubmit(() => { if (this.addressInput.trim()) this.openAddress(this.addressInput, ''); })
-        if (this.message) { Text(this.message).fontSize(12).lineHeight(20).fontColor($r('app.color.ink')).width('100%').margin({ top: 10 }) }
+        TextInput({ text: this.addressInput, placeholder: '粘贴完整配对链接' }).type(InputType.URL).enterKeyType(EnterKeyType.Go).fontSize(14).placeholderFont({ size: 13 }).height(52).borderRadius(14).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).accessibilityText('电脑连接地址').maxLength(8192).onChange((value: string) => { this.addressInput = value; }).onFocus(() => { this.linkFocused = true; this.panelScroller.scrollEdge(Edge.Bottom); }).onBlur(() => { this.linkFocused = false; }).onSubmit(() => { if (this.addressInput.trim()) this.openAddress(this.addressInput, ''); })
         Button('连接电脑').height(48).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.addressInput.trim().length > 0).margin({ top: 18 }).onClick(() => { this.openAddress(this.addressInput, ''); })
-    }.width('100%').padding({ left: 24, right: 24, top: 18, bottom: this.bottomInset + 20 }).alignItems(HorizontalAlign.Start)
-    }.width('100%').height('100%').scrollBar(BarState.Off).onAreaChange(() => { if (this.linkFocused) this.addScroller.scrollEdge(Edge.Bottom); })
+    }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private settings() {
     Column({ space: 18 }) {
-      Text('设置').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-      Text('连接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 8, bottom: -8 })
+      Text('连接').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 4, bottom: -8 })
       this.recoveryOptions()
       Text('电脑').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 4, bottom: -8 })
       Column() {
@@ -381,7 +447,7 @@ struct Index {
           this.settingRow(computer.name, computer.id === this.mainComputer().id ? '主电脑' : '', () => { this.manageComputer(computer); })
           Divider().color($r('app.color.line')).margin({ left: 16, right: 16 }).width('auto')
         }, (computer: Computer) => computer.id)
-        this.settingRow('添加电脑', '', () => { this.openAdd(); })
+        this.settingRow('添加电脑', '', () => { this.showPanel(ConnectPanel.Add); })
       }.width('100%').borderRadius(20).clip(true).backgroundColor($r('app.color.surface'))
       Text('关于').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 4, bottom: -8 })
       Column() {
@@ -392,33 +458,66 @@ struct Index {
       if (this.updateMessage !== '检查是否有新版本') { Text(this.updateMessage).fontSize(12).lineHeight(20).fontColor($r('app.color.muted')).width('100%') }
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
+  @Builder private nativePanel() {
+    Scroll(this.panelScroller) {
+      Column({ space: 12 }) {
+        if (this.message && this.panel !== ConnectPanel.ConnectionError) {
+          Text(this.message).fontSize(13).lineHeight(21).fontColor($r('app.color.ink')).width('100%')
+        }
+        if (this.panel === ConnectPanel.Settings) { this.settings() }
+        else if (this.panel === ConnectPanel.Help) { this.help() }
+        else if (this.panel === ConnectPanel.Add) { this.addForm() }
+        else if (this.panel === ConnectPanel.Rename) { this.renameForm() }
+        else if (this.panel === ConnectPanel.Remove) { this.removeForm() }
+        else if (this.panel === ConnectPanel.ConnectionError) { this.connectionErrorPanel() }
+        else { this.uploadSheet() }
+      }.width('100%').constraintSize({ maxWidth: 560 }).padding({ left: 20, right: 20, top: 8, bottom: this.bottomInset + 14 })
+    }.width('100%').height('100%').align(Alignment.Top).scrollBar(BarState.Auto).edgeEffect(EdgeEffect.Spring)
+      .onAreaChange(() => { if (this.linkFocused) this.panelScroller.scrollEdge(Edge.Bottom); })
+  }
   @Builder private help() {
-    Column({ space: 22 }) {
-      Text('在电脑上准备配对').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-      Column({ space: 22 }) {
+    Column({ space: 14 }) {
+      Text('在电脑上准备配对').fontSize(16).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%')
+      Column({ space: 12 }) {
         Text('1  打开电脑上的 DeepSeek Harness。').fontSize(14).lineHeight(24).fontColor($r('app.color.ink')).width('100%')
         Text('2  进入「设置 → DSH Connect」，生成配对二维码或链接。').fontSize(14).lineHeight(24).fontColor($r('app.color.ink')).width('100%')
         Text('3  在手机上扫描二维码，或粘贴完整配对链接。').fontSize(14).lineHeight(24).fontColor($r('app.color.ink')).width('100%')
-      }.width('100%').padding(22).borderRadius(24).backgroundColor($r('app.color.surface'))
+      }.width('100%').padding(16).borderRadius(18).backgroundColor($r('app.color.surface_alt'))
       Button('扫描电脑二维码').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE').onClick(() => { this.scan(); })
-      Button('使用配对链接').height(48).width('100%').borderRadius(15).fontSize(13).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface')).onClick(() => { this.openAdd(); })
+      Button('使用配对链接').height(48).width('100%').borderRadius(15).fontSize(13).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.showPanel(ConnectPanel.Add); })
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private renameForm() {
     Column({ space: 18 }) {
-      Text('电脑名称').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
-      TextInput({ text: this.editName, placeholder: '电脑名称' }).fontSize(14).height(52).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface')).maxLength(40).accessibilityText('电脑名称').onChange((value: string) => { this.editName = value; })
+      TextInput({ text: this.editName, placeholder: '电脑名称' }).fontSize(14).height(52).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).maxLength(40).accessibilityText('电脑名称').onChange((value: string) => { this.editName = value; })
       Button('保存名称').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.editName.trim().length > 0).onClick(() => { this.saveName(); })
+    }.width('100%')
+  }
+  @Builder private removeForm() {
+    Column({ space: 18 }) {
+      Text('移除「' + this.removalTarget.name + '」后，可以重新配对添加。电脑上的会话会保留。')
+        .width('100%').fontSize(14).lineHeight(23).fontColor($r('app.color.ink'))
+      Row({ space: 12 }) {
+        Button('取消').layoutWeight(1).height(48).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt'))
+          .enabled(!this.removing).onClick(() => { this.goBackInPanel(); })
+        Button('移除', { role: ButtonRole.ERROR }).layoutWeight(1).height(48)
+          .enabled(!this.removing).onClick(() => { this.forget(this.removalTarget); })
+      }.width('100%')
+    }.width('100%')
+  }
+  @Builder private connectionErrorPanel() {
+    Column({ space: 14 }) {
+      Text(this.message).width('100%').fontSize(14).lineHeight(23).fontColor($r('app.color.ink'))
+      Button('重新连接').height(48).width('100%').fontColor(Color.White).backgroundColor('#4D6BFE')
+        .onClick(() => { this.openAddress(this.retryAddress || this.activeUrl, this.activeName); })
     }.width('100%')
   }
   @Builder private uploadSheet() {
     Column({ space: 12 }) {
-      Text('添加附件').fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%').margin({ bottom: 10 })
       Button('拍照').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('camera'); })
       Button('从相册选择').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('album'); })
       Button('浏览文件').height(52).width('100%').borderRadius(16).backgroundColor($r('app.color.surface_alt')).fontColor($r('app.color.ink')).onClick(() => { this.chooseFiles('documents'); })
-      Button('取消').height(48).width('100%').backgroundColor(Color.Transparent).fontColor($r('app.color.muted')).onClick(() => { this.finishFiles([]); })
-    }.padding({ left: 24, right: 24, top: 14, bottom: this.bottomInset + 18 }).width('100%')
+    }.width('100%')
   }
   build() {
     Stack() {
@@ -436,15 +535,14 @@ struct Index {
         .onHttpErrorReceive((event) => {
           if (!event?.request.isMainFrame()) return;
           this.mainHttpError = event.response.getResponseCode();
-          this.clearTimer(); this.phase = 'failed'; this.managerVisible = true;
-          this.message = this.mainHttpError >= 500 ? '电脑服务暂时不可用，请稍后重试。' : '页面暂时无法打开，请重新连接。';
+          this.connectionFailed(this.mainHttpError >= 500 ? '电脑服务暂时不可用，请稍后重试。' : '页面暂时无法打开，请重新连接。');
         })
         .onShowFileSelector((event) => {
           if (!event) return false;
           if (!this.trustedPage()) { event.result.handleFileList([]); return true; }
           this.finishFiles([]); this.pendingFiles = (items: string[]) => { event.result.handleFileList(items); };
           this.accepts = event.fileSelector.getAcceptType(); this.multiple = event.fileSelector.getMode() === FileSelectorMode.FileOpenMultipleMode;
-          this.uploadVisible = true; return true;
+          this.showPanel(ConnectPanel.Attachments); return true;
         })
         .onLoadIntercept((event) => {
           if (!event?.data.isMainFrame()) return false;
@@ -457,41 +555,47 @@ struct Index {
         })
         .onErrorReceive((event) => {
           if (!event?.request.isMainFrame() || event.error.getErrorCode() === -3) return;
-          this.clearTimer(); this.phase = 'failed'; this.managerVisible = true; this.message = '暂时无法访问这台电脑，请检查网络后重试。';
+          this.connectionFailed('暂时无法访问这台电脑，请检查网络后重试。');
         })
-        .onRenderExited(() => { this.clearTimer(); this.phase = 'failed'; this.managerVisible = true; this.message = '页面已停止运行，点击电脑卡片重新打开。'; })
+        .onRenderExited(() => { this.connectionFailed('页面已停止运行，请重新连接。'); })
         .width('100%').height('100%')
+        .accessibilityLevel(this.managerVisible || this.phase === 'connecting' ? 'no-hide-descendants' : 'auto')
         .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      }
+      if (!this.loaded || this.phase === 'connecting') {
+        ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })
+          .accessibilityLevel(this.managerVisible ? 'no-hide-descendants' : 'auto')
+          .transition(TransitionEffect.asymmetric(TransitionEffect.IDENTITY,
+            TransitionEffect.opacity(0).animation({ duration: 160, curve: Curve.Friction })))
       }
       if (this.managerVisible && this.loaded) {
         Column() {
-          this.header()
-          if (!this.editingId && !this.helpVisible && !this.settingsVisible) {
+          Column() {
+            this.header()
             this.home()
-          } else {
-          Scroll() {
-            Column() {
-            if (this.message) { Text(this.message).fontSize(13).lineHeight(22).fontColor($r('app.color.ink')).padding(16).width('100%').backgroundColor($r('app.color.surface')).borderRadius(16).margin({ bottom: 20 }) }
-            if (this.editingId) { this.renameForm() } else if (this.helpVisible) { this.help() } else { this.settings() }
-            }.width('100%').padding({ bottom: 20 })
-          }.width('100%').layoutWeight(1).align(Alignment.Top).scrollBar(BarState.Off)
-          }
-        }.constraintSize({ maxWidth: 560 }).width('100%').height('100%').padding({ left: 20, right: 20, top: 12, bottom: this.bottomInset + 8 }).backgroundColor($r('app.color.connector_background'))
+          }.constraintSize({ maxWidth: 560 }).width('100%').height('100%')
+            .padding({ left: 20, right: 20, top: 12, bottom: this.bottomInset + 8 }).backgroundColor($r('app.color.connector_background'))
+        }.width('100%').height('100%').backgroundColor($r('app.color.connector_background'))
           .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-          .bindSheet($$this.adding, this.addForm(), { height: this.keyboardVisible ? SheetSize.LARGE : 380, showClose: true, backgroundColor: $r('app.color.surface'), keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE })
-      }
-      if (!this.loaded || !this.managerVisible && this.phase === 'connecting') {
-        ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })
-      }
-      if (this.managerVisible && this.phase === 'failed' && !this.adding && !this.settingsVisible && !this.helpVisible && !this.editingId) {
-        Column() {
-          ConnectionIssue({ detail: this.message, onRetry: () => { this.openAddress(this.retryAddress || this.activeUrl, this.activeName); }, onBack: () => { this.phase = 'idle'; this.message = ''; } })
-        }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor($r('app.color.connector_background'))
-          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+          .transition(TransitionEffect.asymmetric(
+            TransitionEffect.translate({ y: 16 }).combine(TransitionEffect.opacity(0)).animation({ duration: 260, curve: Curve.Friction }),
+            TransitionEffect.translate({ y: -12 }).combine(TransitionEffect.opacity(0)).animation({ duration: 220, curve: Curve.FastOutSlowIn })))
       }
     }.width('100%').height('100%').backgroundColor(this.managerVisible || this.phase === 'connecting' ? $r('app.color.connector_background') : $r('app.color.surface'))
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
       .onAreaChange((_previous: Area, area: Area) => { this.pageWidth = Number(area.width); this.pageHeight = Number(area.height); })
-      .bindSheet($$this.uploadVisible, this.uploadSheet(), { height: SheetSize.FIT_CONTENT, showClose: true, backgroundColor: $r('app.color.surface'), onDisappear: () => { this.finishFiles([]); } })
+      .bindSheet($$this.panelVisible, this.nativePanel(), {
+        preferType: SheetType.BOTTOM,
+        height: this.panelHeight(),
+        title: { title: this.panelTitle() },
+        showClose: true,
+        backgroundColor: this.panel === ConnectPanel.Settings ? $r('app.color.connector_background') : $r('app.color.surface'),
+        keyboardAvoidMode: SheetKeyboardAvoidMode.RESIZE_ONLY,
+        onWillDismiss: (action: DismissSheetAction) => {
+          if ((action.reason === DismissReason.PRESS_BACK || action.reason === DismissReason.SLIDE) && this.restoreParentPanel()) return;
+          action.dismiss();
+        },
+        onDisappear: () => { this.panelClosed(); }
+      })
   }
 }

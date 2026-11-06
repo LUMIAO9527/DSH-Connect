@@ -23,7 +23,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.0.10';
+export const VERSION = '1.0.11';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 const META = '<meta name="dsh-foreverweb-gateway" content="authenticated">';

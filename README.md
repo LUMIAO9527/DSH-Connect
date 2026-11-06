@@ -4,7 +4,7 @@
 
 DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完整 DeepSeek Harness：会话、工作区、文件、模型、工具与任务共用同一份数据。模型调用和工具执行由连接的电脑完成。
 
-**维护版本：1.0.10。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
+**维护版本：1.0.11。** 鸿蒙应用与电脑插件统一命名为 **DSH Connect**，插件包名为 `dsh-connect`。
 
 ## 选择打开方式
 
@@ -19,16 +19,16 @@ DSH Connect 让你通过鸿蒙应用或浏览器，继续使用电脑上的完�
 
 <p align="center"><img src="docs/images/home.jpg" width="245" alt="首次使用"><img src="docs/images/computers.jpg" width="245" alt="已保存电脑"><img src="docs/images/add.jpg" width="245" alt="添加电脑"></p>
 
-页面来自官方 SDK 的原生渲染，使用演示电脑数据。[查看页面图册](artifacts/DSH-Connect-1.0.10-preview.html)。
+页面来自官方 SDK 的原生渲染，使用演示电脑数据。[查看页面图册](artifacts/DSH-Connect-1.0.11-preview.html)。
 
 ## 下载
 
-已发布版本从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取。本地 1.0.10 构建位于 `artifacts/`：
+已发布版本从 [Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取。本地 1.0.11 构建位于 `artifacts/`：
 
-- `dsh-connect-1.0.10.tgz`：安装在电脑 DSH 中的插件。
-- `DSH-Connect-1.0.10-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
-- `DSH-Connect-1.0.10-source.zip`：完整源码、构建脚本和说明。
-- `DSH-Connect-1.0.10-icon.svg`：固定黑底白字的 Cn 矢量图标。
+- `dsh-connect-1.0.11.tgz`：安装在电脑 DSH 中的插件。
+- `DSH-Connect-1.0.11-unsigned.hap`：鸿蒙应用的未签名 release 构建，需要配置自己的开发签名后安装。
+- `DSH-Connect-1.0.11-source.zip`：完整源码、构建脚本和说明。
+- `DSH-Connect-1.0.11-icon.svg`：固定黑底白字的 Cn 矢量图标。
 - `SHA256SUMS.txt`：文件校验和。
 
 HAP 目前需要 DevEco 开发签名，尚未提供应用市场的通用安装包。首次体验也可以先使用浏览器入口。
