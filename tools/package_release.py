@@ -59,27 +59,22 @@ for folder in ['harmony','desktop-plugin','branding','tools','docs','.github']:
         assert source.suffix not in {'.p12','.p7b','.cer','.csr','.pem','.key'}, relative
         files.append((source, relative.as_posix()))
 products = [hap, tgz]
-for suffix, source in [('', 'cn-mark.svg'), ('-light', 'cn-mark-light.svg'), ('-dark', 'cn-mark-dark.svg')]:
+for suffix, source in [('', 'cn-mark.svg')]:
     icon = artifacts / f'DSH-Connect-{version}-icon{suffix}.svg'
     icon.write_bytes((root / 'branding' / source).read_bytes())
     products.append(icon)
 preview = artifacts / f'DSH-Connect-{version}-preview.html'
 if preview.is_file():
     products.append(preview)
-for product in products:
-    files.append((product, 'artifacts/' + product.name))
-inner_sums = ''.join(digest(product.read_bytes()) + '  ' + product.name + '\n' for product in products)
 prefix = f'DSH-Connect-{version}/'
 expected = {}
-package = artifacts / f'DSH-Connect-{version}.zip'
+package = artifacts / f'DSH-Connect-{version}-source.zip'
 with zipfile.ZipFile(package, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
     for source, relative in files:
         content = source.read_bytes()
         assert prefix + relative not in expected
         archive.writestr(prefix + relative, content)
         expected[prefix + relative] = digest(content)
-    archive.writestr(prefix + 'artifacts/SHA256SUMS.txt', inner_sums.encode('ascii'))
-    expected[prefix + 'artifacts/SHA256SUMS.txt'] = digest(inner_sums.encode('ascii'))
 with zipfile.ZipFile(package) as archive:
     assert set(archive.namelist()) == set(expected)
     for name, checksum in expected.items():

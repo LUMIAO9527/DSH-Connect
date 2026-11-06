@@ -1,6 +1,6 @@
 {
   "name": "dsh-connect",
-  "version": "1.0.1",
+  "version": "1.0.6",
   "displayName": "DSH Connect",
   "description": "通过鸿蒙应用或浏览器连接电脑上的完整 DeepSeek Harness。",
   "license": "Apache-2.0",
@@ -19,6 +19,8 @@
     "desktop-plugin/README.md",
     "desktop-plugin/LICENSE",
     "desktop-plugin/lib/configuration.mjs",
+    "desktop-plugin/icon.svg",
+    "desktop-plugin/lib/updates.mjs",
     "desktop-plugin/package.json",
     "LICENSE",
     "README.md"
@@ -27,7 +29,8 @@
     ".": "./desktop-plugin/index.js",
     "./client": "./desktop-plugin/client.js",
     "./package.json": "./package.json",
-    "./locale/*.json": "./desktop-plugin/locale/*.json"
+    "./locale/*.json": "./desktop-plugin/locale/*.json",
+    "./icon": "./desktop-plugin/icon.svg"
   },
   "engines": {
     "node": ">=22.19.0"
@@ -35,7 +38,8 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.5",
     "qrcode": "1.5.4",
-    "ws": "8.22.0"
+    "ws": "8.22.0",
+    "yaml": "2.9.1"
   },
   "dsh": {
     "bundle": {

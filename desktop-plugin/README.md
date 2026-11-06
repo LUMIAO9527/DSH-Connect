@@ -1,14 +1,14 @@
 # DSH Connect 电脑插件
 
-插件包：`dsh-connect@1.0.1`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
+维护版本：`dsh-connect@1.0.6`。为电脑上的 DeepSeek Harness 提供设备配对、浏览器入口和连接恢复；鸿蒙应用与浏览器共用电脑上的会话、文件、工作区、模型及工具。
 
 ## 安装
 
-推荐从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 下载 `dsh-connect-1.0.1.tgz`，在 DSH「插件 → 添加插件」选择本地安装包。安装后启用 **DSH Connect**，按 DSH 提示正常重开应用。
+从 [GitHub Releases](https://github.com/LUMIAO9527/DSH-Connect/releases/latest) 获取已发布安装包，本地 1.0.6 构建位于根目录 `artifacts/`。在 DSH「插件 → 添加插件」选择安装包，安装后启用 **DSH Connect**。
 
 已有 DSH CLI 时，可使用 `dsh plugin --profile web add <安装包绝对路径>`；桌面版通过自己的插件管理界面安装。仓库根目录也提供同一个插件的 npm 入口；固定版本更新推荐使用 Release TGZ。
 
-验证基线为 DSH `0.2.1-rc.5`、Node.js `24.22.1`。依赖为 `@deepseek-ai/schemastery`、`qrcode` 与 `ws`，由安装流程解析。
+当前本机验证基线为 DSH `0.2.2-rc.1`、Node.js `24.22.1`。依赖由安装流程解析。
 
 ## 连接配置
 
@@ -42,7 +42,7 @@
 
 消息、审批及其他写请求不会自动重放。电脑、DSH、HTTPS 通道和网络需要保持运行；浏览器后台可能被系统挂起，返回后恢复。授权到期、被撤销或网站数据被清除后，需要重新配对。
 
-移动界面采用全宽会话、抽屉和设置二级页面。共享布局以 DSH rc.5 的标记和设置结构为基线，升级 DSH 后应回归侧栏、详情、设置和文件交互。
+移动界面采用全宽会话、抽屉和设置二级页面。侧栏与主区按 DSH 的语义槽位定位；导航透明，侧栏内外尺寸保持一致。升级 DSH 后应回归侧栏、详情、设置和文件交互。
 
 ## 从旧连接器升级
 

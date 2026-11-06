@@ -115,6 +115,14 @@ export class ComputerStore {
     const store = await preferences.getPreferences(this.context, { name: 'computers' });
     await store.put('autoConnect', value); await store.flush();
   }
+  async loadResumeToWorkspace(): Promise<boolean> {
+    const store = await preferences.getPreferences(this.context, { name: 'computers' });
+    return await store.get('resumeToWorkspace', true) !== false;
+  }
+  async saveResumeToWorkspace(value: boolean): Promise<void> {
+    const store = await preferences.getPreferences(this.context, { name: 'computers' });
+    await store.put('resumeToWorkspace', value); await store.flush();
+  }
   async loadPrimaryComputer(): Promise<string> {
     const store = await preferences.getPreferences(this.context, { name: 'computers' });
     const value = await store.get('primaryComputer', '');

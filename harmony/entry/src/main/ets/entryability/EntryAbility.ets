@@ -33,11 +33,8 @@ export default class EntryAbility extends UIAbility {
       const cutout = this.mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT);
       const keyboard = this.mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD);
       const ui = this.mainWindow.getUIContext();
-      // The native window owns all system edges. ArkWeb receives the remaining content area without adding these insets again.
-      AppStorage.setOrCreate<number>('dshStatusInset', ui.px2vp(Math.max(system.topRect.height, cutout.topRect.height)));
+      // ArkUI owns the safe layout. Only the attachment sheet needs an explicit bottom inset.
       AppStorage.setOrCreate<number>('dshBottomInset', keyboard.bottomRect.height > 0 ? 0 : ui.px2vp(Math.max(system.bottomRect.height, indicator.bottomRect.height, cutout.bottomRect.height)));
-      AppStorage.setOrCreate<number>('dshLeftInset', ui.px2vp(Math.max(system.leftRect.width, cutout.leftRect.width)));
-      AppStorage.setOrCreate<number>('dshRightInset', ui.px2vp(Math.max(system.rightRect.width, cutout.rightRect.width)));
     } catch (_) {}
   }
   private appearance(): void {
@@ -49,7 +46,8 @@ export default class EntryAbility extends UIAbility {
   }
   onWindowStageCreate(stage: window.WindowStage): void {
     this.mainWindow = stage.getMainWindowSync();
-    this.mainWindow.setWindowLayoutFullScreen(true).then(() => { this.updateInsets(); }).catch(() => {});
+    // Keep the native safe-area layout; individual backgrounds and ArkWeb opt into drawing beyond it.
+    this.mainWindow.setWindowLayoutFullScreen(false).then(() => { this.updateInsets(); }).catch(() => {});
     this.mainWindow.on('avoidAreaChange', () => { this.updateInsets(); }); this.updateInsets(); this.appearance();
     stage.loadContent('pages/Index', (error) => { if (error.code) console.error('DSH Connect page failed to open.'); else { this.updateInsets(); this.appearance(); } });
   }

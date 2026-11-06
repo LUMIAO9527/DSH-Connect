@@ -279,7 +279,7 @@ test('pairing success opens the stock entry and never resubmits while pending', 
   const nodes = { 'pair-form': { querySelector: () => submit, addEventListener: (name, handler) => handlers.set(name, handler) },
     'pair-token': token, 'device-label': { value: 'fixture' }, 'pair-status': { value: '' } };
   const location = new URL('https://harmony.test/mobile-access/pair'); location.replace = value => destinations.push(value);
-  vm.runInNewContext(renderPairScript('zh'), { document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
+  vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
     URLSearchParams, AbortController, fetch: () => { calls++; return submitted.promise; },
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout(id) { timers.delete(id); } });
   const first = handlers.get('submit')({ preventDefault() {} });
@@ -297,7 +297,7 @@ test('opening a complete pairing link pairs once and confirms saved browser auth
       'pair-token': token, 'device-label': { value: '' }, 'pair-status': { value: '' } };
     const location = new URL('https://harmony.test/mobile-access/pair#instance=' + 'a'.repeat(64) + '&token=' + 'B'.repeat(43));
     location.replace = value => destinations.push(value);
-    vm.runInNewContext(renderPairScript('zh'), { document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
+    vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
       URLSearchParams, AbortController, fetch: async (input, init) => {
         calls.push({ input, init });
         return input.endsWith('/pair') ? Response.json({ paired: true }, { status: 201 }) : new Response('{}', { status: saved ? 200 : 401 });

@@ -1,6 +1,6 @@
 {
   "name": "dsh-connect",
-  "version": "1.0.1",
+  "version": "1.0.6",
   "type": "module",
   "displayName": "DSH Connect",
   "description": "通过鸿蒙应用或浏览器连接电脑上的完整 DeepSeek Harness。",
@@ -19,13 +19,16 @@
     "locale/*.json",
     "README.md",
     "LICENSE",
-    "lib/configuration.mjs"
+    "lib/configuration.mjs",
+    "icon.svg",
+    "lib/updates.mjs"
   ],
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
     "./package.json": "./package.json",
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
   },
   "engines": {
     "node": ">=22.19.0"
@@ -33,7 +36,8 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.5",
     "qrcode": "1.5.4",
-    "ws": "8.22.0"
+    "ws": "8.22.0",
+    "yaml": "2.9.1"
   },
   "dsh": {
     "bundle": {
@@ -51,7 +55,7 @@
     }
   },
   "scripts": {
-    "check": "node --check index.js && node --check client.js && node --check gateway-bootstrap.js && node --check mobile-client.js",
+    "check": "node --check index.js && node --check client.js && node --check gateway-bootstrap.js && node --check mobile-client.js && node tools/sync-settings-icon.mjs --check",
     "test": "node test.mjs"
   },
   "repository": {

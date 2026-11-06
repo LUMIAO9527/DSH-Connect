@@ -17,6 +17,8 @@ try {
   & (Join-Path $projectRoot 'branding\Build-Brand.ps1')
   node tools/sync-package.mjs
   if ($LASTEXITCODE -ne 0) { throw 'Package metadata generation failed.' }
+  node desktop-plugin/tools/sync-settings-icon.mjs
+  if ($LASTEXITCODE -ne 0) { throw 'Plugin icon generation failed.' }
   npm ci --ignore-scripts --no-audit --no-fund
   if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
   npm run check

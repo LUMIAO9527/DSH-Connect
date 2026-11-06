@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stateDirectoryFor } from '../lib/configuration.mjs';
+import { stateDirectoryFor, configurationFor, validateOrigin } from '../lib/configuration.mjs';
 
 async function fixture(t) {
   const parent = fileURLToPath(new URL('../../_wip/tests/', import.meta.url));
@@ -27,4 +27,22 @@ test('current state wins when both generations exist and explicit configuration 
 test('an invalid current state is reported instead of silently creating a different host identity', async t => {
   const home = await fixture(t); const current = join(home, 'dsh-connect'); await mkdir(join(current, 'devices.json'), { recursive: true });
   await assert.rejects(stateDirectoryFor(home), /Invalid device state/);
+});
+
+test('a renamed entry recovers its saved connection and data location without changing profile files', async t => {
+  const home = await fixture(t), patchPath = join(home, 'cordis.patch.yml');
+  const content = '- id: dsh-foreverweb\n  config:\n    publicOrigin: https://computer.example.com\n    listenPort: 3446\n    stateDirectory: D:/kept-data\n    unrelatedSecret: excluded\n';
+  await writeFile(patchPath, content);
+  const ctx = { profileContext: { patchPath }, fiber: { entry: { options: { config: {} } } } };
+  const next = await configurationFor(ctx, { publicOrigin: '', listenPort: 3446 });
+  assert.equal(next.publicOrigin, 'https://computer.example.com'); assert.equal(next.stateDirectory, 'D:/kept-data'); assert.equal(next.unrelatedSecret, undefined);
+  const { readFile } = await import('node:fs/promises'); assert.equal(await readFile(patchPath, 'utf8'), content);
+  ctx.fiber.entry.options.config.publicOrigin = '';
+  assert.equal((await configurationFor(ctx, { publicOrigin: '' })).publicOrigin, '');
+});
+
+test('setup accepts only HTTPS origins and isolated loopback preview addresses', () => {
+  assert.equal(validateOrigin('https://computer.example.com/'), 'https://computer.example.com');
+  assert.equal(validateOrigin('http://127.0.0.1:12875'), 'http://127.0.0.1:12875');
+  for (const value of ['http://192.168.1.1', 'https://name:pass@example.com', 'https://example.com/path', 'https://example.com/?secret=1', 'javascript:alert(1)']) assert.throws(() => validateOrigin(value));
 });

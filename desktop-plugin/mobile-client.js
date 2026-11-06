@@ -12,11 +12,28 @@
     document.documentElement.setAttribute('data-dsh-connect-surface', native ? 'harmony' : 'browser');
     const view = window.visualViewport;
     if (view) document.documentElement.style.setProperty('--dsc-viewport', `${view.height}px`);
-    // ArkUI already owns the app's system insets and keyboard resize. Only a browser applies CSS safe-area insets.
-    document.documentElement.style.setProperty('--dsc-inset-bottom', native || view && window.innerHeight - view.height > 120 ? '0px' : 'env(safe-area-inset-bottom,0px)');
+    // ArkWeb and browsers expose the actual overlap with the system gesture area.
+    // Only interactive content avoids it; page and drawer backgrounds extend underneath.
+    document.documentElement.style.setProperty('--dsc-inset-bottom', view && window.innerHeight - view.height > 120 ? '0px' : 'env(safe-area-inset-bottom,0px)');
+    if (media.matches || native) {
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        const content = viewport.getAttribute('content') || 'width=device-width,initial-scale=1';
+        if (!/(?:^|,)\s*viewport-fit\s*=\s*cover(?:,|$)/i.test(content)) viewport.setAttribute('content', content.replace(/(?:^|,)\s*viewport-fit\s*=[^,]*/gi, '') + ',viewport-fit=cover');
+      }
+    }
   };
   layout(); media.addEventListener('change', layout); window.addEventListener('resize', layout); window.visualViewport?.addEventListener('resize', layout);
   let banner, caption, retry;
+  const markConversationHeader=()=>{
+    const slot=document.querySelector('[data-slot="conversation.session.header"]');
+    const header=slot?.parentElement, row=slot?.firstElementChild;
+    if(header?.tagName!=='HEADER'||!row)return;
+    header.setAttribute('data-dsc-conversation-header','');
+    row.setAttribute('data-dsc-conversation-title-row','');
+    row.firstElementChild?.setAttribute('data-dsc-conversation-title','');
+    header.querySelector('[data-conversation-tabs]')?.parentElement?.setAttribute('data-dsc-conversation-tabs-row','');
+  };
   const markSettings=()=>{
     const panel=document.querySelector('[data-shortcut-modal="settings"]');if(!panel||panel.hasAttribute('data-dsc-settings'))return;
     const nav=panel.querySelector('nav'),content=nav?.nextElementSibling;if(!content||content.children.length<2)return;
@@ -50,9 +67,14 @@
     mask=document.createElement('button');mask.className='dsc-drawer-mask';mask.type='button';mask.setAttribute('aria-label','关闭会话侧栏');mask.addEventListener('click',()=>controls.toggleSidebar?.());document.body.append(mask);
     const markFrame=()=>{
       const overlay=document.querySelector('[data-shell-overlay]');if(!overlay)return false;
-      frame=overlay.parentElement;const columns=[...frame.children].filter(node=>node.tagName==='DIV');
-      if(columns.length<3)return false;
-      frame.setAttribute('data-dsc-frame','');columns[0].setAttribute('data-dsc-sidebar','');columns[1].setAttribute('data-dsc-center','');
+      frame=overlay.parentElement;
+      const columns=[...frame.children].filter(node=>node.tagName==='DIV'&&!node.hasAttribute('data-sidebar-mask'));
+      const sidebar=columns.find(node=>node.querySelector('[data-slot="sidebar"]'));
+      const center=columns.find(node=>node.querySelector('[data-slot="main"]'));
+      if(!sidebar||!center)return false;
+      frame.setAttribute('data-dsc-frame','');
+      for(const column of columns){column.removeAttribute('data-dsc-sidebar');column.removeAttribute('data-dsc-center');}
+      sidebar.setAttribute('data-dsc-sidebar','');center.setAttribute('data-dsc-center','');
       const reflect=()=>mask.dataset.open=String(!frame.hasAttribute('data-sidebar-collapsed'));reflect();
       new MutationObserver(reflect).observe(frame,{attributes:true,attributeFilter:['data-sidebar-collapsed']});return true;
     };
@@ -63,8 +85,8 @@
       if(row&&row.closest('[data-dsc-sidebar]')&&!event.target.closest('button')) window.__DSH_CONNECT_UI__.closeSidebar();
     });
     let queued=false;
-    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();});}).observe(document.body,{childList:true,subtree:true});
-    markSettings();
+    new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;markSettings();markConversationHeader();});}).observe(document.body,{childList:true,subtree:true});
+    markSettings();markConversationHeader();
   };
   const state = () => navigator.onLine === false ? 'offline'
     : ['invalid','revoked','expired'].includes(access?.device?.state) || access?.lastError?.action === 'pair' ? 'auth-required'

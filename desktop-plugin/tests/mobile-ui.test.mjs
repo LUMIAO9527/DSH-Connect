@@ -4,13 +4,15 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, transport = 'connecting', fullscreen = false, settings = false, nestedDialog = false, viewport } = {}) {
+function page({ authenticated = true, native = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, viewport } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
+    getAttribute(key) { return this.attrs[key] ?? null; }
     hasAttribute(key) { return key in this.attrs; }
     removeAttribute(key) { delete this.attrs[key]; }
     toggleAttribute(key, on) { if (on) this.attrs[key] = ''; else delete this.attrs[key]; }
+    querySelector(selector) { const match = selector.match(/^\[([^=\]]+)=?["']?([^"'\]]*)["']?\]$/); if (!match) return null; const [, key, value] = match; for (const child of this.children) { if (key in child.attrs && (!value || child.attrs[key] === value)) return child; const nested = child.querySelector(selector); if (nested) return nested; } return null; }
     append(...nodes) { this.children.push(...nodes); }
     getClientRects() { return [{}]; }
     focus() { this.focused = true; }
@@ -18,16 +20,24 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
   const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [];
   document.documentElement = new Element('html'); document.head = new Element('head'); document.body = new Element('body'); document.readyState = 'complete';
   document.createElement = tag => new Element(tag);
+  const viewportMeta = new Element('meta'); viewportMeta.setAttribute('content', 'width=device-width,initial-scale=1,viewport-fit=contain');
   const frame = new Element('div'); frame.setAttribute('data-sidebar-collapsed', 'true'); frame.setAttribute('data-rightbar-collapsed', 'true');
   if (fullscreen) frame.setAttribute('data-rightbar-fullscreen', 'true');
-  frame.append(new Element('div'), new Element('div'), new Element('div'));
+  const nativeMask = new Element('div'); nativeMask.setAttribute('data-sidebar-mask', '');
+  const sidebar = new Element('div'), sidebarSlot = new Element('div'); sidebarSlot.setAttribute('data-slot', 'sidebar'); sidebar.append(sidebarSlot);
+  const center = new Element('div'), mainPanel = new Element('div'), mainSlot = new Element('div'); mainSlot.setAttribute('data-slot', 'main'); mainPanel.append(mainSlot); center.append(mainPanel);
+  frame.append(nativeMask, sidebar, center);
   const overlay = new Element('div'); overlay.parentElement = frame;
+  const conversationHeader = new Element('header'), sessionHeader = new Element('div'), titleRow = new Element('div'), titleCluster = new Element('div'), tabsRow = new Element('div'), tabs = new Element('div');
+  sessionHeader.parentElement = conversationHeader; sessionHeader.firstElementChild = titleRow; sessionHeader.nextElementSibling = tabsRow;
+  titleRow.firstElementChild = titleCluster; tabs.setAttribute('data-conversation-tabs',''); tabs.parentElement=tabsRow; tabsRow.append(tabs); sessionHeader.append(titleRow,tabsRow); conversationHeader.append(sessionHeader);
   const settingsPanel = new Element('div'), category = new Element('button'), dialog = new Element('div'), escapes = [];
   settingsPanel.setAttribute('data-dsc-settings', ''); settingsPanel.setAttribute('data-dsc-settings-detail', '');
   settingsPanel.querySelector = () => category;
   settingsPanel.addEventListener('keydown', event => escapes.push('settings:' + event.type));
   dialog.addEventListener('keydown', event => escapes.push('nested:' + event.type));
-  document.querySelector = query => query.startsWith('meta[') && authenticated ? {} : query === '[data-shell-overlay]' && fullscreen ? overlay
+  document.querySelector = query => query.startsWith('meta[name="dsh-foreverweb-gateway"]') && authenticated ? {} : query === 'meta[name="viewport"]' ? viewportMeta : query === '[data-shell-overlay]' && (fullscreen || shell) ? overlay
+    : conversation && query === '[data-slot="conversation.session.header"]' ? sessionHeader
     : settings && query === '[data-shortcut-modal="settings"]' ? settingsPanel
     : settings && query === '[data-shortcut-modal="settings"][data-dsc-settings-detail]' && settingsPanel.hasAttribute('data-dsc-settings-detail') ? settingsPanel : null;
   document.querySelectorAll = () => settings ? (nestedDialog ? [settingsPanel, dialog] : [settingsPanel]) : [];
@@ -40,7 +50,7 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
   vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
     MutationObserver: class { observe() {} disconnect() {} }, KeyboardEvent: Event });
-  return { window, document, calls, navigator, destinations, frame, settingsPanel, category, escapes,
+  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, category, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow,
     banner: () => document.body.children.find(node => node.className === 'dsc-status'),
     flush() { const pending = [...timers.values()]; timers.clear(); for (const callback of pending) callback(); },
     access(detail) { const event = new Event('dsh-foreverweb:access-state'); event.detail = detail; window.dispatchEvent(event); } };
@@ -49,6 +59,15 @@ function page({ authenticated = true, native = false, transport = 'connecting', 
 test('ordinary local desktop receives no mobile shell or native bridge', () => {
   const local = page({ authenticated: false, native: true });
   assert.equal(local.window.__DSH_CONNECT_UI__, undefined); assert.equal(local.document.body.children.length, 0); assert.deepEqual(local.calls, []);
+});
+
+test('mobile conversation header marks the semantic title row and tabs without touching text or actions', () => {
+  const current=page({ native:true,transport:'connected',conversation:true });
+  assert.equal(current.conversationHeader.hasAttribute('data-dsc-conversation-header'),true);
+  assert.equal(current.titleRow.hasAttribute('data-dsc-conversation-title-row'),true);
+  assert.equal(current.titleCluster.hasAttribute('data-dsc-conversation-title'),true);
+  assert.equal(current.tabsRow.hasAttribute('data-dsc-conversation-tabs-row'),true);
+  assert.deepEqual(current.destinations,[]);
 });
 
 test('a native app opened after transport initialization receives connected immediately', () => {
@@ -74,6 +93,16 @@ test('native back closes a fullscreen tool page whose layout reserves no side tr
   native.window.__DSH_CONNECT_UI__.configure({ closeRightbar() { closed++; native.frame.removeAttribute('data-rightbar-fullscreen'); } });
   assert.equal(native.window.__DSH_CONNECT_UI__.back(), 'consumed'); assert.equal(closed, 1);
   assert.equal(native.window.__DSH_CONNECT_UI__.back(), 'root'); assert.equal(closed, 1);
+});
+
+test('a native mask before the sidebar does not become a white sidebar column', () => {
+  const native = page({ native: true, transport: 'connected', shell: true });
+  assert.equal(native.frame.hasAttribute('data-dsc-frame'), true);
+  assert.equal(native.nativeMask.hasAttribute('data-dsc-sidebar'), false);
+  assert.equal(native.nativeMask.hasAttribute('data-dsc-center'), false);
+  assert.equal(native.sidebar.hasAttribute('data-dsc-sidebar'), true);
+  assert.equal(native.center.hasAttribute('data-dsc-center'), true);
+  assert.equal(native.document.body.children.find(node => node.className === 'dsc-drawer-mask').dataset.open, 'false');
 });
 
 test('returning from the native home coalesces access recovery without navigation', async () => {
@@ -103,12 +132,14 @@ test('a child dialog closes before the settings detail moves back', () => {
   assert.deepEqual(native.escapes, ['nested:keydown']);
 });
 
-test('app and browser each have one safe-area owner across keyboard and window changes', () => {
+test('native Web immersion and browsers retain system safe insets while the keyboard is closed', () => {
   const app = page({ native: true, viewport: { innerHeight: 760, height: 760 } });
   const browser = page({ viewport: { innerHeight: 760, height: 760 } });
   const appStyle = app.document.documentElement.style, browserStyle = browser.document.documentElement.style;
-  assert.equal(appStyle['--dsc-inset-bottom'], '0px');
+  assert.equal(appStyle['--dsc-inset-bottom'], 'env(safe-area-inset-bottom,0px)');
   assert.equal(browserStyle['--dsc-inset-bottom'], 'env(safe-area-inset-bottom,0px)');
+  assert.equal(app.viewportMeta.getAttribute('content'), 'width=device-width,initial-scale=1,viewport-fit=cover');
+  assert.equal(browser.viewportMeta.getAttribute('content'), 'width=device-width,initial-scale=1,viewport-fit=cover');
   for (const current of [app, browser]) {
     current.window.visualViewport.height = 470.5;
     current.window.visualViewport.dispatchEvent(new Event('resize'));
@@ -117,6 +148,7 @@ test('app and browser each have one safe-area owner across keyboard and window c
     current.window.visualViewport.height = 760;
     current.window.dispatchEvent(new Event('resize'));
   }
-  assert.equal(appStyle['--dsc-inset-bottom'], '0px');
+  assert.equal(appStyle['--dsc-inset-bottom'], 'env(safe-area-inset-bottom,0px)');
   assert.equal(browserStyle['--dsc-inset-bottom'], 'env(safe-area-inset-bottom,0px)');
+  assert.equal(app.viewportMeta.getAttribute('content').match(/viewport-fit/g).length, 1);
 });

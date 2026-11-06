@@ -3,9 +3,10 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import z from '@deepseek-ai/schemastery';
-import { stateDirectoryFor } from './lib/configuration.mjs';
+import { stateDirectoryFor, configurationFor, connectionFields, validateOrigin } from './lib/configuration.mjs';
+import { updateController } from './lib/updates.mjs';
 import { DSHConnectGateway, VERSION } from './lib/mobile-access/connection.mjs';
-import { assertLocalAdminTrust, sendJson } from './lib/mobile-access/core/http-security.mjs';
+import { assertLocalAdminTrust, sendJson, readJsonObject } from './lib/mobile-access/core/http-security.mjs';
 
 export const name = 'dsh-connect';
 export const inject = ['webServer', 'connection'];
@@ -18,13 +19,15 @@ export const Config = z.object({
 });
 
 export async function apply(ctx, config = {}) {
+  config = await configurationFor(ctx, config);
   const adminPath = '/api/foreverweb';
   const root = dirname(fileURLToPath(import.meta.url));
   let gateway;
   let configurationError;
+  const stateDirectory = await stateDirectoryFor(process.env.DSH_HOME || join(homedir(), '.dsh'), config.stateDirectory);
+  const updates = updateController(ctx, stateDirectory, config);
   if (config.publicOrigin) {
     try {
-      const stateDirectory = await stateDirectoryFor(process.env.DSH_HOME || join(homedir(), '.dsh'), config.stateDirectory);
       if (!isAbsolute(stateDirectory)) throw new Error('配对状态目录必须是绝对路径。');
       gateway = new DSHConnectGateway({
         listenHost: '127.0.0.1', listenPort: config.listenPort ?? 3446,
@@ -57,10 +60,29 @@ export async function apply(ctx, config = {}) {
       if (!authenticated(request)) { sendJson(response, 401, { error: 'authentication_required' }, false); return; }
       try { assertLocalAdminTrust(request, request.method === 'POST', () => authenticated(request)); }
       catch { sendJson(response, 403, { error: 'forbidden' }, false); return; }
+      if (request.method === 'GET' && request.url === adminPath + '/updates/status') { sendJson(response, 200, updates.status(), false); return; }
+      if (request.method === 'POST' && request.url === adminPath + '/updates/check') {
+        try { sendJson(response, 200, await updates.check(), false); } catch { sendJson(response, 502, { error: 'update_unavailable', message: '暂时无法检查更新，请稍后重试。' }, false); } return;
+      }
+      if (request.method === 'POST' && request.url === adminPath + '/updates/apply') {
+        try { const body = await readJsonObject(request, 4096); sendJson(response, 202, await updates.start(body.version), false); }
+        catch { sendJson(response, 409, { error: 'update_not_ready', message: '更新尚未准备好，请重新检查。' }, false); } return;
+      }
+      if (request.method === 'POST' && request.url === adminPath + '/configuration') {
+        try {
+          const body = await readJsonObject(request, 4096), origin = validateOrigin(body.publicOrigin);
+          const editor = ctx.get('configEditor');
+          const entry = editor?.entries().find(row => row.fiber?.ctx === ctx || row.options.id === ctx.fiber?.entry?.options?.id || row.options.name === name);
+          if (!entry) throw new Error('Configuration editor unavailable');
+          await editor.edit(entry, raw => ({ ...connectionFields(config), ...raw, publicOrigin: origin }));
+          sendJson(response, 200, { saved: true }, false);
+        } catch { sendJson(response, 400, { error: 'configuration_refused', message: '地址未能保存，请检查 HTTPS 地址后重试。' }, false); } return;
+      }
       if (request.method === 'GET' && request.url === adminPath + '/status') {
         if (!gateway) {
           sendJson(response, 200, { configured: false, version: VERSION, error: configurationError,
-            message: '在插件配置中填写固定 HTTPS 地址，并让该地址转发到 127.0.0.1 的网关端口。' }, false);
+            editable: Boolean(ctx.get?.('configEditor')), listenPort: config.listenPort ?? 3446,
+            message: '填写这台电脑的 HTTPS 访问地址，启用后即可连接手机。' }, false);
           return;
         }
       }

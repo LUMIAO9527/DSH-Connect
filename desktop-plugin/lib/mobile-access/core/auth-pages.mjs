@@ -151,10 +151,7 @@ export function renderPairScript(locale) {
   const status = document.getElementById('pair-status')
   const submit = form.querySelector('button[type="submit"]')
   let submitting = false
-  const fragment = new URLSearchParams(location.hash.slice(1))
-  const supplied = fragment.get('token')
-  history.replaceState(null, '', location.pathname)
-  if (supplied) token.value = supplied
+  let pendingLink = false
   token.addEventListener('input', () => {
     token.removeAttribute('aria-invalid')
     if (!submitting) status.value = ''
@@ -205,12 +202,21 @@ export function renderPairScript(locale) {
       clearTimeout(timer)
       submitting = false
       submit.disabled = false
+      if (pendingLink) receivePairLink()
     }
   }
   form.addEventListener('submit', pair)
-  // Opening the complete, current one-use link is the pairing action.
-  // Manual entry remains available when the fragment was not supplied.
-  if (supplied) void pair({ preventDefault() {} })
+  function receivePairLink() {
+    const supplied = new URLSearchParams(location.hash.slice(1)).get('token')
+    if (!supplied) return
+    if (submitting) { pendingLink = true; return }
+    pendingLink = false
+    history.replaceState(null, '', location.pathname)
+    token.value = supplied
+    void pair({ preventDefault() {} })
+  }
+  window.addEventListener('hashchange', receivePairLink)
+  receivePairLink()
 })()
 `;
 }

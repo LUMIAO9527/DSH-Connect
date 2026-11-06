@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({
     const ADMIN = '/api/foreverweb';
     const STYLE = `
 .dfw-settings{--dfw-ink:var(--dsw-alias-label-primary,#171717);--dfw-muted:var(--dsw-alias-label-secondary,#686868);--dfw-line:var(--dsw-alias-border-l2,#e8e8e8);--dfw-surface:color-mix(in srgb,var(--dfw-ink) 4%,transparent);--dfw-inverse:var(--dsw-alias-bg-base,#fff);width:100%;max-width:780px;padding:8px 0 28px;color:var(--dfw-ink);font-size:14px;line-height:1.55;box-sizing:border-box}
-.dfw-settings .dfw-brand{display:flex;align-items:center;gap:12px;min-width:0}.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg{display:block;width:34px;height:34px;flex-shrink:0}.dfw-settings .dfw-brand-mark #cn-tile{fill:var(--dsw-alias-bg-base,#fff);stroke:var(--dsw-alias-border-l2,#d7d7d7);stroke-width:.75}.dfw-settings .dfw-brand-mark #cn-letters{stroke:var(--dsw-alias-label-primary,#171717)}.dfw-settings *{box-sizing:border-box}.dfw-settings h3,.dfw-settings h4,.dfw-settings p{margin:0}.dfw-settings h3{font-size:22px;line-height:1.3;font-weight:650;letter-spacing:-.4px}.dfw-settings h4{font-size:15px;font-weight:600}.dfw-settings p{color:var(--dfw-muted)}.dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}.dfw-settings .dfw-intro{margin-bottom:24px}.dfw-settings .dfw-badge{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}.dfw-settings .dfw-card{margin-top:12px;padding:20px;border:1px solid var(--dfw-line);border-radius:16px;background:var(--dfw-surface)}.dfw-settings .dfw-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.dfw-settings .dfw-hint{font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:16px}.dfw-settings .dfw-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;min-width:40px;padding:8px 14px;border:1px solid var(--dfw-line);border-radius:15px;background:transparent;color:var(--dfw-ink);font:inherit;line-height:1.4;white-space:nowrap;cursor:pointer;touch-action:manipulation;transition:background 160ms,box-shadow 160ms}.dfw-settings .dfw-button-primary{min-height:44px;border-radius:16px;background:var(--dfw-ink);border-color:transparent;color:var(--dfw-inverse);font-weight:600}.dfw-settings .dfw-button:hover:not(:disabled){box-shadow:0 3px 12px #00000014;background:color-mix(in srgb,var(--dfw-ink) 8%,transparent)}.dfw-settings .dfw-button-primary:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-ink) 88%,var(--dfw-inverse))}.dfw-settings .dfw-button:active:not(:disabled){box-shadow:none}.dfw-settings .dfw-button:disabled{opacity:.46;cursor:not-allowed}.dfw-settings .dfw-button:focus-visible,.dfw-settings input:focus-visible{outline:2px solid var(--dfw-ink);outline-offset:3px}.dfw-settings .dfw-icon{display:block;flex-shrink:0;width:18px;height:18px}.dfw-settings .dfw-link-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}.dfw-settings .dfw-link{min-width:0;width:100%;height:42px;padding:10px 12px;border:1px solid var(--dfw-line);border-radius:12px;background:var(--dfw-inverse);color:var(--dfw-ink);font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}.dfw-settings .dfw-pair-body{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:20px;align-items:start;margin-top:20px;padding-top:20px;border-top:1px solid var(--dfw-line)}.dfw-settings .dfw-qr{padding:10px;border:1px solid var(--dfw-line);border-radius:12px;background:#fff;line-height:0}.dfw-settings .dfw-qr svg{width:100%;height:auto}.dfw-settings .dfw-qr[aria-disabled=true]{opacity:.25}.dfw-settings .dfw-pair-body .dfw-link{margin-top:12px}.dfw-settings .dfw-device-list{list-style:none;padding:0;margin:0}.dfw-settings .dfw-device{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--dfw-line)}.dfw-settings .dfw-device:first-child{padding-top:2px}.dfw-settings .dfw-device:last-child{border-bottom:0;padding-bottom:0}.dfw-settings .dfw-device-name{font-weight:500;overflow-wrap:anywhere}.dfw-settings .dfw-device-meta{margin-top:4px;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-notice{margin:16px 0;padding:12px 14px;border:1px solid var(--dfw-line);border-radius:12px;overflow-wrap:anywhere}.dfw-settings .dfw-footer{margin-top:16px;font-size:12px}.dfw-settings .dfw-loading{padding:20px 0;color:var(--dfw-muted)}
+.dfw-settings .dfw-brand{display:flex;align-items:center;gap:12px;min-width:0}.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg{display:block;width:34px;height:34px;flex-shrink:0}.dfw-settings *{box-sizing:border-box}.dfw-settings h3,.dfw-settings h4,.dfw-settings p{margin:0}.dfw-settings h3{font-size:22px;line-height:1.3;font-weight:650;letter-spacing:-.4px}.dfw-settings h4{font-size:15px;font-weight:600}.dfw-settings p{color:var(--dfw-muted)}.dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}.dfw-settings .dfw-intro{margin-bottom:24px}.dfw-settings .dfw-badge{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}.dfw-settings .dfw-card{margin-top:12px;padding:20px;border:1px solid var(--dfw-line);border-radius:16px;background:var(--dfw-surface)}.dfw-settings .dfw-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.dfw-settings .dfw-hint{font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:16px}.dfw-settings .dfw-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;min-width:40px;padding:8px 14px;border:1px solid var(--dfw-line);border-radius:15px;background:transparent;color:var(--dfw-ink);font:inherit;line-height:1.4;white-space:nowrap;cursor:pointer;touch-action:manipulation;transition:background 160ms,box-shadow 160ms}.dfw-settings .dfw-button-primary{min-height:44px;border-radius:16px;background:var(--dfw-ink);border-color:transparent;color:var(--dfw-inverse);font-weight:600}.dfw-settings .dfw-button:hover:not(:disabled){box-shadow:0 3px 12px #00000014;background:color-mix(in srgb,var(--dfw-ink) 8%,transparent)}.dfw-settings .dfw-button-primary:hover:not(:disabled){background:color-mix(in srgb,var(--dfw-ink) 88%,var(--dfw-inverse))}.dfw-settings .dfw-button:active:not(:disabled){box-shadow:none}.dfw-settings .dfw-button:disabled{opacity:.46;cursor:not-allowed}.dfw-settings .dfw-button:focus-visible,.dfw-settings input:focus-visible{outline:2px solid var(--dfw-ink);outline-offset:3px}.dfw-settings .dfw-icon{display:block;flex-shrink:0;width:18px;height:18px}.dfw-settings .dfw-link-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}.dfw-settings .dfw-link{min-width:0;width:100%;height:42px;padding:10px 12px;border:1px solid var(--dfw-line);border-radius:12px;background:var(--dfw-inverse);color:var(--dfw-ink);font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}.dfw-settings .dfw-pair-body{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:20px;align-items:start;margin-top:20px;padding-top:20px;border-top:1px solid var(--dfw-line)}.dfw-settings .dfw-qr{padding:10px;border:1px solid var(--dfw-line);border-radius:12px;background:#fff;line-height:0}.dfw-settings .dfw-qr svg{width:100%;height:auto}.dfw-settings .dfw-qr[aria-disabled=true]{opacity:.25}.dfw-settings .dfw-pair-body .dfw-link{margin-top:12px}.dfw-settings .dfw-device-list{list-style:none;padding:0;margin:0}.dfw-settings .dfw-device{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--dfw-line)}.dfw-settings .dfw-device:first-child{padding-top:2px}.dfw-settings .dfw-device:last-child{border-bottom:0;padding-bottom:0}.dfw-settings .dfw-device-name{font-weight:500;overflow-wrap:anywhere}.dfw-settings .dfw-device-meta{margin-top:4px;font-size:12px;color:var(--dfw-muted)}.dfw-settings .dfw-notice{margin:16px 0;padding:12px 14px;border:1px solid var(--dfw-line);border-radius:12px;overflow-wrap:anywhere}.dfw-settings .dfw-footer{margin-top:16px;font-size:12px}.dfw-settings .dfw-loading{padding:20px 0;color:var(--dfw-muted)}
 @media(max-width:540px){.dfw-settings .dfw-card{padding:16px}.dfw-settings .dfw-pair-body{grid-template-columns:1fr}.dfw-settings .dfw-qr{width:160px}.dfw-settings .dfw-device{align-items:flex-start;gap:8px}.dfw-settings .dfw-device .dfw-button{min-height:44px}.dfw-settings .dfw-head{flex-wrap:wrap}.dfw-settings .dfw-link-row{align-items:stretch;flex-wrap:wrap}.dfw-settings .dfw-card-head,.dfw-settings .dfw-device{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.dfw-settings .dfw-button{transition:none}}
 `;
@@ -28,8 +28,8 @@ window.__ModuleLoader__.load({
       try {
         const response = await fetch(ADMIN + path, { method: body === undefined ? 'GET' : 'POST', headers,
           body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, cache: 'no-store' });
-        if (!response.ok) throw new Error(response.status === 401 ? '电脑端连接已失效，请重新打开设置。'
-          : response.status === 403 ? '本机请求未通过校验，请重新打开此设置页后再试。' : '操作暂未完成，请检查电脑连接后重试。');
+        if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.message || (response.status === 401 ? '电脑端连接已失效，请重新打开设置。'
+          : response.status === 403 ? '本机请求未通过校验，请重新打开此设置页后再试。' : '操作暂未完成，请检查电脑连接后重试。')); }
         return await response.json();
       } finally { clearTimeout(timeout); signal?.removeEventListener('abort', cancel); }
     }
@@ -37,11 +37,14 @@ window.__ModuleLoader__.load({
       const [status, setStatus] = useState(null), [devices, setDevices] = useState([]);
       const [pairing, setPairing] = useState(null), [notice, setNotice] = useState(null);
       const [busy, setBusy] = useState(false), [now, setNow] = useState(Date.now());
+      const [address, setAddress] = useState(''), [update, setUpdate] = useState(null);
       const active = useRef(false), pending = useRef(false), abort = useRef(null);
       const refresh = async signal => {
         const value = await request('/status', undefined, signal);
         if (!active.current || signal?.aborted) return;
         setStatus(value);
+        const versions = await request('/updates/status', undefined, signal);
+        if (active.current && !signal?.aborted) setUpdate(versions);
         if (value.configured !== false) {
           const result = await request('/devices', undefined, signal);
           if (active.current && !signal?.aborted) setDevices(result.devices);
@@ -53,6 +56,11 @@ window.__ModuleLoader__.load({
         return () => { active.current = false; controller.abort(); };
       }, []);
       useEffect(() => { if (!pairing) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [pairing]);
+      useEffect(() => {
+        if (!['downloading', 'installing', 'restoring'].includes(update?.stage)) return;
+        const timer = setInterval(() => { void request('/updates/status', undefined, abort.current.signal).then(value => { if (active.current) setUpdate(value); }).catch(() => {}); }, 1500);
+        return () => clearInterval(timer);
+      }, [update?.stage]);
       const run = async (action, scope = 'pairing') => {
         if (pending.current) return; pending.current = true; setBusy(true); setNotice(null);
         try { await action(abort.current.signal); }
@@ -75,9 +83,13 @@ window.__ModuleLoader__.load({
         !local() ? h('div', { className: 'dfw-card' }, h('p', null, '请在运行 DSH 的电脑上打开此设置页，生成配对链接和管理设备。'))
         : !status ? h('div', { className: 'dfw-loading' }, notice
           ? h('div', null, feedback('status'), action('重新读取', () => void run(signal => refresh(signal), 'status'), { symbol: 'refresh' })) : '正在读取连接状态…')
-        : status.configured === false ? h('div', { className: 'dfw-card' }, h('h4', null, '设置固定访问地址'),
+        : status.configured === false ? h('div', { className: 'dfw-card' }, h('h4', null, '连接这台电脑'),
           h('p', { style: { marginTop: 8 } }, status.error || status.message),
-          h('p', { className: 'dfw-footer' }, '打开「插件 → DSH Connect → 配置」，填写 publicOrigin，并使 HTTPS 入口转发到本机网关。'))
+          h('label', { className: 'dfw-hint', htmlFor: 'dsh-connect-origin', style: { display: 'block', marginTop: 16 } }, '电脑访问地址'),
+          h('input', { id: 'dsh-connect-origin', className: 'dfw-link', type: 'url', placeholder: 'https://…', value: address, onChange: event => setAddress(event.target.value), autoComplete: 'url', spellCheck: false, style: { marginTop: 8 } }),
+          h('div', { className: 'dfw-actions' }, action('启用连接', () => void run(async signal => { await request('/configuration', { publicOrigin: address }, signal); await refresh(signal); }, 'configuration'), { primary: true, disabled: busy || !address.trim() || !status.editable })),
+          feedback('configuration'),
+          h('p', { className: 'dfw-footer' }, '使用已为这台电脑开通的 HTTPS 地址。手机和电脑需保持联网。'))
         : h('div', null,
           h('div', { className: 'dfw-card' },
             h('div', { className: 'dfw-card-head' }, h('h4', null, '日常访问'), h('span', { className: 'dfw-hint' }, '已配对的浏览器使用')),
@@ -113,9 +125,39 @@ window.__ModuleLoader__.load({
               h('div', null, h('div', { className: 'dfw-device-name' }, device.label),
                 h('div', { className: 'dfw-device-meta' }, `授权至 ${new Date(device.expiresAt).toLocaleDateString()} · 最近使用 ${new Date(device.lastSeenAt).toLocaleDateString()}`)),
               h('div', null, action('撤销授权', () => void run(async signal => { await request('/devices/revoke', { deviceId: device.id }, signal); await refresh(signal); }, 'device:' + device.id)), feedback('device:' + device.id)))))),
-          h('p', { className: 'dfw-footer' }, '电脑、DSH 和 HTTPS 通道需保持运行。配对设备可操作此 DSH 的工作区和工具，请只分享给信任的人。')));
+          h('p', { className: 'dfw-footer' }, '电脑、DSH 和 HTTPS 通道需保持运行。配对设备可操作此 DSH 的工作区和工具，请只分享给信任的人。')),
+        h('div', { className: 'dfw-card' },
+          h('div', { className: 'dfw-card-head' }, h('h4', null, '版本更新'), h('span', { className: 'dfw-hint' }, status?.version ? '版本 ' + status.version : 'DSH Connect')),
+          h('p', { role: 'status' }, update?.message || '更新保留连接地址和已配对设备。'),
+          h('div', { className: 'dfw-actions' },
+            action(busy ? '正在检查…' : '检查更新', () => void run(async signal => { const value = await request('/updates/check', {}, signal); if (active.current) setUpdate(value); }, 'updates'), { disabled: busy || ['downloading', 'installing', 'restoring'].includes(update?.stage), symbol: 'refresh' }),
+            update?.available && update.canUpdate && action('更新到 ' + update.latest, () => void run(async signal => { const value = await request('/updates/apply', { version: update.latest }, signal); if (active.current) setUpdate(value); }, 'updates'), { primary: true, disabled: busy || update.stage !== 'available' }),
+            h('a', { className: 'dfw-button', href: 'https://github.com/LUMIAO9527/DSH-Connect/releases/latest', target: '_blank', rel: 'noopener noreferrer' }, '发布记录')),
+          feedback('updates')));
     }
+    /* settings-icon:start */
+    function installSettingsIcon(ctx) {
+      if (typeof document === 'undefined' || typeof MutationObserver === 'undefined' || !ctx.effect) return;
+      ctx.effect(() => {
+        const mark = "dsh-connect", label = "DSH Connect";
+        const glyph = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n  <rect id=\"cn-tile\" width=\"32\" height=\"32\" rx=\"10\" fill=\"#171717\"/>\n  <g id=\"cn-letters\" stroke=\"#ffffff\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\">\n    <path d=\"M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7\"/>\n    <path d=\"M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22\"/>\n  </g>\n</svg>\n";
+        const style = document.createElement('style');
+        const selector = 'button[data-dsh-plugin-icon="' + mark + '"] svg';
+        style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background:transparent url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat;mask:none}' + selector + '>*{visibility:hidden}';
+        document.head.appendChild(style);
+        const update = () => {
+          for (const button of document.querySelectorAll('[role="dialog"][data-shortcut-modal="settings"] nav button')) {
+            if (button.textContent.trim() === label) button.setAttribute('data-dsh-plugin-icon', mark);
+          }
+        };
+        const observer = new MutationObserver(update);
+        observer.observe(document.body, { childList: true, subtree: true }); update();
+        return () => { observer.disconnect(); style.remove(); for (const item of document.querySelectorAll('[data-dsh-plugin-icon="' + mark + '"]')) item.removeAttribute('data-dsh-plugin-icon'); };
+      }, 'plugin settings glyph');
+    }
+    /* settings-icon:end */
     function apply(ctx) {
+      installSettingsIcon(ctx);
       ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'dsh-connect', order: 35, label: 'DSH Connect' }, Settings)), 'DSH Connect settings');
       // DSH owns reconnection and data synchronization. Access renewal only asks
       // for a reconnect when the existing transport is already disconnected.

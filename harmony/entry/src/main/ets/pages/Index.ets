@@ -6,7 +6,8 @@ import { url } from '@kit.ArkTS';
 import { Computer, ComputerStore, parseAddress, connectorPermission } from '../model/ComputerStore';
 import { FileSupport } from '../model/FileSupport';
 import { APP_VERSION } from '../model/Version';
-import { PairingIntro, ComputerCover, ConnectionLoading, ConnectionIssue } from '../components/ConnectionViews';
+import { checkRelease, RELEASE_URL, PROJECT_URL, ReleaseResult } from '../model/ReleaseInfo';
+import { ComputerCover, ConnectionLoading, ConnectionIssue } from '../components/ConnectionViews';
 
 class ConnectorBridge {
   private show: () => void;
@@ -23,9 +24,14 @@ struct Index {
   @State private managerVisible: boolean = false;
   @State private adding: boolean = false;
   @State private settingsVisible: boolean = false;
+  @State private updateChecking: boolean = false;
+  @State private updateAvailable: boolean = false;
+  @State private updateMessage: string = '检查是否有新版本';
   @State private uploadVisible: boolean = false;
   @State private pickerBusy: boolean = false;
   @State private autoConnect: boolean = true;
+  @State private resumeToWorkspace: boolean = true;
+  @State private selectedComputerId: string = '';
   @State private nameInput: string = '';
   @State private addressInput: string = '';
   @State private activeName: string = '';
@@ -33,30 +39,30 @@ struct Index {
   @State private connectionState: string = 'connecting';
   @State private message: string = '';
   @State private pageWidth: number = 390;
+  @State private pageHeight: number = 780;
   @State private primaryId: string = '';
-  @State private othersExpanded: boolean = false;
   @State private nameExpanded: boolean = false;
   @State private helpVisible: boolean = false;
   @State private editingId: string = '';
   @State private editName: string = '';
   @StorageLink('dshLaunchUrl') @Watch('consumeLaunch') private launchUrl: string = '';
-  @StorageLink('dshStatusInset') private topInset: number = 0;
   @StorageLink('dshBottomInset') private bottomInset: number = 0;
-  @StorageLink('dshLeftInset') private leftInset: number = 0;
-  @StorageLink('dshRightInset') private rightInset: number = 0;
-  @StorageLink('dshForeground') @Watch('resumeConnection') private foreground: number = 0;
+  @StorageLink('dshForeground') @Watch('foregroundChanged') private foreground: number = 0;
   private webController: webview.WebviewController = new webview.WebviewController();
   private store?: ComputerStore;
   private files?: FileSupport;
   @State private activeUrl: string = '';
   private initialUrl: string = '';
   private savedAddress: string = '';
+  private retryAddress: string = '';
   private currentOrigin: string = '';
   private attached: boolean = false;
   @State private loaded: boolean = false;
   private startup: boolean = true;
   private attempt: number = 0;
   private timer: number = -1;
+  private probeTimer: number = -1;
+  private connectorAvailable: boolean = false;
   private mainHttpError: number = 0;
   private pendingFiles: ((items: Array<string>) => void) | null = null;
   private accepts: string[] = [];
@@ -69,7 +75,7 @@ struct Index {
     const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
     this.store = new ComputerStore(context);
     this.files = new FileSupport(context, (text: string) => { this.getUIContext().getPromptAction().showToast({ message: text }); });
-    this.store.loadAutoConnect().then((enabled: boolean) => { this.autoConnect = enabled; return this.store!.loadPrimaryComputer(); }).then((id: string) => { this.primaryId = id; return this.store!.load(); }).then((rows: Computer[]) => {
+    this.store.loadAutoConnect().then((enabled: boolean) => { this.autoConnect = enabled; return this.store!.loadResumeToWorkspace(); }).then((enabled: boolean) => { this.resumeToWorkspace = enabled; return this.store!.loadPrimaryComputer(); }).then((id: string) => { this.primaryId = id; return this.store!.load(); }).then((rows: Computer[]) => {
       this.computers = rows; this.loaded = true;
       if (this.launchUrl) { this.consumeLaunch(); return; }
       if (!this.startup || !this.autoConnect || this.adding) { this.managerVisible = true; return; }
@@ -79,12 +85,30 @@ struct Index {
     }).catch(() => { this.loaded = true; this.managerVisible = true; this.message = '暂时无法读取已保存的电脑，可以重新添加。'; });
   }
   aboutToDisappear(): void { this.clearTimer(); this.finishFiles([]); this.files?.dispose(); }
-  private clearTimer(): void { if (this.timer >= 0) clearTimeout(this.timer); this.timer = -1; }
+  private checkUpdate(): void {
+    if (this.updateChecking) return;
+    this.updateChecking = true; this.updateMessage = '正在检查更新…';
+    checkRelease().then((result: ReleaseResult) => {
+      this.updateAvailable = result.available;
+      this.updateMessage = result.available ? '发现新版本 ' + result.version : '当前已是最新版本';
+    }).catch(() => { this.updateMessage = '暂时无法连接 GitHub，请稍后重试。'; }).finally(() => { this.updateChecking = false; });
+  }
+  private async openProject(releases: boolean): Promise<void> {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    try { await context.openLink(releases ? RELEASE_URL : PROJECT_URL); } catch (_) {
+      this.getUIContext().getPromptAction().showToast({ message: '暂时无法打开浏览器，请稍后重试。' });
+    }
+  }
+  private clearTimer(): void {
+    if (this.timer >= 0) clearTimeout(this.timer); this.timer = -1;
+    if (this.probeTimer >= 0) clearTimeout(this.probeTimer); this.probeTimer = -1;
+  }
   private waitForConnection(): void {
     this.clearTimer(); const current = this.attempt;
     this.timer = setTimeout(() => {
       if (current !== this.attempt || this.phase !== 'connecting') return;
-      this.phase = 'failed'; this.managerVisible = true; this.message = '还没有连接上电脑。请确认电脑与 DSH 已打开，然后重试。';
+      this.phase = 'failed'; this.managerVisible = true;
+      this.message = this.connectorAvailable ? '还没有连接上电脑。请确认电脑与 DSH 已打开，然后重试。' : '此地址没有提供可用的 DSH Connect 工作区。请在电脑设置中重新生成配对链接。';
     }, 45000);
   }
   private consumeLaunch(): void {
@@ -97,10 +121,11 @@ struct Index {
       this.finishFiles([]);
       if (!this.attached) this.initialUrl = parsed.entry;
       this.currentOrigin = parsed.origin; this.activeUrl = parsed.entry; this.savedAddress = parsed.saved;
+      this.retryAddress = parsed.entry;
       const known = this.computers.find((computer: Computer) => computer.address === parsed.saved);
       const hostname = new url.URL(parsed.origin).hostname;
       this.activeName = name.trim() || known?.name || (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' ? '我的电脑' : hostname.split('.')[0]);
-      this.phase = 'connecting'; this.connectionState = 'connecting'; this.message = '';
+      this.phase = 'connecting'; this.connectionState = 'connecting'; this.message = ''; this.connectorAvailable = false;
       this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.managerVisible = false;
       if (this.attached) this.loadActive();
     } catch (_) { this.message = '请填写电脑端生成的完整 HTTPS 配对链接。'; this.managerVisible = true; }
@@ -120,6 +145,7 @@ struct Index {
     if (state !== 'connected' && state !== 'connecting' && state !== 'offline' && state !== 'auth-required') return;
     this.connectionState = state;
     if (state === 'connected') {
+      this.retryAddress = this.savedAddress;
       if (this.phase === 'ready') return;
       const current = this.attempt; this.phase = 'ready'; this.message = ''; this.clearTimer();
       try { await webview.WebCookieManager.saveCookieAsync(); } catch (_) {}
@@ -140,17 +166,41 @@ struct Index {
       if (new url.URL(page).origin !== this.currentOrigin) return;
       if (this.mainHttpError >= 400) return;
       if (new url.URL(page).pathname.startsWith('/mobile-access/')) { this.phase = 'pairing'; this.clearTimer(); return; }
+      this.retryAddress = this.savedAddress;
       const current = this.attempt;
       if (this.phase !== 'ready') { this.phase = 'connecting'; this.waitForConnection(); }
-      const result = await this.webController.runJavaScript('window.__DSH_CONNECT_UI__ ? (window.__DSH_CONNECT_UI__.setTransport(window.__DSH_CONNECT_TRANSPORT__ || "connecting"), "available") : "missing-connector"');
-      if (current !== this.attempt) return;
-      if (result.includes('missing-connector')) { this.clearTimer(); this.phase = 'failed'; this.managerVisible = true; this.message = '请先在电脑端更新 DSH Connect 到 1.0.0，再连接这台电脑。'; }
+      this.probeConnector(current);
     } catch (_) {}
+  }
+  private probeConnector(current: number): void {
+    if (current !== this.attempt || this.phase !== 'connecting' || !this.attached || !this.trustedPage()) return;
+    this.webController.runJavaScript('window.__DSH_CONNECT_UI__ ? (window.__DSH_CONNECT_UI__.setTransport(window.__DSH_CONNECT_TRANSPORT__ || "connecting"), "available") : "waiting"').then((result: string) => {
+      if (current !== this.attempt || this.phase !== 'connecting') return;
+      if (result.includes('available')) { this.connectorAvailable = true; return; }
+      this.probeTimer = setTimeout(() => { this.probeConnector(current); }, 350);
+    }).catch(() => {
+      if (current === this.attempt && this.phase === 'connecting') this.probeTimer = setTimeout(() => { this.probeConnector(current); }, 350);
+    });
   }
   private trustedPage(): boolean { try { return new url.URL(this.webController.getUrl()).origin === this.currentOrigin; } catch (_) { return false; } }
   private resumeConnection(): void {
     if (!this.attached || !this.trustedPage()) return;
     this.webController.runJavaScript('window.__DSH_CONNECT_UI__?.resume(); "requested"').catch(() => {});
+  }
+  private foregroundChanged(): void {
+    if (!this.loaded) return;
+    if (!this.resumeToWorkspace) { this.managerVisible = true; return; }
+    this.resumeConnection();
+  }
+  private async changeAutoConnect(enabled: boolean): Promise<void> {
+    const previous = this.autoConnect; this.autoConnect = enabled;
+    try { await this.store?.saveAutoConnect(enabled); }
+    catch (_) { this.autoConnect = previous; this.getUIContext().getPromptAction().showToast({ message: '设置未能保存，请重试。' }); }
+  }
+  private async changeResumeToWorkspace(enabled: boolean): Promise<void> {
+    const previous = this.resumeToWorkspace; this.resumeToWorkspace = enabled;
+    try { await this.store?.saveResumeToWorkspace(enabled); }
+    catch (_) { this.resumeToWorkspace = previous; this.getUIContext().getPromptAction().showToast({ message: '设置未能保存，请重试。' }); }
   }
   private continueComputer(computer: Computer): void {
     this.startup = false;
@@ -206,6 +256,14 @@ struct Index {
     if (selected) return selected;
     return this.latestComputer();
   }
+  private selectedIndex(): number {
+    const index = this.computers.findIndex((item: Computer) => item.id === this.selectedComputerId);
+    if (index >= 0) return index;
+    const primary = this.computers.findIndex((item: Computer) => item.id === this.mainComputer().id);
+    return primary >= 0 ? primary : 0;
+  }
+  private selectedComputer(): Computer { return this.computers[this.selectedIndex()] || this.mainComputer(); }
+  private computerCardHeight(): number { return Math.min(360, Math.max(250, this.pageHeight - 446)); }
   private latestComputer(): Computer {
     let latest: Computer = this.computers[0] || new Computer('', '我的电脑', '');
     for (const item of this.computers) if (item.lastConnectedAt > latest.lastConnectedAt) latest = item;
@@ -237,76 +295,68 @@ struct Index {
     } catch (_) { this.message = '名称暂时未能保存，请重试。'; }
   }
   @Builder private header() {
-    Row({ space: 9 }) {
-      if (this.adding || this.settingsVisible || this.helpVisible || this.editingId || this.phase === 'ready') {
-        Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(20).fontColor([$r('app.color.ink')]) }.width(40).height(44).backgroundColor(Color.Transparent).accessibilityText('返回').onClick(() => {
+    Row({ space: 6 }) {
+      if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) {
+        Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(20).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('返回').onClick(() => {
           if (this.adding || this.settingsVisible || this.helpVisible || this.editingId) { this.adding = false; this.settingsVisible = false; this.helpVisible = false; this.editingId = ''; this.message = ''; }
           else { this.managerVisible = false; this.resumeConnection(); }
         })
-      } else {
-        Image($r('app.media.cn_mark')).width(32).height(32).accessibilityText('DSH Connect')
       }
-      Text(this.editingId ? '电脑名称' : this.helpVisible ? '连接帮助' : this.adding ? '添加电脑' : this.settingsVisible ? '连接设置' : this.computers.length ? '电脑与连接' : 'DSH Connect').fontSize(19).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1)
+      Image($r('app.media.cn_mark')).width(30).height(30).flexShrink(0).accessibilityText('DSH Connect')
+      Text('DSH Connect').fontSize(18).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).layoutWeight(1).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
       if (!this.adding && !this.settingsVisible && !this.helpVisible && !this.editingId) {
-        if (this.computers.length > 0) {
-          Button('+').width(42).height(44).fontSize(26).fontColor($r('app.color.ink')).backgroundColor(Color.Transparent).accessibilityText('添加电脑').onClick(() => { this.openAdd(); })
-          Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(42).height(44).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.startup = false; this.settingsVisible = true; this.message = ''; })
-        } else {
-          Button('帮助').height(44).fontSize(13).fontColor($r('app.color.muted')).backgroundColor(Color.Transparent).onClick(() => { this.helpVisible = true; this.message = ''; })
-        }
+        Button({ type: ButtonType.Circle }) { Text('+').fontSize(27).fontColor($r('app.color.ink')) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('添加电脑').onClick(() => { this.openAdd(); })
+        Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.gearshape')).fontSize(21).fontColor([$r('app.color.ink')]) }.width(44).height(44).padding(0).flexShrink(0).backgroundColor(Color.Transparent).accessibilityText('连接设置').onClick(() => { this.startup = false; this.settingsVisible = true; this.message = ''; })
       }
-    }.width('100%').margin({ bottom: 18 })
+    }.width('100%').margin({ bottom: 20 })
   }
-  @Builder private computerRow(computer: Computer) {
-    Row({ space: 8 }) {
-      Button({ type: ButtonType.Normal }) {
-        Row({ space: 12 }) {
-          SymbolGlyph($r('sys.symbol.computer')).fontSize(22).fontColor([$r('app.color.ink')])
-          Column({ space: 5 }) {
-            Text(computer.name).fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
-            Text(this.computerStatus(computer)).fontSize(11).fontColor($r('app.color.muted'))
-          }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-        }.width('100%')
-      }.layoutWeight(1).height(62).padding(0).backgroundColor(Color.Transparent).accessibilityText('连接' + computer.name).onClick(() => { this.continueComputer(computer); })
-      Button({ type: ButtonType.Circle }) { SymbolGlyph($r('sys.symbol.more')).fontSize(19).fontColor([$r('app.color.muted')]) }.width(44).height(44).backgroundColor(Color.Transparent).accessibilityText('管理' + computer.name).onClick(() => { this.manageComputer(computer); })
-    }.width('100%').padding({ left: 16, right: 10 }).borderRadius(18).backgroundColor($r('app.color.surface'))
+  @Builder private recoveryOptions() {
+    Column() {
+      Row({ space: 10 }) {
+        Column({ space: 5 }) {
+          Text('重新打开').fontSize(13).fontColor($r('app.color.ink'))
+          Text('恢复最近的工作页面').fontSize(11).fontColor($r('app.color.muted'))
+        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+        Select([{ value: '自动恢复' }, { value: '先选电脑' }]).selected(this.autoConnect ? 0 : 1).value(this.autoConnect ? '自动恢复' : '先选电脑').font({ size: 12 }).fontColor($r('app.color.ink')).optionFont({ size: 14 }).optionFontColor($r('app.color.ink')).selectedOptionFontColor('#4D6BFE').menuBackgroundColor($r('app.color.surface')).backgroundColor(Color.Transparent).width(128).height(44).accessibilityText('重新打开应用').onSelect((index: number) => { this.changeAutoConnect(index === 0); })
+      }.width('100%').padding({ top: 10, bottom: 10 })
+      Divider().color($r('app.color.line'))
+      Row({ space: 10 }) {
+        Column({ space: 5 }) {
+          Text('从后台回来').fontSize(13).fontColor($r('app.color.ink'))
+          Text('保留当前会话与草稿').fontSize(11).fontColor($r('app.color.muted'))
+        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+        Select([{ value: '继续原位置' }, { value: '先选电脑' }]).selected(this.resumeToWorkspace ? 0 : 1).value(this.resumeToWorkspace ? '继续原位置' : '先选电脑').font({ size: 12 }).fontColor($r('app.color.ink')).optionFont({ size: 14 }).optionFontColor($r('app.color.ink')).selectedOptionFontColor('#4D6BFE').menuBackgroundColor($r('app.color.surface')).backgroundColor(Color.Transparent).width(128).height(44).accessibilityText('从后台返回应用').onSelect((index: number) => { this.changeResumeToWorkspace(index === 0); })
+      }.width('100%').padding({ top: 10, bottom: 10 })
+    }.width('100%').padding({ left: 16, right: 10 }).borderRadius(20).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface'))
   }
   @Builder private home() {
-    if (this.computers.length === 0) {
-      PairingIntro({ onScan: () => { this.scan(); }, onUseLink: () => { this.openAdd(); }, onHelp: () => { this.helpVisible = true; this.message = ''; } })
-    } else {
-      Column({ space: 0 }) {
-        ComputerCover({ computerName: this.mainComputer().name, status: this.computerStatus(this.mainComputer()), actionLabel: this.phase === 'ready' && this.savedAddress === this.mainComputer().address ? '返回 DeepSeek Harness' : '连接主电脑', onContinue: () => { this.continueComputer(this.mainComputer()); }, onManage: () => { this.manageComputer(this.mainComputer()); } })
-        Column() {
-          Row() {
-            Column({ space: 5 }) { Text('重新打开').fontSize(12).fontColor($r('app.color.ink')); Text('恢复原工作页面').fontSize(11).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            Text(this.autoConnect ? '自动恢复' : '手动连接').fontSize(11).fontColor($r('app.color.muted'))
-          }.width('100%').height(64)
-          Divider().color($r('app.color.line'))
-          Row() {
-            Column({ space: 5 }) { Text('从后台回来').fontSize(12).fontColor($r('app.color.ink')); Text('保留当前会话与输入内容').fontSize(11).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            Text('继续原位置').fontSize(11).fontColor($r('app.color.muted'))
-          }.width('100%').height(64)
-        }.width('100%').padding({ left: 16, right: 16 }).borderRadius(20).border({ width: 1, color: $r('app.color.line') }).backgroundColor($r('app.color.surface')).margin({ top: 18 })
-        if (this.computers.length > 1) {
-          Button('其他电脑（' + (this.computers.length - 1).toString() + '） ' + (this.othersExpanded ? '⌃' : '⌄')).height(48).width('100%').fontSize(12).fontColor($r('app.color.muted')).backgroundColor(Color.Transparent).margin({ top: 12 }).onClick(() => { this.othersExpanded = !this.othersExpanded; })
-          if (this.othersExpanded) { ForEach(this.computers.filter((item: Computer) => item.id !== this.mainComputer().id), (item: Computer) => { this.computerRow(item) }, (item: Computer) => item.id) }
+    Column({ space: 0 }) {
+        Text('我的电脑').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
+        Text(this.computers.length === 0 ? '添加电脑，连接你的 DeepSeek Harness。' : this.computers.length > 1 ? '左右滑动，选择要连接的电脑。' : '已保存的连接，随时继续。').fontSize(12).fontColor($r('app.color.muted')).width('100%').margin({ top: 7, bottom: 20 })
+        if (this.computers.length === 0) {
+          ComputerCover({ computerName: '添加第一台电脑', cardHeight: this.computerCardHeight(), unpaired: true, onContinue: () => { this.openAdd(); } })
+        } else {
+        Swiper() {
+          ForEach(this.computers, (computer: Computer) => {
+            ComputerCover({ computerName: computer.name, cardHeight: this.computerCardHeight(), onContinue: () => { this.continueComputer(computer); }, onManage: () => { this.manageComputer(computer); } })
+          }, (computer: Computer) => computer.id)
+        }.index(this.selectedIndex()).loop(false).indicator(this.computers.length > 1 ? Indicator.dot().itemWidth(6).itemHeight(6).selectedItemWidth(18).selectedItemHeight(6).color($r('app.color.line')).selectedColor('#4D6BFE') : false).disableSwipe(this.computers.length < 2).width('100%').height(this.computerCardHeight() + (this.computers.length > 1 ? 28 : 0)).onChange((index: number) => { if (this.computers[index]) this.selectedComputerId = this.computers[index].id; })
+        }
+        if (this.computers.length === 0) {
+          Button('添加电脑').height(50).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).backgroundColor('#4D6BFE').fontColor(Color.White).margin({ top: 16, bottom: 18 }).onClick(() => { this.openAdd(); })
+          Text('在电脑「设置 → DSH Connect」中生成配对码，扫码或粘贴链接即可添加。').fontSize(12).lineHeight(21).fontColor($r('app.color.muted')).width('100%')
+        } else {
+        Button(this.phase === 'ready' && this.savedAddress === this.selectedComputer().address ? '返回工作区' : '连接电脑').height(50).width('100%').borderRadius(15).fontSize(14).fontWeight(FontWeight.Medium).backgroundColor('#4D6BFE').fontColor(Color.White).margin({ top: 16, bottom: 18 }).accessibilityText('连接' + this.selectedComputer().name).onClick(() => { this.continueComputer(this.selectedComputer()); })
+        this.recoveryOptions()
         }
         Button('配对与连接帮助  ›').height(44).padding(0).fontSize(12).fontColor('#4D6BFE').backgroundColor(Color.Transparent).margin({ top: 12 }).onClick(() => { this.helpVisible = true; this.message = ''; })
       }.width('100%').alignItems(HorizontalAlign.Start)
-    }
   }
   @Builder private addForm() {
     Column({ space: 0 }) {
-      Text('只需配对一次').fontSize(11).fontColor($r('app.color.muted')).width('100%').margin({ bottom: 10 })
-      Text('连接你的电脑').fontSize(27).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
+      Text('添加电脑').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
       Text('使用电脑插件生成的配对码或完整链接。').fontSize(13).lineHeight(22).fontColor($r('app.color.muted')).width('100%').margin({ top: 10, bottom: 24 })
       Column({ space: 0 }) {
-        Row({ space: 11 }) {
-          Image($r('app.media.cn_mark')).width(38).height(38).accessibilityText('DSH Connect')
-          Column({ space: 4 }) { Text('DSH Connect').fontSize(15).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')); Text('电脑连接').fontSize(11).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start)
-        }.width('100%').margin({ bottom: 18 })
-        Divider().color($r('app.color.line')).margin({ bottom: 18 })
         Button({ type: ButtonType.Normal }) {
           Row({ space: 10 }) {
             SymbolGlyph($r('sys.symbol.computer')).fontSize(23).fontColor([$r('app.color.ink')])
@@ -324,15 +374,21 @@ struct Index {
   }
   @Builder private settings() {
     Column({ space: 18 }) {
-      Row({ space: 12 }) {
-        Image($r('app.media.cn_mark')).width(42).height(42).accessibilityText('DSH Connect')
-        Column({ space: 5 }) { Text('DSH Connect').fontSize(17).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')); Text(APP_VERSION).fontSize(12).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start)
-      }.width('100%').padding({ bottom: 8 })
-      Row({ space: 16 }) {
-        Column({ space: 6 }) { Text('自动恢复工作页面').fontSize(14).fontColor($r('app.color.ink')); Text(this.computers.length ? this.latestComputer().name : '添加电脑后即可使用').fontSize(12).fontColor($r('app.color.muted')) }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-        Toggle({ type: ToggleType.Switch, isOn: this.autoConnect }).selectedColor('#4D6BFE').onChange((enabled: boolean) => { this.autoConnect = enabled; this.store?.saveAutoConnect(enabled).catch(() => { this.message = '设置暂时未能保存。'; }); })
+      Text('连接设置').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
+      Text('版本 ' + APP_VERSION).fontSize(12).fontColor($r('app.color.muted')).width('100%')
+      this.recoveryOptions()
+      Column({ space: 12 }) {
+        Text('版本更新').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%')
+        Text(this.updateMessage).fontSize(12).lineHeight(21).fontColor($r('app.color.muted')).width('100%')
+        Button(this.updateChecking ? '正在检查…' : this.updateAvailable ? '查看新版' : '检查更新').width('100%').height(44).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).enabled(!this.updateChecking).onClick(() => { if (this.updateAvailable) this.openProject(true); else this.checkUpdate(); })
+        Text('从发布页获取适配当前设备的安装包。覆盖安装会保留已保存的电脑。').fontSize(11).lineHeight(20).fontColor($r('app.color.muted')).width('100%')
       }.width('100%').padding(20).borderRadius(20).backgroundColor($r('app.color.surface'))
-      Text('重新打开时恢复工作页面。切回应用时保留会话与草稿。').fontSize(12).lineHeight(21).fontColor($r('app.color.muted')).width('100%')
+      Column({ space: 12 }) {
+        Text('使用与卸载').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.ink')).width('100%')
+        Button('首次连接说明').width('100%').height(42).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.settingsVisible = false; this.helpVisible = true; })
+        Button('项目与问题反馈').width('100%').height(42).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface_alt')).onClick(() => { this.openProject(false); })
+        Text('卸载：在手机桌面长按 DSH Connect 图标，选择卸载。本机保存的电脑连接和登录状态会被移除；电脑上的 DSH 工作区和文件仍由 DSH 管理。').fontSize(11).lineHeight(20).fontColor($r('app.color.muted')).width('100%')
+      }.width('100%').padding(20).borderRadius(20).backgroundColor($r('app.color.surface'))
     }.width('100%').alignItems(HorizontalAlign.Start)
   }
   @Builder private help() {
@@ -349,6 +405,7 @@ struct Index {
   }
   @Builder private renameForm() {
     Column({ space: 18 }) {
+      Text('电脑名称').fontSize(25).fontWeight(FontWeight.Bold).fontColor($r('app.color.ink')).width('100%')
       TextInput({ text: this.editName, placeholder: '电脑名称' }).fontSize(14).height(52).borderRadius(14).fontColor($r('app.color.ink')).backgroundColor($r('app.color.surface')).maxLength(40).accessibilityText('电脑名称').onChange((value: string) => { this.editName = value; })
       Button('保存名称').height(50).width('100%').borderRadius(15).fontSize(14).fontColor(Color.White).backgroundColor('#4D6BFE').enabled(this.editName.trim().length > 0).onClick(() => { this.saveName(); })
     }.width('100%')
@@ -403,6 +460,7 @@ struct Index {
         })
         .onRenderExited(() => { this.clearTimer(); this.phase = 'failed'; this.managerVisible = true; this.message = '页面已停止运行，点击电脑卡片重新打开。'; })
         .width('100%').height('100%')
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       }
       if (this.managerVisible && this.loaded) {
         Scroll() {
@@ -410,19 +468,22 @@ struct Index {
             this.header()
             if (this.message) { Text(this.message).fontSize(13).lineHeight(22).fontColor($r('app.color.ink')).padding(16).width('100%').backgroundColor($r('app.color.surface')).borderRadius(16).margin({ bottom: 20 }) }
             if (this.editingId) { this.renameForm() } else if (this.helpVisible) { this.help() } else if (this.settingsVisible) { this.settings() } else if (this.adding) { this.addForm() } else { this.home() }
-          }.constraintSize({ maxWidth: 560 }).width('100%').padding({ left: 24, right: 24, top: 12, bottom: 24 })
+          }.constraintSize({ maxWidth: 560 }).width('100%').padding({ left: 20, right: 20, top: 12, bottom: 24 })
         }.width('100%').height('100%').align(Alignment.Top).scrollBar(BarState.Off).backgroundColor($r('app.color.connector_background'))
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       }
       if (!this.loaded || !this.managerVisible && this.phase === 'connecting') {
         ConnectionLoading({ computerName: this.activeName, onBack: () => { this.clearTimer(); this.managerVisible = true; } })
       }
       if (this.managerVisible && this.phase === 'failed' && !this.adding && !this.settingsVisible && !this.helpVisible && !this.editingId) {
         Column() {
-          ConnectionIssue({ detail: this.message, onRetry: () => { this.openAddress(this.activeUrl, this.activeName); }, onBack: () => { this.phase = 'idle'; this.message = ''; } })
+          ConnectionIssue({ detail: this.message, onRetry: () => { this.openAddress(this.retryAddress || this.activeUrl, this.activeName); }, onBack: () => { this.phase = 'idle'; this.message = ''; } })
         }.width('100%').height('100%').justifyContent(FlexAlign.Center).backgroundColor($r('app.color.connector_background'))
+          .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       }
-    }.width('100%').height('100%').padding({ top: this.topInset, bottom: this.bottomInset, left: this.leftInset, right: this.rightInset }).backgroundColor(this.managerVisible || this.phase === 'connecting' ? $r('app.color.connector_background') : $r('app.color.surface'))
-      .onAreaChange((_previous: Area, area: Area) => { this.pageWidth = Number(area.width); })
+    }.width('100%').height('100%').backgroundColor(this.managerVisible || this.phase === 'connecting' ? $r('app.color.connector_background') : $r('app.color.surface'))
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      .onAreaChange((_previous: Area, area: Area) => { this.pageWidth = Number(area.width); this.pageHeight = Number(area.height); })
       .bindSheet($$this.uploadVisible, this.uploadSheet(), { height: SheetSize.FIT_CONTENT, showClose: true, backgroundColor: $r('app.color.surface'), onDisappear: () => { this.finishFiles([]); } })
   }
 }
