@@ -145,3 +145,10 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 .dsc-status[data-state=auth-required] button{min-height:44px;padding:10px 22px;border-radius:12px}
 @media(prefers-reduced-motion:no-preference){.dsc-status{animation:dsc-appear 180ms ease-out}@keyframes dsc-appear{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}}
 @media(min-width:901px){.dsc-status{top:16px}}
+/* Keep the drawn size and grow the hit area of the two drawer buttons toward the
+   44px touch target. The inset stays inside the header row so the title keeps
+   its own taps. */
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer] [data-sidebar-opener],
+[data-dsh-connect-mobile] [data-sidebar-right-expand]{position:relative}
+[data-dsh-connect-mobile] [data-dsc-frame][data-sidebar-drawer] [data-sidebar-opener]::after,
+[data-dsh-connect-mobile] [data-sidebar-right-expand]::after{content:"";position:absolute;inset:-5px -4px}
