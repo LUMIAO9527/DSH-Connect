@@ -4,7 +4,7 @@
 
 ## 构建与回归
 
-- 版本同步、JavaScript 语法、设置图标同步检查与 76 项隔离回归通过。检查涵盖 Harness 菜单的页签收展、文件夹按钮的手机与宽屏行为、附件入口和返回行为。
+- 版本同步、JavaScript 语法、设置图标同步检查与 75 项隔离回归通过。检查涵盖文件夹按钮的手机与宽屏行为、附件入口和返回行为。
 - 官方 API 26 工具链构建公开 release HAP：com.lumiao.dshconnect、debug=false、未签名。设备包沿用原应用身份与私有签名。
 - Cn 的 13 项派生资源检查通过；图标始终固定黑底白字。
 - 本机插件的 35 个安装文件与正式 TGZ、发布源逐字节一致。采用固定版本包，经 DSH 原生插件接口加载。
@@ -23,7 +23,9 @@ Mate 80 验收使用 1280 × 2832 完整系统截图。电脑卡片右上角为�
 
 Mate 80 覆盖安装后，UID、首次安装时间、签名和原电脑授权保持一致。冷启动进入现有 HTTPS 工作区，连接状态为 connected。当前设备无需代理／VPN。Focus、Suggestions 与其他项目保持原安装。
 
-1.0.14 在 Mate 80 使用 Harness 原有会话标题栏、侧栏按钮和抽屉遮罩。真实点按打开侧栏，点按原遮罩关闭。对话、轨迹、上下文、编队默认同排显示，实际点按四项均可切换。原页签菜单使用 Harness 的固定机制，已核对上下文收起后可从菜单进入，也可重新展开。
+1.0.14 在 Mate 80 使用 Harness 原有会话标题栏、侧栏按钮和抽屉遮罩。点按侧栏按钮打开抽屉，点按遮罩关闭。对话、轨迹、上下文和编队使用 Harness 原有的 32 CSS px 页签间距，同排显示。四项均已实际点按切换。页签右侧的更多按钮打开 Harness 插件菜单。
+
+文件夹左侧的团队图标完整显示，点按打开 Harness 团队面板。在 Mate 80 上加入较宽的测试内容后，会话状态区可单独横滑，标题、文件夹、更多和两侧侧栏按钮位置固定。
 
 状态行位于输入框外，行顶留 2 CSS px。Mate 80 状态行底部到屏幕底边为 29 CSS px，与系统手势避让一致。键盘弹出时，状态行距键盘约 6 CSS px，键盘收起后恢复系统留白。轨迹搜索框左右各留 12 CSS px。
 
@@ -37,6 +39,6 @@ Mate 80 覆盖安装后，UID、首次安装时间、签名和原电脑授权保
 
 ## 证据与边界
 
-本轮记录位于 `_wip/AUTO_20261105Lifecycle`。`device/Mate80-Harness-workspace-1.0.14.json` 包含完整截图、页签和底部尺寸。安装与测试记录在 `logs`。附件间距见 `device/Mate80-compact-attachments-1.0.12.json`，原生面板见 `device/Mate80-native-sheets-1.0.11.json`。交付物回读见发布源的 `_wip/release/package-readback.json`。
+本轮记录位于 `_wip/AUTO_20261105Lifecycle`。`device/Mate80-1.0.14-workspace.json` 包含完整截图、页签和底部尺寸。安装与测试记录在 `logs`。附件间距见 `device/Mate80-compact-attachments-1.0.12.json`，原生面板见 `device/Mate80-native-sheets-1.0.11.json`。交付物回读见发布源的 `_wip/release/package-readback.json`。
 
 扫码新配对、相机／相册实选、附件上传、下载保存、长期锁屏、切网与偏好持久化尚未完成专项验收。签名、授权和真实设备记录不进入公开包。

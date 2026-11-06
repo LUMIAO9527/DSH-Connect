@@ -28,13 +28,23 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] [data-dsc-conversation-header]{box-sizing:border-box;min-height:0!important;padding:0 var(--dsc-page-gutter)!important;row-gap:0!important;container-type:inline-size}
 [data-dsh-connect-mobile] [data-dsc-conversation-title-row]{box-sizing:border-box;min-width:0!important;min-height:36px!important;padding-inline-start:0!important}
 [data-dsh-connect-mobile] [data-sidebar-drawer] [data-dsc-conversation-title-row]{min-height:44px!important;padding-inline-start:max(0px,calc(var(--dsh-frame-leading-clearance,48px) - var(--dsc-page-gutter)))!important}
-[data-dsh-connect-mobile] [data-dsc-conversation-title]{min-width:0!important;padding-inline:0!important;margin-inline:0!important;gap:6px!important}
+[data-dsh-connect-mobile] [data-dsc-conversation-title]{min-width:0!important;padding-inline:0!important;margin-inline:0!important;gap:6px!important;mask-image:none}
 [data-dsh-connect-mobile] [data-dsc-conversation-title-row] > :has([data-slot="conversation.session.header.utilities"]){margin-inline-start:8px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] button,[data-dsh-connect-mobile] [data-dsc-conversation-title] a{font-size:15px!important;line-height:24px!important;font-weight:600!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] svg{width:16px;height:16px}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] nav{min-width:0;max-width:100%;overflow:hidden}
 [data-dsh-connect-mobile] [data-dsc-conversation-title] nav > :first-child,
 [data-dsh-connect-mobile] [data-dsc-conversation-title] nav > :first-child > :first-child{padding-inline-start:0!important}
+/* The title truncates and the fixed utilities stay visible while session actions can scroll. */
+[data-dsh-connect-mobile] [data-dsc-conversation-title] > :has(> [data-slot="conversation.session.header.actions"]) {
+  flex:none;
+  min-inline-size:0;
+  max-inline-size:55%;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+}
+[data-dsh-connect-mobile] [data-dsc-conversation-title] [data-slot="conversation.session.header.actions"]>*{flex:none}
 [data-dsh-connect-mobile] [data-dsc-conversation-title]~[data-conversation-header-corner]{margin-right:0!important;margin-left:6px!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-tabs-row]{margin-top:0!important;min-height:32px;gap:12px!important;align-items:center;flex-wrap:nowrap}
 /* Harness measures the row at 120px per view plus 48px for More. Reserve four slots while the flex content keeps the real header width. */
@@ -44,8 +54,14 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
   padding-inline:0 var(--dsc-tab-reserve);
   margin-inline-end:calc(-1 * var(--dsc-tab-reserve));
 }
-[data-dsh-connect-mobile] [data-conversation-tabs]{max-width:100%;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
-[data-dsh-connect-mobile] [data-conversation-tabs] [role=tab]{display:flex;align-items:center;font-size:12px!important;line-height:18px!important;min-height:32px!important;margin-block:0;padding-block:0!important}
+[data-dsh-connect-mobile] [data-conversation-tabs] {
+  max-width:100%;
+  padding-inline-end:10px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  flex-wrap:nowrap;
+}
+[data-dsh-connect-mobile] [data-conversation-tabs] [role=tab]{display:flex;flex:none;align-items:center;font-size:12px!important;line-height:18px!important;min-height:32px!important;margin-block:0;padding-block:0!important}
 [data-dsh-connect-mobile] [data-dsc-conversation-tabs-row] button[aria-haspopup=menu]{min-width:32px;min-height:32px;margin-block:0}
 /* The trace filters and search retain their native controls, with one row for each on narrow screens. */
 [data-dsh-connect-mobile] [data-conversation-composer-overlay] > [role=toolbar] > div:has(> div > input[type=search]){padding-inline:var(--dsc-page-gutter);row-gap:6px}

@@ -29,53 +29,11 @@ test('remote workspace folder opens the current DSH file pane through its public
   const opened=[],element={};
   const window={addEventListener(){},removeEventListener(){},__DSH_CONNECT_UI__:{configure(value){controls=value;},setTransport(){}},__ModuleLoader__:{load(value){module=value.factory(()=>({}));}}};
   vm.runInNewContext(source,{window,document:{querySelector:query=>query.includes('dsh-foreverweb-gateway')?{}:null},navigator:{onLine:true}});
-  const ctx={effect:setup=>setup(),slots:{inject:(_name,setup)=>setup(),register(){}},
+  const ctx={effect:setup=>setup(),slots:{inject:(name,setup)=>{assert.equal(name,'settings.section');setup();},register(){}},
     connection:{state:{getSnapshot:()=> 'connected',subscribe:()=>()=>{}}},
     sidebarRight:{commandTarget:current=>{assert.equal(current,element);return target;},openTabFromTarget:(kind,value)=>opened.push({kind,value})}};
   module.apply(ctx);
   controls.openWorkspaceFiles(element);assert.equal(opened.length,0);
   target={sessionId:'current',paneId:'pane'};controls.openWorkspaceFiles(element);
   assert.equal(opened.length,1);assert.equal(opened[0].kind,'files');assert.equal(opened[0].value,target);
-});
-
-test('mobile overflow can pin and unpin the Harness views that are actually available', () => {
-  let module, options, ViewActions;
-  const MenuItemButton = Symbol('native MenuItemButton');
-  const react = { createElement: (type, props, label) => ({ type, props, label }) };
-  const loader = name => name === 'react' ? react : { MenuItemButton };
-  const window = { addEventListener() {}, removeEventListener() {}, __ModuleLoader__: { load(value) { module = value.factory(loader); } } };
-  const document = {
-    documentElement: { lang: 'zh-CN', hasAttribute: () => true },
-    querySelector: query => query.includes('dsh-foreverweb-gateway') ? {} : null,
-    querySelectorAll: () => [{ textContent: '上下文' }]
-  };
-  vm.runInNewContext(source, { window, document, navigator: { onLine: true } });
-  module.apply({
-    effect: setup => setup(),
-    slots: {
-      inject: (_name, setup) => setup(),
-      register(value, component) {
-        if (value.id === 'dsh-connect-mobile-tabs') { options = value; ViewActions = component; }
-      },
-      entries: () => [
-        { options: { id: 'chat', label: '对话' } },
-        { options: { id: 'trajectory', label: '轨迹' } },
-        { options: { id: 'context', label: '上下文' } },
-        { options: { id: 'fleet', label: () => '编队' } }
-      ]
-    },
-    connection: { state: { getSnapshot: () => 'connected', subscribe: () => () => {} } }
-  });
-  const changes = [];
-  const nodes = ViewActions({
-    ...options.inject(), entries: [{ id: 'fleet', pinned: false }],
-    onPinnedChange: (id, pinned) => changes.push([id, pinned]), onDismiss: () => changes.push('dismiss')
-  });
-  assert.equal(nodes.length, 2);
-  assert.equal(nodes[0].type, MenuItemButton);
-  assert.equal(nodes[0].label, '收起上下文');
-  assert.equal(nodes[1].label, '展开编队');
-  nodes[0].props.onSelect();
-  nodes[1].props.onSelect();
-  assert.deepEqual(changes, [['context', false], 'dismiss', ['fleet', true], 'dismiss']);
 });
