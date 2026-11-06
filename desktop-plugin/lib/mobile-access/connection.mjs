@@ -28,6 +28,45 @@ export { JsonDeviceStore };
 export const VERSION = '1.0.17';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
+// Public, side-effect free probe used to decide whether the mobile runtime can
+// carry a P2P transport at all. It only reports what the engine supports.
+const WEBRTC_PROBE_HTML = `<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WebRTC 探针 · DSH Connect</title>
+<body style="margin:0;padding:24px;font:15px/1.7 system-ui,sans-serif;color:#202329;background:#fff">
+<h1 style="font-size:19px;margin:0 0 12px">WebRTC 探针</h1>
+<p style="color:#6b7280;margin:0 0 16px">判断当前内核能否建立 P2P 数据通道。打开后等待结果即可。</p>
+<pre id="out" style="white-space:pre-wrap;background:#f5f7fa;border:1px solid #e7e9ee;border-radius:14px;padding:14px">检测中…</pre>
+<script>
+(function(){
+  var rows=[];
+  function log(k,v){rows.push(k+': '+v);}
+  log('userAgent', navigator.userAgent);
+  log('RTCPeerConnection', String(typeof window.RTCPeerConnection));
+  log('createDataChannel', String(!!(window.RTCPeerConnection && window.RTCPeerConnection.prototype.createDataChannel)));
+  function loopback(){
+    return new Promise(function(resolve,reject){
+      if(!window.RTCPeerConnection) return reject(new Error('no RTCPeerConnection'));
+      var a=new RTCPeerConnection(), b=new RTCPeerConnection(), done=false;
+      var timer=setTimeout(function(){ if(!done){done=true;reject(new Error('timeout'));} }, 6000);
+      a.onicecandidate=function(e){ if(e.candidate) b.addIceCandidate(e.candidate).catch(function(){}); };
+      b.onicecandidate=function(e){ if(e.candidate) a.addIceCandidate(e.candidate).catch(function(){}); };
+      var dc=a.createDataChannel('probe');
+      dc.onopen=function(){ if(done) return; done=true; clearTimeout(timer); a.close(); b.close(); resolve('pass'); };
+      a.createOffer().then(function(offer){ return a.setLocalDescription(offer); })
+        .then(function(){ return b.setRemoteDescription(a.localDescription); })
+        .then(function(){ return b.createAnswer(); })
+        .then(function(answer){ return b.setLocalDescription(answer); })
+        .then(function(){ return a.setRemoteDescription(b.localDescription); })
+        .catch(function(error){ if(!done){done=true; clearTimeout(timer); reject(error);} });
+    });
+  }
+  loopback().then(function(result){ log('loopback data channel', result); })
+    .catch(function(error){ log('loopback data channel', 'FAIL ' + (error && error.message)); })
+    .then(function(){ document.getElementById('out').textContent = rows.join('\\n'); });
+})();
+</script>`;
 const META = '<meta name="dsh-foreverweb-gateway" content="authenticated">';
 const HOP = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']);
 const READ_METHODS = new Set(['GET', 'HEAD']);
@@ -381,6 +420,12 @@ export class DSHConnectGateway {
     if (p === '/api/mobile-access' || p.startsWith('/api/mobile-access/') || p === '/api/foreverweb' || p.startsWith('/api/foreverweb/')) throw new HttpError(404, 'not_found');
     if (req.method === 'TRACE' || req.method === 'CONNECT') throw new HttpError(405, 'method_not_allowed');
     if (req.method === 'GET' && !target.search && p === '/mobile-access/health') { sendJson(res, 200, { ok: true, version: VERSION }, this.config.secure); return; }
+    if (req.method === 'GET' && !target.search && p === '/mobile-access/webrtc-probe') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff' });
+      res.end(WEBRTC_PROBE_HTML);
+      return;
+    }
     if (req.method === 'GET' && !target.search && p === '/mobile-access/metadata') { sendJson(res, 200, { version: 1, pluginVersion: VERSION,
       protocolVersion: CONNECTION_PROTOCOL_VERSION, capabilities: CONNECTION_CAPABILITIES }, this.config.secure); return; }
     // Keep old browser bookmarks usable without loading the retired frontend.
