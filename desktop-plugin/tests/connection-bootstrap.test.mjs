@@ -312,7 +312,7 @@ test('pairing success opens the stock entry and never resubmits while pending', 
   const submitted = deferred(); const handlers = new Map(), destinations = [], timers = new Map(); let timerId = 0, calls = 0;
   const submit = { disabled: false };
   const token = { value: 'A'.repeat(43), addEventListener() {}, removeAttribute() {}, setAttribute() {}, focus() {} };
-  const nodes = { 'pair-form': { querySelector: () => submit, addEventListener: (name, handler) => handlers.set(name, handler) },
+  const nodes = { 'pair-form': { querySelector: () => submit, addEventListener: (name, handler) => handlers.set(name, handler), setAttribute() {}, removeAttribute() {} },
     'pair-token': token, 'device-label': { value: 'fixture' }, 'pair-status': { value: '' } };
   const location = new URL('https://harmony.test/mobile-access/pair'); location.replace = value => destinations.push(value);
   vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
@@ -321,15 +321,17 @@ test('pairing success opens the stock entry and never resubmits while pending', 
   const first = handlers.get('submit')({ preventDefault() {} });
   await handlers.get('submit')({ preventDefault() {} });
   assert.equal(calls, 1); assert.equal(submit.disabled, true);
+  assert.equal(submit.textContent, '正在配对…', 'progress replaces the submit label instead of adding a status line');
   submitted.resolve(new Response('{}', { status: 201 })); await first;
   assert.deepEqual(destinations, ['/']); assert.equal(submit.disabled, false); assert.equal(timers.size, 0);
+  assert.equal(submit.textContent, '连接电脑', 'the submit label is restored after the attempt');
 });
 
 test('opening a complete pairing link pairs once and confirms saved browser authorization before entering DSH', async () => {
   for (const saved of [true, false]) {
     const calls = [], destinations = [], timers = new Map(); let timerId = 0;
     const token = { value: '', addEventListener() {}, removeAttribute() {}, setAttribute() {}, focus() {} };
-    const nodes = { 'pair-form': { querySelector: () => ({ disabled: false }), addEventListener() {} },
+    const nodes = { 'pair-form': { querySelector: () => ({ disabled: false }), addEventListener() {}, setAttribute() {}, removeAttribute() {} },
       'pair-token': token, 'device-label': { value: '' }, 'pair-status': { value: '' } };
     const location = new URL('https://harmony.test/mobile-access/pair#instance=' + 'a'.repeat(64) + '&token=' + 'B'.repeat(43));
     location.replace = value => destinations.push(value);

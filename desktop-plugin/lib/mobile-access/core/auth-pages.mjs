@@ -215,7 +215,9 @@ export function renderPairScript(locale) {
     }
     submitting = true
     submit.disabled = true
-    status.value = ${JSON.stringify(copy.pairing)}
+    submit.textContent = ${JSON.stringify(copy.pairing)}
+    form.setAttribute('aria-busy', 'true')
+    status.value = ''
     const controller = new AbortController()
     let timer
     try {
@@ -248,6 +250,8 @@ export function renderPairScript(locale) {
       clearTimeout(timer)
       submitting = false
       submit.disabled = false
+      submit.textContent = ${JSON.stringify(copy.pair)}
+      form.removeAttribute('aria-busy')
       if (pendingLink) receivePairLink()
     }
   }
