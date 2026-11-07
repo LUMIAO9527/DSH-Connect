@@ -1,9 +1,5 @@
 [CmdletBinding()]
-param(
-  [string]$ToolsRoot = (Join-Path $PSScriptRoot '_wip\tools\sdk26\command-line-tools'),
-  [string]$JavaHome = (Join-Path $ToolsRoot 'java'),
-  [switch]$SkipHap
-)
+param()
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $cacheRoot = Join-Path $projectRoot '_wip\cache'
@@ -25,7 +21,6 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Source checks failed.' }
   npm test
   if ($LASTEXITCODE -ne 0) { throw 'Connector regression failed.' }
-  if (!$SkipHap) { & (Join-Path $projectRoot 'harmony\Build-Hap.ps1') -ToolsRoot $ToolsRoot -JavaHome $JavaHome }
   npm pack --pack-destination (Join-Path $projectRoot 'artifacts') --json | Set-Content -LiteralPath (Join-Path $logRoot 'npm-pack.json') -Encoding utf8
   if ($LASTEXITCODE -ne 0) { throw 'Plugin packaging failed.' }
   python tools/package_release.py

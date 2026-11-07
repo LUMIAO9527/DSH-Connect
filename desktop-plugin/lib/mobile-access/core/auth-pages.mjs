@@ -1,6 +1,5 @@
 // DSH Connect connection core. Adapted from dsh-mobile 0.6.18 (Apache-2.0).
-import { BRAND_SVG } from '../../brand.mjs';
-const BRAND_ICON_URL = 'data:image/svg+xml,' + encodeURIComponent(BRAND_SVG);
+import { WHALE_PNG } from '../../brand.mjs';
 // Maintained in this project; see ../NOTICE and ../LICENSE.
 const COPY = {
     en: {
@@ -8,11 +7,11 @@ const COPY = {
         pairTitle: 'Pair DSH Connect',
         pairHeading: 'Pair this device',
         pairingCode: 'Pairing code',
+        pairingCodePlaceholder: '43-character code',
         deviceName: 'Device name',
         pair: 'Pair',
         pairing: 'Pairing…',
         cookieRequired: 'This browser did not save the pairing authorization. Open the complete link in your regular browser and allow this site to save its data.',
-        pairingCodeHint: 'Enter the 43-character code generated on the computer.',
         invalidPairingCode: 'Enter the 43-character pairing code from the current pairing window on the computer.',
         pairFailed: 'Pairing failed. Check the code or generate a new one on the computer.',
         pairingExpired: 'The pairing code is invalid or has expired. Generate a new code on the computer and try again.',
@@ -34,11 +33,11 @@ const COPY = {
         pairTitle: '配对 DSH Connect',
         pairHeading: '连接你的电脑',
         pairingCode: '配对码',
+        pairingCodePlaceholder: '43 位配对码',
         deviceName: '设备名称',
         pair: '连接电脑',
         pairing: '正在配对…',
         cookieRequired: '浏览器没有保存配对授权。请在常用浏览器中打开完整链接，并允许此网站保存数据。',
-        pairingCodeHint: '请输入电脑端当前显示的 43 位配对码。',
         invalidPairingCode: '请输入电脑端当前配对窗口中的 43 位配对码。',
         pairFailed: '配对失败，请检查输入或在电脑端重新生成配对码。',
         pairingExpired: '配对码无效或已过期，请在电脑端重新生成后重试。',
@@ -60,11 +59,11 @@ const COPY = {
         pairTitle: 'Abbina accesso mobile DSH',
         pairHeading: 'Abbina questo dispositivo',
         pairingCode: 'Codice di abbinamento',
+        pairingCodePlaceholder: 'Codice di 43 caratteri',
         deviceName: 'Nome dispositivo',
         pair: 'Abbina',
         pairing: 'Abbinamento…',
         cookieRequired: 'Il browser non ha salvato l’autorizzazione. Apri il link completo nel browser abituale e consenti i dati del sito.',
-        pairingCodeHint: 'Usa il codice di abbinamento di 43 caratteri mostrato sul computer.',
         invalidPairingCode: 'Inserisci il codice di 43 caratteri dalla finestra di abbinamento attuale sul computer.',
         pairFailed: 'Abbinamento non riuscito. Controlla il codice o generane uno nuovo sul computer.',
         pairingExpired: 'Il codice non è valido o è scaduto. Genera un nuovo codice sul computer e riprova.',
@@ -88,11 +87,11 @@ const AUTH_STYLE = `
 :root{color-scheme:light dark;--bg:#f7f8fa;--surface:#fff;--text:#202329;--muted:#7b808b;--line:#e8ebf1;--accent:#4d6bfe;--focus:#4d6bfe;--inverse:#fff}
 *{box-sizing:border-box}html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;background:var(--bg);color:var(--text)}
 body{margin:0;min-height:100vh;min-height:100dvh;padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));line-height:1.55}
-main{width:min(100%,480px);margin:clamp(0px,5vh,48px) auto;padding:clamp(24px,6vw,40px);background:var(--surface);border:1px solid var(--line);border-radius:26px;box-shadow:0 8px 40px #20232904}
-.brand{display:flex;align-items:center;gap:11px;font-size:1rem;letter-spacing:-.02em;font-weight:650;color:var(--text);margin:0 0 36px}.brand svg{display:block;width:36px;height:36px;flex-shrink:0}h1{font-size:clamp(1.65rem,6vw,2rem);font-weight:650;letter-spacing:-.04em;line-height:1.3;margin:0 0 28px;overflow-wrap:anywhere}
-form{display:grid;gap:18px}label{display:grid;gap:8px;font-weight:650}input,textarea,button,a{font:inherit}input,textarea{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-size:16px}
-button,main a{min-height:48px;padding:12px 18px;border-radius:18px;touch-action:manipulation}button{border:0;background:var(--accent);color:var(--inverse);font-weight:600;cursor:pointer}button:disabled{opacity:.65;cursor:wait}main a{display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--accent);font-weight:500;text-decoration:none;border:1px solid var(--line)}form+ a{margin-top:16px}
-input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}input[aria-invalid=true]{border-color:#b3261e}p{color:var(--muted);margin:0 0 18px;overflow-wrap:anywhere}#pair-token-hint{font-size:.875rem;margin:-8px 0 0}output{display:block;min-height:1.5em;font-size:.925rem;overflow-wrap:anywhere}#login-retry{width:100%;margin-top:8px}[hidden]{display:none!important}
+main{width:min(100%,480px);margin:clamp(0px,4vh,40px) auto;padding:clamp(22px,5vw,32px);background:var(--surface);border:1px solid var(--line);border-radius:26px;box-shadow:0 8px 40px #20232904}
+.brand{display:flex;align-items:center;gap:11px;font-size:1rem;letter-spacing:-.02em;font-weight:650;color:var(--text);margin:0 0 26px}.brand svg,.brand img{display:block;width:36px;height:36px;border-radius:9px;flex-shrink:0}h1{font-size:clamp(1.55rem,5.6vw,1.875rem);font-weight:650;letter-spacing:-.04em;line-height:1.3;margin:0 0 22px;overflow-wrap:anywhere}
+form{display:grid;gap:14px}label{display:grid;gap:8px;font-weight:650}input,textarea,button,a{font:inherit}input,textarea{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-size:16px}
+button,main a{min-height:48px;padding:12px 18px;border-radius:18px;touch-action:manipulation}button{border:0;background:var(--accent);color:var(--inverse);font-weight:600;cursor:pointer;width:100%}button:disabled{opacity:.65;cursor:wait}main a{display:block;width:fit-content;margin:10px auto 0;padding:10px 8px;background:none;color:var(--accent);font-weight:500;text-decoration:none;border:0}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}input[aria-invalid=true]{border-color:#b3261e}p{color:var(--muted);margin:0 0 18px;overflow-wrap:anywhere}output{display:block;font-size:.925rem;overflow-wrap:anywhere}output:empty{display:none}#login-retry{width:100%;margin-top:8px}[hidden]{display:none!important}
 button:not(:disabled):active,main a:active{filter:brightness(.94)}
 @media(prefers-reduced-motion:no-preference){
   button,main a{transition:scale 140ms cubic-bezier(.2,.7,.25,1)}
@@ -101,6 +100,37 @@ button:not(:disabled):active,main a:active{filter:brightness(.94)}
   @keyframes dsc-auth-enter{from{opacity:.65;translate:0 4px}to{opacity:1;translate:0 0}}
 }
 @media(prefers-color-scheme:dark){:root{--bg:#15171b;--surface:#202329;--text:#f2f4f8;--muted:#a0a6b2;--line:#323741;--accent:#657fff;--focus:#8fa3ff;--inverse:#fff}input[aria-invalid=true]{border-color:#e58e85}}
+`;
+// Opening screen: white page, the native DeepSeekHarness mark, one short entrance.
+// It deliberately ignores the dark colour scheme so every phone starts on the same
+// white surface, then hands over to the workspace.
+const SPLASH_STYLE = `
+:root{color-scheme:light}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#202329}
+body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(28px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left));background:#fff}
+main{width:min(100%,360px);margin:0;text-align:center}
+.mark{display:block;width:112px;height:112px;margin:0 auto 24px;border-radius:26px}
+.name{margin:0;font-size:1.4375rem;font-weight:650;letter-spacing:-.035em;line-height:1.25;color:#0f1115}
+.progress{margin:20px 0 0;font-size:.9375rem;line-height:1.6;color:#7b808b;min-height:1.6em}
+button,main a{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:20px;padding:12px 22px;border-radius:18px;touch-action:manipulation;text-decoration:none}
+button{border:0;background:#17191e;color:#fff;font-weight:600;cursor:pointer}
+main a{background:#f3f4f7;color:#202329;border:1px solid #e8ebf1;font-weight:500}
+main a+button,button+a{margin-left:8px}
+button:not(:disabled):active,main a:active{scale:.97;transition-duration:85ms}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #4d6bfe;outline-offset:3px}
+section{margin-top:6px}
+#login-failure-message{margin:16px 0 0;font-size:.9375rem;line-height:1.6;color:#7b808b;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:no-preference){
+  button,main a{transition:scale 140ms cubic-bezier(.2,.7,.25,1)}
+  .mark{animation:splash-mark 620ms cubic-bezier(.2,.7,.25,1) both}
+  .name{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 120ms both}
+  .progress{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 200ms both}
+  @keyframes splash-mark{from{opacity:0;translate:0 12px;scale:.965}to{opacity:1;translate:0 0;scale:1}}
+  @keyframes splash-name{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+}
 `;
 export function resolveAuthPageLocale(header) {
     const values = header?.split(',').map((value, index)=>{
@@ -127,17 +157,16 @@ export function renderPairPage(locale) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" type="image/svg+xml" href="${BRAND_ICON_URL}">
+<link rel="icon" type="image/png" href="${WHALE_PNG}">
 <style>${AUTH_STYLE}</style>
 <title>${copy.pairTitle}</title>
 </head>
 <body>
 <main>
-  <p class="brand">${BRAND_SVG}DSH Connect</p>
+  <p class="brand"><img src="${WHALE_PNG}" alt="" width="36" height="36">DeepSeekHarness</p>
   <h1>${copy.pairHeading}</h1>
   <form id="pair-form">
-    <label>${copy.pairingCode} <input id="pair-token" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" aria-describedby="pair-token-hint pair-status" required></label>
-    <p id="pair-token-hint">${copy.pairingCodeHint}</p>
+    <label>${copy.pairingCode} <input id="pair-token" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" placeholder="${copy.pairingCodePlaceholder}" aria-describedby="pair-status" required></label>
     <label>${copy.deviceName} <input id="device-label" maxlength="64" autocomplete="off"></label>
     <button type="submit">${copy.pair}</button>
     <output id="pair-status" aria-live="polite"></output>
@@ -244,15 +273,16 @@ export function renderLoginPage(locale) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" type="image/svg+xml" href="${BRAND_ICON_URL}">
-<style>${AUTH_STYLE}</style>
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="${WHALE_PNG}">
+<style>${SPLASH_STYLE}</style>
 <title>${copy.reconnectTitle}</title>
 </head>
 <body>
 <main>
-  <p class="brand">${BRAND_SVG}DSH Connect</p>
-  <h1>${copy.reconnectHeading}</h1>
-  <p id="login-progress" aria-live="polite">${copy.restoring}</p>
+  <img class="mark" src="${WHALE_PNG}" alt="" width="112" height="112">
+  <p class="name">DeepSeekHarness</p>
+  <p id="login-progress" class="progress" aria-live="polite">${copy.restoring}</p>
   <button id="login-retry" type="button" hidden>${copy.retry}</button>
   <section id="login-failed" hidden>
     <p id="login-failure-message">${copy.noLongerPaired}</p>

@@ -63,7 +63,7 @@ test('connection and device sections replace expanding notices with button feedb
   assert.ok(nodes.find(node => node.type === 'h4' && text(node) === '已配对设备'));
   assert.equal(nodes.some(node => String(node.props.className || '').includes('dfw-notice')), false);
 
-  button(nodes, '复制入口').props.onClick();
+  button(nodes, '复制').props.onClick();
   await flush();
   nodes = view.render();
   assert.ok(button(nodes, '已复制'), 'copy feedback stays on the original button');
@@ -89,12 +89,14 @@ test('connection and device sections replace expanding notices with button feedb
   nodes = view.render();
   assert.ok(button(nodes, '确认撤销'), 'revoke asks for confirmation through the button label');
 
-  button(nodes, '生成配对链接').props.onClick();
+  button(nodes, '临时链接').props.onClick();
+  nodes = view.render();
+  button(nodes, '生成链接').props.onClick();
   await flush();
   nodes = view.render();
   assert.equal(nodes.some(node => String(node.props.className || '').includes('dfw-notice')), false);
-  assert.ok(button(nodes, '链接已生成'));
-  assert.ok(nodes.find(node => node.type === 'input' && node.props['aria-label'] === '配对链接'));
+  const temporary = nodes.find(node => node.type === 'input' && node.props['aria-label'] === '临时链接');
+  assert.ok(temporary && String(temporary.props.value).includes('/pair#token='));
 });
 
 test('an unconfigured installation keeps its setup and update controls', async () => {
@@ -109,17 +111,23 @@ test('an unconfigured installation keeps its setup and update controls', async (
   assert.equal(nodes.find(node => node.type === 'a').props.href, 'https://github.com/LUMIAO9527/DSH-Connect/releases/latest');
 });
 
-test('same-network pairing presents the app QR and keeps browser links for the HTTPS route', async () => {
+test('same-network pairing presents the temporary link and a permanent QR', async () => {
   const view = await mount({ localNetwork: true, remoteAvailable: true });
   let nodes = view.render();
-  button(nodes, '同网配对').props.onClick();
+  button(nodes, '临时链接').props.onClick();
+  nodes = view.render();
+  button(nodes, '生成链接').props.onClick();
   await flush();
   assert.equal(view.requests.at(-1).body.mode, 'lan');
   nodes = view.render();
-  assert.ok(button(nodes, '复制应用链接'));
-  assert.equal(button(nodes, '复制浏览器链接'), undefined);
-  button(nodes, '跨网配对').props.onClick();
+  assert.ok(button(nodes, '复制链接'));
+  assert.equal(button(nodes, '复制应用链接'), undefined);
+  assert.equal(nodes.find(node => node.props['aria-label'] === '配对二维码'), undefined);
+  button(nodes, '永久链接').props.onClick();
+  nodes = view.render();
+  button(nodes, '配对链接').props.onClick();
   await flush();
-  assert.equal(view.requests.at(-1).body.mode, 'remote');
-  assert.ok(button(view.render(), '复制浏览器链接'));
+  assert.equal(view.requests.at(-1).body.mode, 'lan');
+  nodes = view.render();
+  assert.ok(nodes.find(node => node.props['aria-label'] === '配对二维码'));
 });

@@ -25,7 +25,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.0.17';
+export const VERSION = '1.0.18';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // Public, side-effect free probe used to decide whether the mobile runtime can
@@ -666,7 +666,7 @@ export class DSHConnectGateway {
         const route = target.decodedPathname.slice(prefix.length);
         if (req.method === 'GET' && route === '/status') {
           sendJson(res, 200, { configured: Boolean(this.config.publicOrigin || this.lanOrigin),
-            gateway: this.address(), localNetwork: Boolean(this.lanOrigin), editable: this.configurationEditable(),
+            gateway: this.address(), lanOrigin: this.lanOrigin, localNetwork: Boolean(this.lanOrigin), editable: this.configurationEditable(),
             message: '电脑接入家庭或办公局域网后，可生成同网配对二维码。',
             remoteAvailable: Boolean(this.config.publicOrigin && this.remoteReady()),
             pairing: this.access.pairingStatus(), deviceCount: this.access.listDevices().length,

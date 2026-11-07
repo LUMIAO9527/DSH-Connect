@@ -9,12 +9,13 @@ import { DSHConnectGateway, VERSION } from './lib/mobile-access/connection.mjs';
 import { localNetworkAddress, localNetworkIdentity } from './lib/mobile-access/lan.mjs';
 import { readRelaySettings, startRelayAgent } from './lib/mobile-access/relay.mjs';
 import { assertLocalAdminTrust, sendJson, readJsonObject } from './lib/mobile-access/core/http-security.mjs';
+import { WHALE_PNG } from './lib/brand.mjs';
 
 export const name = 'dsh-connect';
 export const inject = ['webServer', 'connection'];
 export const Config = z.object({
   publicOrigin: z.string().default('').description('固定 HTTPS 访问地址，例如 https://dsh.example.com；由 HTTPS 反向代理转发到本机网关。'),
-  localNetwork: z.boolean().default(true).description('允许同一私有网络上的鸿蒙应用扫码直连。'),
+  localNetwork: z.boolean().default(true).description('允许同一私有网络上的手机浏览器扫码直连。'),
   relayConfigFile: z.string().default('').description('跨网中继凭据文件的绝对路径，由服务运营方提供。'),
   listenPort: z.number().min(1024).max(65535).step(1).default(3446).description('DSH Connect 网关端口。'),
   stateDirectory: z.string().default('').description('配对状态的绝对目录；留空自动选择数据目录，升级时沿用已有目录。'),
@@ -80,7 +81,7 @@ export async function apply(ctx, config = {}) {
       const mobileClient = await readFile(join(root, 'mobile-client.js'), 'utf8');
       const brand = await readFile(join(root, 'brand.svg'), 'utf8');
       ctx.on('webserver/index-inject', table => table.push({ kind: 'script', placement: 'head',
-        text: bootstrap + '\nwindow.__DSH_CONNECT_MOBILE_STYLE__=' + JSON.stringify(mobileStyle) + ';\nwindow.__DSH_CONNECT_BRAND__=' + JSON.stringify(brand) + ';\n' + mobileClient }));
+        text: bootstrap + '\nwindow.__DSH_CONNECT_MOBILE_STYLE__=' + JSON.stringify(mobileStyle) + ';\nwindow.__DSH_CONNECT_BRAND__=' + JSON.stringify(brand) + ';\nwindow.__DSH_CONNECT_WHALE__=' + JSON.stringify(WHALE_PNG) + ';\n' + mobileClient }));
     } catch (error) {
       clearInterval(networkRefresh);
       relayAgent?.close();

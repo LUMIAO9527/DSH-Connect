@@ -3,6 +3,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const { createElement: h, useEffect, useRef, useState } = require('react');
     const ADMIN = '/api/foreverweb';
+    const BRAND_SVG = "\u003csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\"\u003e\n  \u003crect id=\"cn-tile\" width=\"32\" height=\"32\" rx=\"10\" fill=\"#ffffff\" stroke=\"#d7d7d7\" stroke-width=\"0.75\"/\u003e\n  \u003cg id=\"cn-letters\" stroke=\"#171717\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\"\u003e\n    \u003cpath d=\"M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7\"/\u003e\n    \u003cpath d=\"M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22\"/\u003e\n  \u003c/g\u003e\n\u003c/svg\u003e";
     const STYLE = `
 .dfw-settings{--dfw-ink:var(--dsw-alias-label-primary,CanvasText);--dfw-muted:var(--dsw-alias-label-secondary,var(--dfw-ink));--dfw-line:color-mix(in srgb,var(--dfw-ink) 11%,transparent);--dfw-surface:var(--dsw-alias-bg-layer-1,Canvas);--dfw-field:var(--dsw-alias-bg-module-platform,var(--dfw-surface));--dfw-soft:color-mix(in srgb,var(--dfw-field) 52%,var(--dfw-surface));--dfw-inverse:var(--dsw-alias-bg-base,Canvas);--dfw-danger:var(--dsw-alias-label-error,#b72c39);--dfw-ok:var(--dsw-alias-state-success-label,var(--dsw-alias-state-success-primary,#16814a));container:dsh-connect-settings / inline-size;width:100%;max-width:680px;padding:8px 0 24px;color:var(--dfw-ink);font-size:14px;line-height:1.6;box-sizing:border-box}
 .dfw-settings *{box-sizing:border-box}
@@ -12,8 +13,9 @@ window.__ModuleLoader__.load({
 .dfw-settings p{color:var(--dfw-muted)}
 .dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 20px}
 .dfw-settings .dfw-brand{display:flex;align-items:center;gap:10px;min-width:0}
-.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg{display:block;width:36px;height:36px;flex:none}
-.dfw-settings .dfw-brand-mark{overflow:hidden;border-radius:10px;background:var(--dfw-field)}
+.dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg,.dfw-settings .dfw-brand-mark img{display:block;width:36px;height:36px;flex:none}
+.dfw-settings .dfw-brand-mark{overflow:hidden;border-radius:10px}
+.dfw-settings .dfw-brand-mark img{object-fit:contain}
 .dfw-settings .dfw-features{display:flex;flex-wrap:wrap;gap:6px;min-width:0;margin:0;padding:0;list-style:none}
 .dfw-settings .dfw-features li{max-width:100%;padding:2px 8px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-soft);color:var(--dfw-muted);font-size:12px;line-height:18px;overflow-wrap:anywhere}
 .dfw-settings .dfw-state{display:inline-flex;padding:2px 7px;border-radius:8px;background:color-mix(in srgb,var(--dfw-ok) 11%,var(--dfw-surface));color:color-mix(in srgb,var(--dfw-ok) 72%,var(--dfw-ink));font-size:12px;line-height:17px}
@@ -42,6 +44,18 @@ window.__ModuleLoader__.load({
 .dfw-settings .dfw-button:focus-visible,.dfw-settings input:focus-visible{outline:2px solid var(--dfw-ink);outline-offset:3px}
 .dfw-settings .dfw-icon{display:block;flex-shrink:0;width:17px;height:17px}
 .dfw-settings .dfw-pairing{margin:0 16px 12px;padding:12px;border:1px solid var(--dfw-line);border-radius:12px;background:var(--dfw-soft)}
+.dfw-settings .dfw-stack{display:grid;gap:12px}
+.dfw-settings .dfw-panel{display:grid;gap:12px;padding:16px}
+.dfw-settings .dfw-panel-head{display:grid;gap:4px}
+.dfw-settings .dfw-panel-title{font-size:14px;font-weight:600}
+.dfw-settings .dfw-panel-desc{font-size:12px;line-height:1.55;color:var(--dfw-muted)}
+.dfw-settings .dfw-panel-body{display:grid;gap:10px}
+.dfw-settings .dfw-panel-actions{display:flex;flex-wrap:wrap;gap:8px}
+.dfw-settings .dfw-panel .dfw-qr{width:168px;margin:2px auto 0}
+.dfw-settings .dfw-seg{display:inline-flex;padding:2px;border:1px solid var(--dfw-line);border-radius:10px;background:var(--dfw-soft);width:fit-content}
+.dfw-settings .dfw-seg-item{padding:5px 13px;border:0;border-radius:8px;background:transparent;color:var(--dfw-muted);font:inherit;font-size:13px;line-height:1.4;cursor:pointer;touch-action:manipulation}
+.dfw-settings .dfw-seg-item.is-active{background:var(--dfw-surface);color:var(--dfw-ink);font-weight:600;box-shadow:0 1px 2px rgb(0 0 0 / 8%)}
+.dfw-settings .dfw-stack>.dfw-card>.dfw-pairing-body{padding:0 16px 14px}
 .dfw-settings .dfw-pairing-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px}
 .dfw-settings .dfw-pairing-state{font-size:12px;font-weight:600;color:var(--dfw-ink)}
 .dfw-settings .dfw-pairing-state[data-expired=true]{color:var(--dfw-muted);font-weight:400}
@@ -96,7 +110,7 @@ window.__ModuleLoader__.load({
 `;
     function icon(name) {
       const paths = { link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
-        copy: 'M9 9h12v12H9zM15 5V3H3v12h2', refresh: 'M20 7V3m0 4h-4M4 17v4m0-4h4M5.1 8a8 8 0 0 1 13.4-3L20 7M4 17l1.5 2A8 8 0 0 0 19 16' };
+        copy: 'M9 9h12v12H9zM15 5V3H3v12h2', qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z', refresh: 'M20 7V3m0 4h-4M4 17v4m0-4h4M5.1 8a8 8 0 0 1 13.4-3L20 7M4 17l1.5 2A8 8 0 0 0 19 16' };
       return h('svg', { className: 'dfw-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }));
     }
     const local = () => location.protocol === 'dsh-app:' && location.hostname === 'app'
@@ -126,6 +140,8 @@ window.__ModuleLoader__.load({
           const [flash, setFlash] = useState({}), [announcement, setAnnouncement] = useState('');
           const [issue, setIssue] = useState('');
           const [editing, setEditing] = useState(null), [revoking, setRevoking] = useState('');
+          const [pairingView, setPairingView] = useState('');
+          const [linkMode, setLinkMode] = useState('permanent');
           const active = useRef(false), pending = useRef(false), abort = useRef(null), timers = useRef(new Map());
           const setTemporary = (key, text, { error = false, duration = 2200, announce = true } = {}) => {
             if (!active.current) return;
@@ -203,12 +219,11 @@ window.__ModuleLoader__.load({
           const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol } = {}) => h('button',
             { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : '') + (danger || flashError(key) ? ' dfw-button-danger' : ''), disabled: disabled ?? busy !== '', onClick },
             symbol && icon(symbol), flashText(key, fallback));
-          const openPairing = (mode, key) => void run(key, async signal => {
+          const openPairing = (mode, key, view) => void run(key, async signal => {
             const value = await request('/pairing/open', { ttlMs: 600000, mode }, signal);
             if (!active.current) return;
             if (typeof value.pairUrl !== 'string' || !value.qrSvg?.startsWith('<svg')) throw new Error('invalid pairing');
-            setPairing({ ...value, mode }); setNow(Date.now());
-            setTemporary(key, '链接已生成', { duration: 1800 });
+            setPairing({ ...value, mode, view }); setPairingView(view); setNow(Date.now());
           }, () => setTemporary(key, '生成失败，点此重试', { error: true, duration: 4000 }));
           const saveRename = () => {
             const label = (editing?.name ?? '').trim();
@@ -234,6 +249,11 @@ window.__ModuleLoader__.load({
           const remaining = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 1000)) : 0;
           const configured = status?.configured !== false;
           const publicOrigin = status?.gateway?.origin;
+          const lanOrigin = status?.lanOrigin;
+          const permanentOrigin = publicOrigin || lanOrigin;
+          const shownLink = linkMode === 'permanent'
+            ? (pairingView === 'qr' && pairing ? pairing.pairUrl : permanentOrigin + '/')
+            : (pairingView === 'link' && pairing ? pairing.pairUrl : '');
           const sameNetwork = status?.localNetwork === true;
           const differentNetwork = publicOrigin && status?.remoteAvailable !== false;
           const addressForm = () => h('div', { className: 'dfw-setup-body' },
@@ -249,10 +269,10 @@ window.__ModuleLoader__.load({
             h('style', null, STYLE),
             h('header', { className: 'dfw-head' },
               h('div', { className: 'dfw-brand' },
-                window.__DSH_CONNECT_BRAND__ && h('span', { className: 'dfw-brand-mark', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: window.__DSH_CONNECT_BRAND__ } }),
+                h('span', { className: 'dfw-brand-mark', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: window.__DSH_CONNECT_BRAND__ || BRAND_SVG } }),
                 h('h3', null, 'DSH Connect')),
               h('ul', { className: 'dfw-features', role: 'list' },
-                h('li', null, '浏览器访问'), h('li', null, '鸿蒙连接'), h('li', null, '设备管理'))),
+                h('li', null, '浏览器访问'), h('li', null, '扫码配对'), h('li', null, '设备管理'))),
             !local() ? h('div', { className: 'dfw-card' }, h('p', { className: 'dfw-empty' }, '请在运行 DSH 的电脑上打开此设置页，生成配对链接和管理设备。'))
             : !status ? h('div', { className: 'dfw-loading' },
               h('div', null, flashText('status', '正在读取连接状态…')),
@@ -266,38 +286,35 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'dfw-section-head' },
                   h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-connection-title' }, '连接与访问')),
                   h('span', { className: 'dfw-state' }, sameNetwork || differentNetwork ? '可配对' : '正在连接')),
-                h('div', { className: 'dfw-card' },
-                  publicOrigin && h('div', { className: 'dfw-row' },
-                    h('div', { className: 'dfw-row-main' },
-                      h('div', { className: 'dfw-row-title' }, '固定访问入口'),
-                      h('div', { className: 'dfw-row-desc' }, '存为书签，用原来配对的浏览器打开即可恢复连接。')),
-                    h('div', { className: 'dfw-row-control' }, h('div', { className: 'dfw-field' },
-                      h('input', { className: 'dfw-link', value: publicOrigin + '/', readOnly: true, 'aria-label': '固定访问入口' }),
-                      action('entry', '复制入口', () => copy(publicOrigin + '/', 'entry'), { symbol: 'copy', disabled: false })))),
-                  h('div', { className: 'dfw-row' },
-                    h('div', { className: 'dfw-row-main' },
-                      h('div', { className: 'dfw-row-title' }, '配对新设备'),
-                      h('div', { className: 'dfw-row-desc' }, publicOrigin && !differentNetwork ? '跨网中继正在连接…'
-                        : sameNetwork && !publicOrigin ? '手机和电脑接入同一个局域网。跨网连接暂未开通。'
-                        : sameNetwork ? '同网使用应用扫码，跨网支持应用和浏览器。' : '生成二维码或链接，配对手机与浏览器。')),
-                    h('div', { className: 'dfw-row-control dfw-pair-options' },
-                      sameNetwork && action('pairing-lan', busy === 'pairing-lan' ? '生成中…' : '同网配对', () => openPairing('lan', 'pairing-lan'),
-                        { primary: true, symbol: 'link' }),
-                      differentNetwork && action('pairing', busy === 'pairing' ? '生成中…' : sameNetwork ? '跨网配对' : pairing ? '重新生成链接' : '生成配对链接',
-                        () => openPairing('remote', 'pairing'), { primary: !sameNetwork, symbol: 'link' }))),
-                  pairing && h('div', { className: 'dfw-pairing' },
-                    h('div', { className: 'dfw-pairing-head' },
-                      h('span', { className: 'dfw-pairing-state', 'data-expired': remaining === 0 }, remaining ? `单次有效 · 剩余 ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : '链接已过期，请重新生成。'),
-                      h('span', { className: 'dfw-count' }, '仅限一次配对')),
-                    h('div', { className: 'dfw-pairing-body' },
-                      h('div', { className: 'dfw-pairing-main' },
-                        h('input', { className: 'dfw-link', value: pairing.pairUrl, readOnly: true, 'aria-label': '配对链接' }),
-                        h('div', { className: 'dfw-pairing-actions' },
-                          pairing.mode !== 'lan' && action('pair-browser', '复制浏览器链接', () => copy(pairing.pairUrl, 'pair-browser'), { disabled: !remaining, symbol: 'copy' }),
-                          action('pair-app', '复制应用链接', () => copy('dshconnect://connect?url=' + encodeURIComponent(pairing.pairUrl), 'pair-app'), { disabled: !remaining, symbol: 'copy' })),
-                        h('p', { className: 'dfw-note' }, pairing.mode === 'lan' ? '用 DSH Connect 扫码。'
-                          : '用 DSH Connect 扫码，或在浏览器打开配对链接。')),
-                      h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', 'aria-disabled': !remaining, dangerouslySetInnerHTML: { __html: pairing.qrSvg } }))),
+                h('div', { className: 'dfw-stack' },
+                  permanentOrigin && h('div', { className: 'dfw-card dfw-panel' },
+                    h('div', { className: 'dfw-seg', role: 'tablist', 'aria-label': '链接类型' },
+                      h('button', { type: 'button', role: 'tab', 'aria-selected': linkMode === 'permanent', className: 'dfw-seg-item' + (linkMode === 'permanent' ? ' is-active' : ''),
+                        onClick: () => { setLinkMode('permanent'); setPairing(null); setPairingView(''); } }, '永久链接'),
+                      h('button', { type: 'button', role: 'tab', 'aria-selected': linkMode === 'temporary', className: 'dfw-seg-item' + (linkMode === 'temporary' ? ' is-active' : ''),
+                        onClick: () => { setLinkMode('temporary'); setPairing(null); setPairingView(''); } }, '临时链接')),
+                    h('div', { className: 'dfw-panel-desc' }, linkMode === 'permanent'
+                      ? (publicOrigin ? '日常入口。新设备先扫码配对，之后存为书签直接打开。' : '日常入口。手机和电脑同一网络时可用，换网络后地址会变。')
+                      : '临时分享用。生成后 10 分钟内有效，只能用一次。'),
+                    h('div', { className: 'dfw-panel-body' },
+                      linkMode === 'temporary' && pairingView === 'link' && pairing && h('div', { className: 'dfw-pairing-state', 'data-expired': remaining === 0 }, remaining
+                        ? `剩余 ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} · 仅能用一次`
+                        : '已过期，请重新生成。'),
+                      h('input', { className: 'dfw-link', readOnly: true,
+                        'aria-label': linkMode === 'permanent' ? '永久链接' : '临时链接',
+                        value: shownLink,
+                        placeholder: linkMode === 'temporary' ? '点「生成链接」后显示' : '' }),
+                      h('div', { className: 'dfw-panel-actions' },
+                        linkMode === 'permanent'
+                          ? [action('entry', '复制链接', () => copy(shownLink, 'entry'), { symbol: 'copy', disabled: false }),
+                             action('pair-qr', busy === 'pair-qr' ? '生成中…' : pairingView === 'qr' ? '收起' : '配对链接', () => {
+                               if (pairingView === 'qr') { setPairing(null); setPairingView(''); return; }
+                               openPairing(sameNetwork ? 'lan' : 'remote', 'pair-qr', 'qr');
+                             }, { symbol: 'qr' })]
+                          : [action('pair-link', busy === 'pair-link' ? '生成中…' : pairingView === 'link' ? '重新生成' : '生成链接',
+                               () => openPairing(sameNetwork ? 'lan' : 'remote', 'pair-link', 'link'), { primary: true, symbol: 'link' }),
+                             pairingView === 'link' && pairing && action('pair-copy', '复制链接', () => copy(shownLink, 'pair-copy'), { disabled: !remaining, symbol: 'copy' })].filter(Boolean)),
+                      linkMode === 'permanent' && pairingView === 'qr' && pairing && h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', dangerouslySetInnerHTML: { __html: pairing.qrSvg } }))),
                   !publicOrigin && h('details', { className: 'dfw-setup dfw-advanced' }, h('summary', null, '使用已有 HTTPS 地址'), addressForm()))),
               h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-devices-title' },
                 h('div', { className: 'dfw-section-head' },
