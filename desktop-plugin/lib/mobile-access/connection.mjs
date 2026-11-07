@@ -25,7 +25,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.0.18';
+export const VERSION = '1.1.0';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // Public, side-effect free probe used to decide whether the mobile runtime can

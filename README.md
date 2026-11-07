@@ -3,14 +3,14 @@
 <p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
 <p align="center">
-  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.0.18-4d6bfe" alt="release"></a>
+  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.1.0-4d6bfe" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="license"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20browser-0078D4" alt="platform">
 </p>
 
 DSH Connect 让你用手机浏览器继续使用电脑上的完整 DeepSeek Harness：会话、工作区、文件、模型、工具与任务共用同一份数据。模型调用和工具执行由连接的电脑完成，手机只负责显示和操作。
 
-**维护源码为 1.0.18。** 只提供浏览器入口，插件包名为 `dsh-connect`。
+**维护源码为 1.1.0。** 只提供浏览器入口，插件包名为 `dsh-connect`。
 
 ## 界面
 
