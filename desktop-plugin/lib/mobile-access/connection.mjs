@@ -23,11 +23,34 @@ import { resolveBrowserUiLocale } from './core/browser-ui-locale.mjs';
 import { bridgeCompressedWebSocket } from './core/websocket-bridge.mjs';
 import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure, scopeFailure,
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
+import { APP_ICONS } from '../icons.mjs';
 
 export { JsonDeviceStore };
 export const VERSION = '1.2.0';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
+// The DSH frontend ships its own icons, but those requests require a device
+// session. Serve the same artwork from public gateway routes so a home-screen
+// shortcut saved from any DSH Connect page keeps the DeepSeek Harness icon.
+const APP_ICON_ROUTES = Object.freeze({
+  '/mobile-access/apple-touch-icon.png': 'apple-touch-icon.png',
+  '/mobile-access/icon-192.png': 'icon-192.png',
+  '/mobile-access/icon-512.png': 'icon-512.png',
+  '/mobile-access/icon-maskable-512.png': 'icon-maskable-512.png'
+});
+const APP_ICON_BUFFERS = new Map(Object.entries(APP_ICONS).map(([name, uri]) => [name, Buffer.from(uri.slice(uri.indexOf(',') + 1), 'base64')]));
+const APP_MANIFEST = Buffer.from(JSON.stringify({
+  name: 'DeepSeek Harness', short_name: 'DSH', start_url: '/', scope: '/',
+  display: 'standalone', background_color: '#ffffff', theme_color: '#ffffff',
+  icons: [
+    { src: '/mobile-access/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/mobile-access/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/mobile-access/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+  ]
+}));
+const APP_HEAD_LINKS = '<link rel="manifest" href="/mobile-access/manifest.webmanifest">'
+  + '<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">'
+  + '<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">';
 // Public, side-effect free probe used to decide whether the mobile runtime can
 // carry a P2P transport at all. It only reports what the engine supports.
 const WEBRTC_PROBE_HTML = `<!doctype html>
@@ -428,6 +451,18 @@ export class DSHConnectGateway {
     }
     if (req.method === 'GET' && !target.search && p === '/mobile-access/metadata') { sendJson(res, 200, { version: 1, pluginVersion: VERSION,
       protocolVersion: CONNECTION_PROTOCOL_VERSION, capabilities: CONNECTION_CAPABILITIES }, this.config.secure); return; }
+    if (req.method === 'GET' && !target.search && p === '/mobile-access/manifest.webmanifest') {
+      res.writeHead(200, { 'content-type': 'application/manifest+json; charset=utf-8', 'content-length': APP_MANIFEST.length,
+        'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' });
+      res.end(APP_MANIFEST); return;
+    }
+    const iconName = APP_ICON_ROUTES[p];
+    if (req.method === 'GET' && !target.search && iconName !== undefined) {
+      const icon = APP_ICON_BUFFERS.get(iconName);
+      res.writeHead(200, { 'content-type': 'image/png', 'content-length': icon.length,
+        'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff' });
+      res.end(icon); return;
+    }
     // Keep old browser bookmarks usable without loading the retired frontend.
     if (req.method === 'GET' && (p === '/mobile/app' || p === '/mobile/app/')) {
       setSecurityHeaders(res, this.config.secure); res.writeHead(303, { Location: '/' }); res.end(); return;
@@ -564,6 +599,13 @@ export class DSHConnectGateway {
         let html = await documentBody(up);
         // The original root-relative base is redundant at this root mount.
         html = html.replace(/(<head\b[^>]*>)<base href="\.\/">/i, '$1');
+        // Replace the Host's authenticated icon links with public gateway
+        // routes, so saving this page to a home screen works offline of the
+        // session and does not fall back to a generic system icon.
+        html = html.replace(/<link\b[^>]*\brel="(?:manifest|icon|apple-touch-icon)"[^>]*>/gi, '');
+        if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, value => APP_HEAD_LINKS + value);
+        else if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, value => value + APP_HEAD_LINKS);
+        else html = APP_HEAD_LINKS + html;
         const state = JSON.stringify(this.connectionState(authorization)).replace(/</g, '\\u003c');
         const marker = META + '<script type="application/json" id="dsh-foreverweb-access-state">' + state + '</script>';
         html = /<head\b[^>]*>/i.test(html) ? html.replace(/<head\b[^>]*>/i, value => value + marker) : marker + html;

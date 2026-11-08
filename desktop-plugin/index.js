@@ -9,7 +9,6 @@ import { DSHConnectGateway, VERSION } from './lib/mobile-access/connection.mjs';
 import { localNetworkAddress, localNetworkIdentity } from './lib/mobile-access/lan.mjs';
 import { readRelaySettings, startRelayAgent } from './lib/mobile-access/relay.mjs';
 import { assertLocalAdminTrust, sendJson, readJsonObject } from './lib/mobile-access/core/http-security.mjs';
-import { WHALE_PNG } from './lib/brand.mjs';
 
 export const name = 'dsh-connect';
 export const inject = ['webServer', 'connection'];
@@ -81,7 +80,7 @@ export async function apply(ctx, config = {}) {
       const mobileClient = await readFile(join(root, 'mobile-client.js'), 'utf8');
       const brand = await readFile(join(root, 'brand.svg'), 'utf8');
       ctx.on('webserver/index-inject', table => table.push({ kind: 'script', placement: 'head',
-        text: bootstrap + '\nwindow.__DSH_CONNECT_MOBILE_STYLE__=' + JSON.stringify(mobileStyle) + ';\nwindow.__DSH_CONNECT_BRAND__=' + JSON.stringify(brand) + ';\nwindow.__DSH_CONNECT_WHALE__=' + JSON.stringify(WHALE_PNG) + ';\n' + mobileClient }));
+        text: bootstrap + '\nwindow.__DSH_CONNECT_MOBILE_STYLE__=' + JSON.stringify(mobileStyle) + ';\nwindow.__DSH_CONNECT_BRAND__=' + JSON.stringify(brand) + ';\n' + mobileClient }));
     } catch (error) {
       clearInterval(networkRefresh);
       relayAgent?.close();

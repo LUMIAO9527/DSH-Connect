@@ -244,6 +244,24 @@ test('authenticated status and stock entry preserve existing authorization and h
   assert.doesNotMatch(page.text, /app.webmanifest|dhm-frame|dhc-frame/);
   assert.doesNotMatch(page.text, /<base\b/);
   assert.ok(page.headers['content-security-policy'].includes("base-uri 'none'"));
+  assert.match(page.text, /<link rel="manifest" href="\/mobile-access\/manifest\.webmanifest">/);
+  assert.match(page.text, /<link rel="apple-touch-icon" sizes="180x180" href="\/mobile-access\/apple-touch-icon\.png">/);
+  assert.match(page.text, /<link rel="icon" type="image\/png" sizes="192x192" href="\/mobile-access\/icon-192\.png">/);
+  assert.equal((page.text.match(/rel="manifest"/g) || []).length, 1);
+  const manifest = await request(env.port, '/mobile-access/manifest.webmanifest');
+  assert.equal(manifest.status, 200);
+  assert.match(manifest.headers['content-type'], /^application\/manifest\+json/);
+  const descriptor = JSON.parse(manifest.text);
+  assert.equal(descriptor.short_name, 'DSH');
+  assert.deepEqual(descriptor.icons.map(icon => icon.sizes), ['192x192', '512x512', '512x512']);
+  for (const path of ['/mobile-access/apple-touch-icon.png', '/mobile-access/icon-192.png',
+    '/mobile-access/icon-512.png', '/mobile-access/icon-maskable-512.png']) {
+    const icon = await request(env.port, path);
+    assert.equal(icon.status, 200, path);
+    assert.equal(icon.headers['content-type'], 'image/png', path);
+    assert.equal(icon.data.subarray(1, 4).toString(), 'PNG', path);
+    assert.ok(icon.data.length > 1000, path);
+  }
   const asset = await request(env.port, '/assets/test.js', { headers: { cookie: paired.cookie } });
   assert.equal(asset.status, 200); assert.equal(env.paths.at(-1), '/assets/test.js');
 });

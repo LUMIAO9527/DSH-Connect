@@ -19,6 +19,17 @@ test('splash and pairing pages show the official DeepSeek Harness lockup', () =>
   }
 });
 
+test('splash and pairing pages declare the public DeepSeek Harness icons', () => {
+  for (const locale of ['zh', 'en', 'it']) {
+    for (const html of [renderLoginPage(locale), renderPairPage(locale)]) {
+      assert.ok(html.includes('<link rel="manifest" href="/mobile-access/manifest.webmanifest">'));
+      assert.ok(html.includes('<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">'));
+      assert.ok(html.includes('<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">'));
+      assert.ok(!html.includes('data:image/png;base64'), 'the page no longer embeds the icon as a data URI');
+    }
+  }
+});
+
 test('pairing page accepts a link or the 43-character code', () => {
   const expected = {
     zh: ['配对码或链接', '粘贴配对链接，或输入 43 位配对码'],

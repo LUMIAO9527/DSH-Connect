@@ -121,6 +121,20 @@ test('the open panel picks up a pairing made in another browser', async () => {
   assert.ok(button(nodes, '新设备已配对'), 'a new device is announced on the refresh control');
 });
 
+test('pairing controls keep their width while the label changes', async () => {
+  const view = await mount({ localNetwork: true, remoteAvailable: true });
+  let nodes = view.render();
+  assert.equal(button(nodes, '复制链接').props.style.minWidth, '108px');
+  const idle = button(nodes, '生成二维码');
+  assert.equal(idle.props.style.minWidth, '116px');
+  idle.props.onClick();
+  await flush();
+  nodes = view.render();
+  assert.equal(button(nodes, '收起').props.style.minWidth, '116px', 'the same control keeps its width when it becomes 收起');
+  assert.equal(button(nodes, '复制链接').props.style.minWidth, '108px');
+  assert.ok(nodes.find(node => String(node.props.className || '') === 'dfw-note' && text(node).includes('手机扫码完成配对')));
+});
+
 test('an unconfigured installation keeps its setup and update controls', async () => {
   const view = await mount({ configured: false, message: '填写这台电脑的 HTTPS 访问地址，启用后即可连接手机。' });
   let nodes = view.render();
@@ -147,7 +161,7 @@ test('same-network pairing presents the temporary link and a permanent QR', asyn
   assert.equal(nodes.find(node => node.props['aria-label'] === '配对二维码'), undefined);
   button(nodes, '永久链接').props.onClick();
   nodes = view.render();
-  button(nodes, '配对链接').props.onClick();
+  button(nodes, '生成二维码').props.onClick();
   await flush();
   assert.equal(view.requests.at(-1).body.mode, 'lan');
   nodes = view.render();

@@ -13,6 +13,7 @@
     "desktop-plugin/mobile.css",
     "desktop-plugin/brand.svg",
     "desktop-plugin/lib/brand.mjs",
+    "desktop-plugin/lib/icons.mjs",
     "desktop-plugin/lib/mobile-access/**",
     "desktop-plugin/cordis.patch.yml",
     "desktop-plugin/locale/*.json",

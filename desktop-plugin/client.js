@@ -241,8 +241,9 @@ window.__ModuleLoader__.load({
           const copy = (value, key) => void navigator.clipboard.writeText(value)
             .then(() => { if (active.current) setTemporary(key, '已复制', { duration: 1600 }); })
             .catch(() => { if (active.current) setTemporary(key, '请手动复制', { error: true, duration: 2800 }); });
-          const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol } = {}) => h('button',
-            { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : '') + (danger || flashError(key) ? ' dfw-button-danger' : ''), disabled: disabled ?? busy !== '', onClick },
+          const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol, width } = {}) => h('button',
+            { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : '') + (danger || flashError(key) ? ' dfw-button-danger' : ''), disabled: disabled ?? busy !== '', onClick,
+              style: width ? { minWidth: width + 'px' } : undefined },
             symbol && icon(symbol), flashText(key, fallback));
           const openPairing = (mode, key, view) => void run(key, async signal => {
             const value = await request('/pairing/open', { ttlMs: 600000, mode }, signal);
@@ -289,7 +290,7 @@ window.__ModuleLoader__.load({
               await request('/configuration', { publicOrigin: address }, signal);
               await refresh(signal);
             }, () => setTemporary('configuration', '保存失败，重试', { error: true, duration: 4000 })),
-            { primary: true, disabled: busy !== '' || !address.trim() || !status.editable })));
+            { primary: true, width: 112, disabled: busy !== '' || !address.trim() || !status.editable })));
           return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
             h('style', null, STYLE),
             h('header', { className: 'dfw-head' },
@@ -331,20 +332,21 @@ window.__ModuleLoader__.load({
                         placeholder: linkMode === 'temporary' ? '点「生成链接」后显示' : '' }),
                       h('div', { className: 'dfw-panel-actions' },
                         linkMode === 'permanent'
-                          ? [action('entry', '复制链接', () => copy(shownLink, 'entry'), { symbol: 'copy', disabled: false }),
-                             action('pair-qr', busy === 'pair-qr' ? '生成中…' : pairingView === 'qr' ? '收起' : '配对链接', () => {
+                          ? [action('entry', '复制链接', () => copy(shownLink, 'entry'), { symbol: 'copy', width: 108, disabled: false }),
+                             action('pair-qr', busy === 'pair-qr' ? '生成中…' : pairingView === 'qr' ? '收起' : '生成二维码', () => {
                                if (pairingView === 'qr') { setPairing(null); setPairingView(''); return; }
                                openPairing(sameNetwork ? 'lan' : 'remote', 'pair-qr', 'qr');
-                             }, { symbol: 'qr' })]
+                             }, { symbol: 'qr', width: 116 })]
                           : [action('pair-link', busy === 'pair-link' ? '生成中…' : pairingView === 'link' ? '重新生成' : '生成链接',
-                               () => openPairing(sameNetwork ? 'lan' : 'remote', 'pair-link', 'link'), { primary: true, symbol: 'link' }),
-                             pairingView === 'link' && pairing && action('pair-copy', '复制链接', () => copy(shownLink, 'pair-copy'), { disabled: !remaining, symbol: 'copy' })].filter(Boolean)),
-                      linkMode === 'permanent' && pairingView === 'qr' && pairing && h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', dangerouslySetInnerHTML: { __html: pairing.qrSvg } }))),
+                               () => openPairing(sameNetwork ? 'lan' : 'remote', 'pair-link', 'link'), { primary: true, symbol: 'link', width: 96 }),
+                             pairingView === 'link' && pairing && action('pair-copy', '复制链接', () => copy(shownLink, 'pair-copy'), { disabled: !remaining, symbol: 'copy', width: 108 })].filter(Boolean)),
+                      linkMode === 'permanent' && pairingView === 'qr' && pairing && h('div', { className: 'dfw-qr', role: 'img', 'aria-label': '配对二维码', dangerouslySetInnerHTML: { __html: pairing.qrSvg } }),
+                      linkMode === 'permanent' && pairingView === 'qr' && pairing && h('div', { className: 'dfw-note' }, '手机扫码完成配对；也可以复制上面的链接，发给另一台设备打开。'))),
                   !publicOrigin && h('details', { className: 'dfw-setup dfw-advanced' }, h('summary', null, '使用已有 HTTPS 地址'), addressForm()))),
               h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-devices-title' },
                 h('div', { className: 'dfw-section-head' },
                   h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-devices-title' }, '已配对设备'), h('span', { className: 'dfw-count' }, devices.length ? `${devices.length} 台` : '暂无')),
-                  action('devices', '刷新', () => void run('devices', async signal => { await refresh(signal); if (active.current) setTemporary('devices', '已刷新', { duration: 1600 }); }, () => setTemporary('devices', '刷新失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', disabled: busy !== '' })),
+                  action('devices', '刷新', () => void run('devices', async signal => { await refresh(signal); if (active.current) setTemporary('devices', '已刷新', { duration: 1600 }); }, () => setTemporary('devices', '刷新失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', width: 136, disabled: busy !== '' })),
                 h('div', { className: 'dfw-card' },
                   !devices.length ? h('p', { className: 'dfw-empty' }, '还没有配对设备。手机扫码或打开配对链接后，设备会自动出现在这里。')
                   : h('ul', { className: 'dfw-device-list' }, devices.map(device => h('li', { className: 'dfw-device', key: device.id },
@@ -359,8 +361,8 @@ window.__ModuleLoader__.load({
                         : h('div', { className: 'dfw-device-name' }, device.label),
                       h('div', { className: 'dfw-device-meta' }, `授权至 ${new Date(device.expiresAt).toLocaleDateString()} · 最近使用 ${new Date(device.lastSeenAt).toLocaleDateString()}`)),
                     h('div', { className: 'dfw-device-actions' },
-                      editing?.id === device.id ? null : action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '' }),
-                      action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '' })))))))),
+                      editing?.id === device.id ? null : action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '', width: 84 }),
+                      action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '', width: 88 })))))))),
             h('div', { className: 'dfw-foot' },
                 h('div', { className: 'dfw-foot-info' },
                   h('div', { className: 'dfw-foot-version' }, 'DSH Connect ' + (status?.version || '')),
@@ -371,7 +373,7 @@ window.__ModuleLoader__.load({
                     if (!active.current) return;
                     setUpdate(value);
                     setTemporary('updates', '已检查', { duration: 1600 });
-                  }, () => setTemporary('updates', '检查失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', disabled: busy !== '' || ['downloading', 'installing', 'restoring'].includes(update?.stage) }),
+                  }, () => setTemporary('updates', '检查失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', width: 136, disabled: busy !== '' || ['downloading', 'installing', 'restoring'].includes(update?.stage) }),
                   update?.available && update.canUpdate && action('apply', '更新到 ' + update.latest, () => void run('apply', async signal => {
                     const value = await request('/updates/apply', { version: update.latest }, signal);
                     if (active.current) setUpdate(value);

@@ -1,5 +1,5 @@
 // DSH Connect connection core. Adapted from dsh-mobile 0.6.18 (Apache-2.0).
-import { WHALE_PNG, BRAND_LOCKUP_SVG } from '../../brand.mjs';
+import { BRAND_LOCKUP_SVG } from '../../brand.mjs';
 // Maintained in this project; see ../NOTICE and ../LICENSE.
 const COPY = {
     en: {
@@ -156,7 +156,9 @@ export function renderPairPage(locale) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" type="image/png" href="${WHALE_PNG}">
+<link rel="manifest" href="/mobile-access/manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">
 <style>${AUTH_STYLE}</style>
 <title>${copy.pairTitle}</title>
 </head>
@@ -292,7 +294,9 @@ export function renderLoginPage(locale) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<link rel="icon" type="image/png" href="${WHALE_PNG}">
+<link rel="manifest" href="/mobile-access/manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">
 <style>${SPLASH_STYLE}</style>
 <title>${copy.reconnectTitle}</title>
 </head>
