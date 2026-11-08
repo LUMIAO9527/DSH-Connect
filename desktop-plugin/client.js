@@ -143,6 +143,7 @@ window.__ModuleLoader__.load({
           const [pairingView, setPairingView] = useState('');
           const [linkMode, setLinkMode] = useState('permanent');
           const active = useRef(false), pending = useRef(false), abort = useRef(null), timers = useRef(new Map());
+          const devicesRef = useRef([]);
           const setTemporary = (key, text, { error = false, duration = 2200, announce = true } = {}) => {
             if (!active.current) return;
             const cache = timers.current, previous = cache.get(key);
@@ -206,6 +207,30 @@ window.__ModuleLoader__.load({
             return () => clearTimeout(timer);
           }, [revoking]);
           useEffect(() => { if (editing && !devices.some(device => device.id === editing.id)) setEditing(null); }, [devices, editing]);
+          useEffect(() => { devicesRef.current = devices; }, [devices]);
+          // A phone pairs in another browser, so the list must catch up on its
+          // own instead of waiting for the panel to be reopened.
+          useEffect(() => {
+            if (!local()) return;
+            const timer = setInterval(async () => {
+              if (!active.current || document.hidden) return;
+              try {
+                const saved = await request('/devices', undefined, abort.current?.signal);
+                if (!active.current || !Array.isArray(saved.devices)) return;
+                const next = saved.devices, previous = devicesRef.current;
+                const changed = next.length !== previous.length || next.some((device, index) => {
+                  const candidate = previous[index];
+                  return !candidate || device.id !== candidate.id || device.label !== candidate.label
+                    || device.expiresAt !== candidate.expiresAt || device.lastSeenAt !== candidate.lastSeenAt;
+                });
+                if (!changed) return;
+                if (next.length > previous.length && previous.length > 0) setTemporary('devices', '新设备已配对', { duration: 3000 });
+                devicesRef.current = next.slice();
+                setDevices(next);
+              } catch { /* keep the last list; the manual refresh reports failures */ }
+            }, 5000);
+            return () => clearInterval(timer);
+          }, []);
           const run = async (key, action, onError) => {
             if (pending.current) return;
             pending.current = true; setBusy(key); setIssue('');
@@ -294,7 +319,7 @@ window.__ModuleLoader__.load({
                       h('button', { type: 'button', role: 'tab', 'aria-selected': linkMode === 'temporary', className: 'dfw-seg-item' + (linkMode === 'temporary' ? ' is-active' : ''),
                         onClick: () => { setLinkMode('temporary'); setPairing(null); setPairingView(''); } }, '临时链接')),
                     h('div', { className: 'dfw-panel-desc' }, linkMode === 'permanent'
-                      ? (publicOrigin ? '日常入口。新设备先扫码配对，之后存为书签直接打开。' : '日常入口。手机和电脑同一网络时可用，换网络后地址会变。')
+                      ? (publicOrigin ? '日常入口。第一次用手机请点「配对链接」，扫码或复制链接完成配对；之后再把上面的地址存为书签。' : '日常入口。第一次用手机请点「配对链接」完成配对，之后存为书签直接打开。')
                       : '临时分享用。生成后 10 分钟内有效，只能用一次。'),
                     h('div', { className: 'dfw-panel-body' },
                       linkMode === 'temporary' && pairingView === 'link' && pairing && h('div', { className: 'dfw-pairing-state', 'data-expired': remaining === 0 }, remaining
@@ -321,7 +346,7 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-devices-title' }, '已配对设备'), h('span', { className: 'dfw-count' }, devices.length ? `${devices.length} 台` : '暂无')),
                   action('devices', '刷新', () => void run('devices', async signal => { await refresh(signal); if (active.current) setTemporary('devices', '已刷新', { duration: 1600 }); }, () => setTemporary('devices', '刷新失败，重试', { error: true, duration: 4000 })), { symbol: 'refresh', disabled: busy !== '' })),
                 h('div', { className: 'dfw-card' },
-                  !devices.length ? h('p', { className: 'dfw-empty' }, '暂无配对设备。生成配对链接后，新设备会显示在这里。')
+                  !devices.length ? h('p', { className: 'dfw-empty' }, '还没有配对设备。手机扫码或打开配对链接后，设备会自动出现在这里。')
                   : h('ul', { className: 'dfw-device-list' }, devices.map(device => h('li', { className: 'dfw-device', key: device.id },
                     h('div', { className: 'dfw-device-info' },
                       editing?.id === device.id

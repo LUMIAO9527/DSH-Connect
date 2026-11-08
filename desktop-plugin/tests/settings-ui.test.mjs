@@ -20,9 +20,10 @@ const button = (nodes, label) => nodes.find(node => node.type === 'button' && te
 
 async function flush() { for (let index = 0; index < 24; index++) await Promise.resolve(); }
 
-async function mount(overrides = {}) {
+async function mount(overrides = {}, options = {}) {
   let module, component, index = 0;
-  const states = [], refs = [], requests = [], effects = [];
+  const states = [], refs = [], requests = [], effects = [], intervals = [];
+  const deviceList = options.devices ?? devices;
   const activeStatus = { ...status, ...overrides };
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat() }),
@@ -35,9 +36,9 @@ async function mount(overrides = {}) {
     requests.push(entry);
     if (entry.url.endsWith('/status')) return response(activeStatus);
     if (entry.url.endsWith('/updates/status')) return response({ current: '1.0.14', message: '更新保留连接地址和已配对设备。' });
-    if (entry.url.endsWith('/devices')) return response({ devices });
+    if (entry.url.endsWith('/devices')) return response({ devices: deviceList });
     if (entry.url.endsWith('/devices/rename')) {
-      const target = devices.find(device => device.id === entry.body.deviceId);
+      const target = deviceList.find(device => device.id === entry.body.deviceId);
       return response({ device: { ...target, label: entry.body.label.trim() } });
     }
     if (entry.url.endsWith('/pairing/open')) return response({ pairUrl: 'https://computer.example/pair#token=fixture', qrSvg: '<svg></svg>', expiresAt: Date.now() + 600000 });
@@ -47,13 +48,14 @@ async function mount(overrides = {}) {
   const document = { querySelector: () => null, querySelectorAll: () => [] };
   const navigator = { clipboard: { writeText: async () => {} } };
   vm.runInNewContext(source, { window, document, navigator, fetch, AbortController, console,
-    location: { protocol: 'http:', hostname: '127.0.0.1' }, setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0, clearInterval: () => {} });
+    location: { protocol: 'http:', hostname: '127.0.0.1' }, setTimeout: () => 0, clearTimeout: () => {},
+    setInterval: (fn, ms) => { intervals.push({ fn, ms }); return intervals.length; }, clearInterval: () => {} });
   module.apply({ effect: setup => setup(), slots: { inject: (_name, setup) => setup(), register: (_options, value) => { component = value; } } });
   const render = () => { index = 0; return component(); };
   render();
   for (const effect of effects.splice(0)) effect();
   await flush();
-  return { render: () => all(render()), requests };
+  return { render: () => all(render()), requests, intervals };
 }
 
 test('connection and device sections replace expanding notices with button feedback', async () => {
@@ -97,6 +99,26 @@ test('connection and device sections replace expanding notices with button feedb
   assert.equal(nodes.some(node => String(node.props.className || '').includes('dfw-notice')), false);
   const temporary = nodes.find(node => node.type === 'input' && node.props['aria-label'] === '临时链接');
   assert.ok(temporary && String(temporary.props.value).includes('/pair#token='));
+});
+
+test('the open panel picks up a pairing made in another browser', async () => {
+  const list = [];
+  const view = await mount({}, { devices: list });
+  let nodes = view.render();
+  assert.ok(nodes.find(node => String(node.props.className || '') === 'dfw-empty'));
+  list.push({ id: 'c'.repeat(32), label: 'Mate 80', createdAt: 1, expiresAt: Date.now() + 86400000, lastSeenAt: Date.now() });
+  const poll = view.intervals.find(entry => entry.ms === 5000);
+  assert.ok(poll, 'the open panel polls the device list');
+  await poll.fn();
+  await flush();
+  nodes = view.render();
+  assert.ok(nodes.find(node => node.props.className === 'dfw-device-name' && text(node) === 'Mate 80'),
+    'a device paired on the phone appears without reopening the settings');
+  list.push({ id: 'd'.repeat(32), label: 'iPad', createdAt: 1, expiresAt: Date.now() + 86400000, lastSeenAt: Date.now() });
+  await poll.fn();
+  await flush();
+  nodes = view.render();
+  assert.ok(button(nodes, '新设备已配对'), 'a new device is announced on the refresh control');
 });
 
 test('an unconfigured installation keeps its setup and update controls', async () => {

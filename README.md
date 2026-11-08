@@ -3,7 +3,7 @@
 <p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
 <p align="center">
-  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.1.0-4d6bfe" alt="release"></a>
+  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.2.0-4d6bfe" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="license"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20browser-0078D4" alt="platform">
 </p>
@@ -19,7 +19,7 @@
   <img src="docs/images/pair-mobile.jpg" width="220" alt="手机配对">
 </p>
 
-白底启动画面后直接进入工作区；配对一次，之后打开链接即可恢复。
+白底启动画面使用 DeepSeek Harness 原生横向标识（鲸鱼 + deepseek + HARNESS），一次淡入后直接进入工作区；配对一次，之后打开链接即可恢复。
 
 ## 打开方式
 
@@ -32,7 +32,7 @@
 | 永久链接 | 日常入口，存为书签或添加到主屏幕 | 长期 |
 | 临时链接 | 发给别人临时使用 | 10 分钟，只能使用一次 |
 
-永久链接里点「配对链接」生成一次性配对链接和二维码，新设备完成授权后即可长期使用。
+永久链接里点「配对链接」生成一次性配对链接和二维码，新设备完成授权后即可长期使用。手机打开配对链接会自动完成配对；也可以把链接粘贴到配对页的输入框，或手动输入 43 位配对码。
 
 ## 下载
 

@@ -349,6 +349,42 @@ test('opening a complete pairing link pairs once and confirms saved browser auth
   }
 });
 
+test('a pasted pairing link is reduced to its one-use code', async () => {
+  const handlers = new Map(), calls = [], destinations = [], timers = new Map(); let timerId = 0;
+  const submit = { disabled: false };
+  const link = 'https://harmony.test/mobile-access/pair#instance=' + 'a'.repeat(64) + '&token=' + 'C'.repeat(43) + '&pin=' + 'd'.repeat(64);
+  const token = { value: link, addEventListener() {}, removeAttribute() {}, setAttribute() {}, focus() {} };
+  const nodes = { 'pair-form': { querySelector: () => submit, addEventListener: (name, handler) => handlers.set(name, handler), setAttribute() {}, removeAttribute() {} },
+    'pair-token': token, 'device-label': { value: '' }, 'pair-status': { value: '' } };
+  const location = new URL('https://harmony.test/mobile-access/pair'); location.replace = value => destinations.push(value);
+  vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
+    URLSearchParams, AbortController, fetch: async (input, init) => {
+      calls.push({ input, init });
+      return input.endsWith('/pair') ? Response.json({ paired: true }, { status: 201 }) : new Response('{}', { status: 200 });
+    }, setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout(id) { timers.delete(id); } });
+  await handlers.get('submit')({ preventDefault() {} });
+  await flush();
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[0].init.body).token, 'C'.repeat(43));
+  assert.deepEqual(destinations, ['/']);
+});
+
+test('a pasted link without a current pairing token asks for the code', async () => {
+  const handlers = new Map(), attrs = {}; let calls = 0;
+  const token = { value: 'https://harmony.test/mobile-access/pair', addEventListener() {}, removeAttribute() {},
+    setAttribute(name, value) { attrs[name] = value; }, focus() {} };
+  const nodes = { 'pair-form': { querySelector: () => ({ disabled: false }), addEventListener: (name, handler) => handlers.set(name, handler), setAttribute() {}, removeAttribute() {} },
+    'pair-token': token, 'device-label': { value: '' }, 'pair-status': { value: '' } };
+  const location = new URL('https://harmony.test/mobile-access/pair'); location.replace = () => {};
+  vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
+    URLSearchParams, AbortController, fetch: async () => { calls++; return new Response('{}', { status: 201 }); },
+    setTimeout() { return 0; }, clearTimeout() {} });
+  await handlers.get('submit')({ preventDefault() {} });
+  assert.equal(calls, 0);
+  assert.equal(attrs['aria-invalid'], 'true');
+  assert.match(nodes['pair-status'].value, /43 位配对码/);
+});
+
 test('login defaults to the stock entry and preserves an explicit compatible stock return', async () => {
   for (const [query, expected] of [['', '/'], ['?return=%2F%3Ffrontend%3Dstock', '/?frontend=stock'], ['?return=https%3A%2F%2Fevil.example', '/'],
     ['?return=%2Fmobile%2Fapp', '/'], ['?return=%2Fmobile%2Fapp%2F%3Ffrontend%3Dold', '/']]) {

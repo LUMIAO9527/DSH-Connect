@@ -36,14 +36,24 @@ test('authenticated desktop forwarded POST can generate a pairing link without O
     await rm(directory, { recursive: true, force: true });
   });
   await apply(ctx, { publicOrigin: 'https://foreverweb.test', listenPort: 0, stateDirectory: directory });
+  const post = (path, headers) => new Promise((resolve, reject) => {
+    const body = JSON.stringify({});
+    const request = http.request({ hostname: '127.0.0.1', port: host.address().port, path, method: 'POST',
+      headers: { ...headers, 'content-length': Buffer.byteLength(body) } }, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => resolve({ status: response.statusCode, json: async () => JSON.parse(Buffer.concat(chunks)) }));
+    });
+    request.once('error', reject); request.end(body);
+  });
   const headers = { cookie: 'dsh-auth-fixture=valid', 'content-type': 'application/json', 'x-dsh-mobile-desktop-admin': 'dsh-app://app' };
-  const response = await fetch(origin + '/api/foreverweb/pairing/open', { method: 'POST', headers, body: '{}' });
+  const response = await post('/api/foreverweb/pairing/open', headers);
   assert.equal(response.status, 201);
   const paired = await response.json();
   assert.match(paired.pairUrl, /^https:\/\/foreverweb\.test\/mobile-access\/pair#instance=[a-f0-9]{64}&token=[A-Za-z0-9_-]{43}$/);
   assert.match(paired.qrSvg, /^<svg/);
-  const anonymous = await fetch(origin + '/api/foreverweb/pairing/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const anonymous = await post('/api/foreverweb/pairing/open', { 'content-type': 'application/json' });
   assert.equal(anonymous.status, 401);
-  const unmarked = await fetch(origin + '/api/foreverweb/pairing/open', { method: 'POST', headers: { cookie: headers.cookie, 'content-type': 'application/json' }, body: '{}' });
+  const unmarked = await post('/api/foreverweb/pairing/open', { cookie: headers.cookie, 'content-type': 'application/json' });
   assert.equal(unmarked.status, 403);
 });

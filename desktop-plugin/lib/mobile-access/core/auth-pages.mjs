@@ -1,18 +1,18 @@
 // DSH Connect connection core. Adapted from dsh-mobile 0.6.18 (Apache-2.0).
-import { WHALE_PNG } from '../../brand.mjs';
+import { WHALE_PNG, BRAND_LOCKUP_SVG } from '../../brand.mjs';
 // Maintained in this project; see ../NOTICE and ../LICENSE.
 const COPY = {
     en: {
         lang: 'en',
         pairTitle: 'Pair DSH Connect',
         pairHeading: 'Pair this device',
-        pairingCode: 'Pairing code',
-        pairingCodePlaceholder: '43-character code',
+        pairingCode: 'Pairing code or link',
+        pairingCodePlaceholder: 'Paste the pairing link, or enter the 43-character code',
         deviceName: 'Device name',
         pair: 'Pair',
         pairing: 'Pairing…',
         cookieRequired: 'This browser did not save the pairing authorization. Open the complete link in your regular browser and allow this site to save its data.',
-        invalidPairingCode: 'Enter the 43-character pairing code from the current pairing window on the computer.',
+        invalidPairingCode: 'Enter the 43-character pairing code or paste the complete pairing link.',
         pairFailed: 'Pairing failed. Check the code or generate a new one on the computer.',
         pairingExpired: 'The pairing code is invalid or has expired. Generate a new code on the computer and try again.',
         pairingLimited: 'Too many pairing attempts. Wait a moment and try again.',
@@ -32,13 +32,13 @@ const COPY = {
         lang: 'zh-CN',
         pairTitle: '配对 DSH Connect',
         pairHeading: '连接你的电脑',
-        pairingCode: '配对码',
-        pairingCodePlaceholder: '43 位配对码',
+        pairingCode: '配对码或链接',
+        pairingCodePlaceholder: '粘贴配对链接，或输入 43 位配对码',
         deviceName: '设备名称',
         pair: '连接电脑',
         pairing: '正在配对…',
         cookieRequired: '浏览器没有保存配对授权。请在常用浏览器中打开完整链接，并允许此网站保存数据。',
-        invalidPairingCode: '请输入电脑端当前配对窗口中的 43 位配对码。',
+        invalidPairingCode: '请输入 43 位配对码，或粘贴完整的配对链接。',
         pairFailed: '配对失败，请检查输入或在电脑端重新生成配对码。',
         pairingExpired: '配对码无效或已过期，请在电脑端重新生成后重试。',
         pairingLimited: '配对尝试过于频繁，请稍后再试。',
@@ -58,13 +58,13 @@ const COPY = {
         lang: 'it-IT',
         pairTitle: 'Abbina accesso mobile DSH',
         pairHeading: 'Abbina questo dispositivo',
-        pairingCode: 'Codice di abbinamento',
-        pairingCodePlaceholder: 'Codice di 43 caratteri',
+        pairingCode: 'Codice o link di abbinamento',
+        pairingCodePlaceholder: 'Incolla il link, oppure inserisci il codice di 43 caratteri',
         deviceName: 'Nome dispositivo',
         pair: 'Abbina',
         pairing: 'Abbinamento…',
         cookieRequired: 'Il browser non ha salvato l’autorizzazione. Apri il link completo nel browser abituale e consenti i dati del sito.',
-        invalidPairingCode: 'Inserisci il codice di 43 caratteri dalla finestra di abbinamento attuale sul computer.',
+        invalidPairingCode: 'Inserisci il codice di 43 caratteri o incolla il link completo di abbinamento.',
         pairFailed: 'Abbinamento non riuscito. Controlla il codice o generane uno nuovo sul computer.',
         pairingExpired: 'Il codice non è valido o è scaduto. Genera un nuovo codice sul computer e riprova.',
         pairingLimited: 'Troppi tentativi di abbinamento. Attendi un momento e riprova.',
@@ -84,11 +84,11 @@ const COPY = {
 // These are owned authentication pages, not overrides of DSH's DOM. One small
 // stylesheet keeps pairing and recovery usable with touch, keyboard and zoom.
 const AUTH_STYLE = `
-:root{color-scheme:light dark;--bg:#f7f8fa;--surface:#fff;--text:#202329;--muted:#7b808b;--line:#e8ebf1;--accent:#4d6bfe;--focus:#4d6bfe;--inverse:#fff}
+:root{color-scheme:light dark;--bg:#f7f8fa;--surface:#fff;--text:#202329;--muted:#7b808b;--line:#e8ebf1;--accent:#4d6bfe;--focus:#4d6bfe;--inverse:#fff;--dsc-lockup-contrast:#fff}
 *{box-sizing:border-box}html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;background:var(--bg);color:var(--text)}
 body{margin:0;min-height:100vh;min-height:100dvh;padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));line-height:1.55}
 main{width:min(100%,480px);margin:clamp(0px,4vh,40px) auto;padding:clamp(22px,5vw,32px);background:var(--surface);border:1px solid var(--line);border-radius:26px;box-shadow:0 8px 40px #20232904}
-.brand{display:flex;align-items:center;gap:11px;font-size:1rem;letter-spacing:-.02em;font-weight:650;color:var(--text);margin:0 0 26px}.brand svg,.brand img{display:block;width:36px;height:36px;border-radius:9px;flex-shrink:0}h1{font-size:clamp(1.55rem,5.6vw,1.875rem);font-weight:650;letter-spacing:-.04em;line-height:1.3;margin:0 0 22px;overflow-wrap:anywhere}
+.brand{display:block;width:152px;max-width:100%;color:var(--text);margin:0 0 26px}.brand svg{display:block;width:100%;height:auto}h1{font-size:clamp(1.55rem,5.6vw,1.875rem);font-weight:650;letter-spacing:-.04em;line-height:1.3;margin:0 0 22px;overflow-wrap:anywhere}
 form{display:grid;gap:14px}label{display:grid;gap:8px;font-weight:650}input,textarea,button,a{font:inherit}input,textarea{width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);font-size:16px}
 button,main a{min-height:48px;padding:12px 18px;border-radius:18px;touch-action:manipulation}button{border:0;background:var(--accent);color:var(--inverse);font-weight:600;cursor:pointer;width:100%}button:disabled{opacity:.65;cursor:wait}main a{display:block;width:fit-content;margin:10px auto 0;padding:10px 8px;background:none;color:var(--accent);font-weight:500;text-decoration:none;border:0}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}input[aria-invalid=true]{border-color:#b3261e}p{color:var(--muted);margin:0 0 18px;overflow-wrap:anywhere}output{display:block;font-size:.925rem;overflow-wrap:anywhere}output:empty{display:none}#login-retry{width:100%;margin-top:8px}[hidden]{display:none!important}
@@ -99,9 +99,9 @@ button:not(:disabled):active,main a:active{filter:brightness(.94)}
   main{animation:dsc-auth-enter 190ms cubic-bezier(.2,.7,.25,1)}
   @keyframes dsc-auth-enter{from{opacity:.65;translate:0 4px}to{opacity:1;translate:0 0}}
 }
-@media(prefers-color-scheme:dark){:root{--bg:#15171b;--surface:#202329;--text:#f2f4f8;--muted:#a0a6b2;--line:#323741;--accent:#657fff;--focus:#8fa3ff;--inverse:#fff}input[aria-invalid=true]{border-color:#e58e85}}
+@media(prefers-color-scheme:dark){:root{--bg:#15171b;--surface:#202329;--text:#f2f4f8;--muted:#a0a6b2;--line:#323741;--accent:#657fff;--focus:#8fa3ff;--inverse:#fff;--dsc-lockup-contrast:#353638}input[aria-invalid=true]{border-color:#e58e85}}
 `;
-// Opening screen: white page, the native DeepSeekHarness mark, one short entrance.
+// Opening screen: white page, the native DeepSeek Harness lockup, one short entrance.
 // It deliberately ignores the dark colour scheme so every phone starts on the same
 // white surface, then hands over to the workspace.
 const SPLASH_STYLE = `
@@ -111,8 +111,8 @@ html,body{height:100%}
 html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#202329}
 body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(28px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left));background:#fff}
 main{width:min(100%,360px);margin:0;text-align:center}
-.mark{display:block;width:112px;height:112px;margin:0 auto 24px;border-radius:26px}
-.name{margin:0;font-size:1.4375rem;font-weight:650;letter-spacing:-.035em;line-height:1.25;color:#0f1115}
+.brand{display:block;width:min(78vw,262px);max-width:100%;margin:0 auto 26px;color:#0f1115;--dsc-lockup-contrast:#fff}
+.brand svg{display:block;width:100%;height:auto}
 .progress{margin:20px 0 0;font-size:.9375rem;line-height:1.6;color:#7b808b;min-height:1.6em}
 button,main a{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:20px;padding:12px 22px;border-radius:18px;touch-action:manipulation;text-decoration:none}
 button{border:0;background:#17191e;color:#fff;font-weight:600;cursor:pointer}
@@ -125,9 +125,8 @@ section{margin-top:6px}
 [hidden]{display:none!important}
 @media(prefers-reduced-motion:no-preference){
   button,main a{transition:scale 140ms cubic-bezier(.2,.7,.25,1)}
-  .mark{animation:splash-mark 620ms cubic-bezier(.2,.7,.25,1) both}
-  .name{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 120ms both}
-  .progress{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 200ms both}
+  .brand{animation:splash-mark 620ms cubic-bezier(.2,.7,.25,1) both}
+  .progress{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 150ms both}
   @keyframes splash-mark{from{opacity:0;translate:0 12px;scale:.965}to{opacity:1;translate:0 0;scale:1}}
   @keyframes splash-name{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
 }
@@ -163,7 +162,7 @@ export function renderPairPage(locale) {
 </head>
 <body>
 <main>
-  <p class="brand"><img src="${WHALE_PNG}" alt="" width="36" height="36">DeepSeekHarness</p>
+  <div class="brand" role="img" aria-label="DeepSeek Harness">${BRAND_LOCKUP_SVG}</div>
   <h1>${copy.pairHeading}</h1>
   <form id="pair-form">
     <label>${copy.pairingCode} <input id="pair-token" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" placeholder="${copy.pairingCodePlaceholder}" aria-describedby="pair-status" required></label>
@@ -202,12 +201,27 @@ export function renderPairScript(locale) {
     token.removeAttribute('aria-invalid')
     if (!submitting) status.value = ''
   })
+  // The desktop shows a pairing link, not the 43-character code, so accept both.
+  const pairingToken = value => {
+    const input = value.trim()
+    if (/^[A-Za-z0-9_-]{43}$/u.test(input)) return input
+    let candidate = ''
+    try {
+      const url = new URL(input)
+      candidate = new URLSearchParams(url.hash.slice(1)).get('token') || url.searchParams.get('token') || ''
+    } catch (_) {
+      // A pasted fragment without a URL scheme is handled below.
+    }
+    if (!candidate) candidate = /(?:^|[#&?])token=([A-Za-z0-9_-]{43})(?:$|[&#])/u.exec(input)?.[1] || ''
+    return /^[A-Za-z0-9_-]{43}$/u.test(candidate) ? candidate : ''
+  }
   const pair = async (event) => {
     event.preventDefault()
     if (submitting) return
-    const code = token.value.trim()
+    const entered = token.value.trim()
+    const code = pairingToken(entered)
     token.removeAttribute('aria-invalid')
-    if (!/^[A-Za-z0-9_-]{43}$/u.test(code)) {
+    if (!code) {
       status.value = ${JSON.stringify(copy.invalidPairingCode)}
       token.setAttribute('aria-invalid', 'true')
       token.focus()
@@ -232,7 +246,7 @@ export function renderPairScript(locale) {
         signal: controller.signal,
       })])
       if (!response.ok) {
-        if (token.value.trim() !== code) { status.value = ''; return }
+        if (token.value.trim() !== entered) { status.value = ''; return }
         status.value = response.status === 401 ? ${JSON.stringify(copy.pairingExpired)}
           : response.status === 429 ? ${JSON.stringify(copy.pairingLimited)}
           : response.status === 409 ? ${JSON.stringify(copy.deviceLimit)}
@@ -245,7 +259,7 @@ export function renderPairScript(locale) {
       if (!saved.ok) { status.value = ${JSON.stringify(copy.cookieRequired)}; return }
       location.replace('/')
     } catch {
-      status.value = token.value.trim() === code ? ${JSON.stringify(copy.unavailable)} : ''
+      status.value = token.value.trim() === entered ? ${JSON.stringify(copy.unavailable)} : ''
     } finally {
       clearTimeout(timer)
       submitting = false
@@ -284,8 +298,7 @@ export function renderLoginPage(locale) {
 </head>
 <body>
 <main>
-  <img class="mark" src="${WHALE_PNG}" alt="" width="112" height="112">
-  <p class="name">DeepSeekHarness</p>
+  <div class="brand" role="img" aria-label="DeepSeek Harness">${BRAND_LOCKUP_SVG}</div>
   <p id="login-progress" class="progress" aria-live="polite">${copy.restoring}</p>
   <button id="login-retry" type="button" hidden>${copy.retry}</button>
   <section id="login-failed" hidden>
