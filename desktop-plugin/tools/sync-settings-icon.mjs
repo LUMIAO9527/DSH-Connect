@@ -1,7 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 const root = new URL('../', import.meta.url);
-const svg = await readFile(new URL('icon.svg', root), 'utf8');
+// The sidebar icon is the monochrome Cn glyph so it can inherit the host's text colour.
+const svg = await readFile(new URL('brand.svg', root), 'utf8');
 const descriptor = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 const target = new URL(existsSync(new URL('src/client.js', root)) ? 'src/client.js' : 'client.js', root);
 const source = await readFile(target, 'utf8');
@@ -12,10 +13,11 @@ const block = `    /* settings-icon:start */
       if (typeof document === 'undefined' || typeof MutationObserver === 'undefined' || !ctx.effect) return;
       ctx.effect(() => {
         const mark = ${JSON.stringify(id)}, label = ${JSON.stringify(label)};
-        const glyph = ${JSON.stringify(svg)};
+        const glyph = ${JSON.stringify(svg.replaceAll('currentColor', '#000'))};
         const style = document.createElement('style');
         const selector = 'button[data-dsh-plugin-icon="' + mark + '"] svg';
-        style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background:transparent url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat;mask:none}' + selector + '>*{visibility:hidden}';
+        const mask = 'url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat';
+        style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background-color:currentColor;-webkit-mask:' + mask + ';mask:' + mask + '}' + selector + '>*{visibility:hidden}';
         document.head.appendChild(style);
         const update = () => {
           for (const button of document.querySelectorAll('[role="dialog"][data-shortcut-modal="settings"] nav button')) {

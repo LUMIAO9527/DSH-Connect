@@ -391,10 +391,11 @@ window.__ModuleLoader__.load({
       if (typeof document === 'undefined' || typeof MutationObserver === 'undefined' || !ctx.effect) return;
       ctx.effect(() => {
         const mark = "dsh-connect", label = "DSH Connect";
-        const glyph = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"256\" height=\"256\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n  <rect id=\"cn-tile\" width=\"32\" height=\"32\" rx=\"10\" fill=\"#ffffff\" stroke=\"#d7d7d7\" stroke-width=\"0.75\"/>\n  <g id=\"cn-letters\" stroke=\"#171717\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\">\n    <path d=\"M14 10.5C12.9 9.6 11.8 9.4 10.7 9.4C7.8 9.4 6.5 12.1 6.5 15.7C6.5 19.3 7.8 22 10.7 22C11.9 22 13 21.7 14 20.7\"/>\n    <path d=\"M18.6 22V15.3C18.6 11.8 26.4 11.8 26.4 15.3V22\"/>\n  </g>\n</svg>\n";
+        const glyph = "<!-- DSH Connect monogram (Cn). Monochrome so it can inherit the current text colour. -->\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n<g fill=\"none\" stroke=\"#000\" stroke-width=\"2.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.7 11.3a5.35 5.35 0 1 0 0 9.4\"/><path d=\"M19.1 21.9v-5.6c0-3.1 5.2-3.1 5.2 0v5.6\"/></g>\n</svg>\n";
         const style = document.createElement('style');
         const selector = 'button[data-dsh-plugin-icon="' + mark + '"] svg';
-        style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background:transparent url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat;mask:none}' + selector + '>*{visibility:hidden}';
+        const mask = 'url("data:image/svg+xml,' + encodeURIComponent(glyph) + '") center/contain no-repeat';
+        style.textContent = selector + '{width:16px;height:16px;flex-shrink:0;display:block;background-color:currentColor;-webkit-mask:' + mask + ';mask:' + mask + '}' + selector + '>*{visibility:hidden}';
         document.head.appendChild(style);
         const update = () => {
           for (const button of document.querySelectorAll('[role="dialog"][data-shortcut-modal="settings"] nav button')) {
