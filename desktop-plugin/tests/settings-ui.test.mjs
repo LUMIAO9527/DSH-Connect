@@ -74,6 +74,7 @@ test('connection and device sections replace expanding notices with button feedb
   assert.ok(rename);
   rename.props.onClick();
   nodes = view.render();
+  assert.equal(button(nodes, '重命名').props.style.visibility, 'hidden', 'the rename control keeps its space while editing');
   const name = nodes.find(node => node.type === 'input' && node.props['aria-label'] === '设备名称');
   assert.ok(name);
   name.props.onChange({ target: { value: 'Mate 80 Pro' } });

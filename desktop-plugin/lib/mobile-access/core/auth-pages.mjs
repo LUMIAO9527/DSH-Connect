@@ -1,5 +1,5 @@
 // DSH Connect connection core. Adapted from dsh-mobile 0.6.18 (Apache-2.0).
-import { BRAND_LOCKUP_SVG } from '../../brand.mjs';
+import { BRAND_LOCKUP_SVG, BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../../brand.mjs';
 // Maintained in this project; see ../NOTICE and ../LICENSE.
 const COPY = {
     en: {
@@ -111,9 +111,15 @@ html,body{height:100%}
 html{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#202329}
 body{margin:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:max(28px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left));background:#fff}
 main{width:min(100%,360px);margin:0;text-align:center}
-.brand{display:block;width:min(78vw,262px);max-width:100%;margin:0 auto 26px;color:#0f1115;--dsc-lockup-contrast:#fff}
-.brand svg{display:block;width:100%;height:auto}
-.progress{margin:20px 0 0;font-size:.9375rem;line-height:1.6;color:#7b808b;min-height:1.6em}
+.whale{display:block;width:min(38vw,132px);max-width:100%;margin:0 auto 18px;color:#0f1115}
+.whale svg{display:block;width:100%;height:auto}
+.wordmark{display:block;width:min(66vw,236px);max-width:100%;margin:0 auto 26px;color:#0f1115;--dsc-lockup-contrast:#fff}
+.wordmark svg{display:block;width:100%;height:auto}
+.progress{margin:0;min-height:24px;display:flex;align-items:center;justify-content:center;font-size:.9375rem;line-height:1.6;color:#7b808b}
+.dots{display:inline-flex;align-items:center;gap:7px;height:14px}
+.dots i{display:block;width:6px;height:6px;border-radius:50%;background:#8a8f99}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+#login-message{display:block}
 button,main a{font:inherit;display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:20px;padding:12px 22px;border-radius:18px;touch-action:manipulation;text-decoration:none}
 button{border:0;background:#17191e;color:#fff;font-weight:600;cursor:pointer}
 main a{background:#f3f4f7;color:#202329;border:1px solid #e8ebf1;font-weight:500}
@@ -125,10 +131,15 @@ section{margin-top:6px}
 [hidden]{display:none!important}
 @media(prefers-reduced-motion:no-preference){
   button,main a{transition:scale 140ms cubic-bezier(.2,.7,.25,1)}
-  .brand{animation:splash-mark 620ms cubic-bezier(.2,.7,.25,1) both}
-  .progress{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 150ms both}
+  .whale{animation:splash-mark 620ms cubic-bezier(.2,.7,.25,1) both}
+  .wordmark{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 120ms both}
+  .progress{animation:splash-name 520ms cubic-bezier(.2,.7,.25,1) 200ms both}
+  .dots i{animation:dot-wave 1150ms cubic-bezier(.45,0,.55,1) infinite}
+  .dots i:nth-child(2){animation-delay:120ms}
+  .dots i:nth-child(3){animation-delay:240ms}
   @keyframes splash-mark{from{opacity:0;translate:0 12px;scale:.965}to{opacity:1;translate:0 0;scale:1}}
   @keyframes splash-name{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+  @keyframes dot-wave{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-5px);opacity:1}}
 }
 `;
 export function resolveAuthPageLocale(header) {
@@ -302,8 +313,13 @@ export function renderLoginPage(locale) {
 </head>
 <body>
 <main>
-  <div class="brand" role="img" aria-label="DeepSeek Harness">${BRAND_LOCKUP_SVG}</div>
-  <p id="login-progress" class="progress" aria-live="polite">${copy.restoring}</p>
+  <div class="whale" aria-hidden="true">${BRAND_WHALE_SVG}</div>
+  <div class="wordmark" role="img" aria-label="DeepSeek Harness">${BRAND_WORDMARK_SVG}</div>
+  <p id="login-progress" class="progress" aria-live="polite">
+    <span class="dots" id="login-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="sr-only" id="login-status">${copy.restoring}</span>
+    <span id="login-message" hidden></span>
+  </p>
   <button id="login-retry" type="button" hidden>${copy.retry}</button>
   <section id="login-failed" hidden>
     <p id="login-failure-message">${copy.noLongerPaired}</p>
@@ -344,7 +360,18 @@ export function renderLoginScript(locale) {
     const progress = document.getElementById('login-progress')
     const failed = document.getElementById('login-failed')
     const retry = document.getElementById('login-retry')
-    progress.hidden = false; progress.textContent = ${JSON.stringify(copy.restoring)}
+    const dots = document.getElementById('login-dots')
+    const status = document.getElementById('login-status')
+    const progressMessage = document.getElementById('login-message')
+    const showRestoring = () => {
+      progress.hidden = false; dots.hidden = false; status.hidden = false
+      progressMessage.hidden = true; progressMessage.textContent = ''
+    }
+    const showProblem = text => {
+      progress.hidden = false; dots.hidden = true; status.hidden = true
+      progressMessage.hidden = false; progressMessage.textContent = text
+    }
+    showRestoring()
     failed.hidden = true; retry.hidden = true; delete failed.dataset.authState
     report('restoring')
     const controller = new AbortController()
@@ -366,10 +393,10 @@ export function renderLoginScript(locale) {
         progress.hidden = true; failed.hidden = false; failed.dataset.authState = 'invalid'
         report('authorization-invalid', { scope, code }); return
       }
-      progress.textContent = ${JSON.stringify(copy.unavailable)}; retry.hidden = false
+      showProblem(${JSON.stringify(copy.unavailable)}); retry.hidden = false
       report('unavailable', { scope, code })
     }).catch(() => {
-      progress.textContent = ${JSON.stringify(copy.unavailable)}; retry.hidden = false
+      showProblem(${JSON.stringify(copy.unavailable)}); retry.hidden = false
       report('unavailable', { scope: 'network', code: controller.signal.aborted ? 'renew_timeout' : 'renew_unavailable' })
     }).finally(() => { clearTimeout(timer); flight = undefined })
     return flight

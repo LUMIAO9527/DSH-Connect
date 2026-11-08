@@ -6,16 +6,30 @@ import { renderPairPage, renderLoginPage } from '../lib/mobile-access/core/auth-
 // itself (renderer/assets/welcome-brand.svg). The splash and pairing pages
 // must show it instead of the old stacked whale + "DeepSeekHarness" text.
 const LOCKUP_VIEWBOX = 'viewBox="145.467 11.5215 181.207 17.0435"';
+const WHALE_VIEWBOX = 'viewBox="145.467 11.5215 23.16 17.0435"';
+const WORDMARK_VIEWBOX = 'viewBox="172.283 12.6289 154.391 14.8711"';
 
-test('splash and pairing pages show the official DeepSeek Harness lockup', () => {
+test('splash stacks the whale over the wordmark with three loading dots', () => {
   for (const locale of ['zh', 'en', 'it']) {
-    for (const html of [renderLoginPage(locale), renderPairPage(locale)]) {
-      assert.equal((html.match(/<svg /gu) || []).length, 1, `${locale}: exactly one inline lockup`);
-      assert.ok(html.includes(LOCKUP_VIEWBOX), `${locale}: native lockup view box`);
-      assert.match(html, /class="brand" role="img" aria-label="DeepSeek Harness"/u);
-      assert.ok(html.includes('--dsc-lockup-contrast'), `${locale}: themed badge lettering`);
-      assert.ok(!html.includes('>DeepSeekHarness<'), `${locale}: the old wordmark text is gone`);
-    }
+    const html = renderLoginPage(locale);
+    assert.equal((html.match(/<svg /gu) || []).length, 2, locale + ': whale and wordmark are separate SVGs');
+    assert.ok(html.includes(WHALE_VIEWBOX), locale + ': whale view box');
+    assert.ok(html.includes(WORDMARK_VIEWBOX), locale + ': wordmark view box');
+    assert.match(html, /<div class="whale" aria-hidden="true">/u);
+    assert.match(html, /<div class="wordmark" role="img" aria-label="DeepSeek Harness">/u);
+    assert.match(html, /<span class="dots" id="login-dots" aria-hidden="true"><i><\/i><i><\/i><i><\/i><\/span>/u);
+    assert.ok(!html.includes('>DeepSeekHarness<'), locale + ': the old wordmark text is gone');
+  }
+});
+
+test('pairing page keeps the horizontal lockup', () => {
+  for (const locale of ['zh', 'en', 'it']) {
+    const html = renderPairPage(locale);
+    assert.equal((html.match(/<svg /gu) || []).length, 1, locale + ': one inline lockup');
+    assert.ok(html.includes(LOCKUP_VIEWBOX), locale + ': native lockup view box');
+    assert.match(html, /class="brand" role="img" aria-label="DeepSeek Harness"/u);
+    assert.ok(html.includes('--dsc-lockup-contrast'), locale + ': themed badge lettering');
+    assert.ok(!html.includes('>DeepSeekHarness<'), locale + ': the old wordmark text is gone');
   }
 });
 

@@ -70,11 +70,11 @@ window.__ModuleLoader__.load({
 .dfw-settings .dfw-device{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;padding:12px 16px}
 .dfw-settings .dfw-device+.dfw-device{border-top:1px solid var(--dfw-line)}
 .dfw-settings .dfw-device-info{min-width:0;flex:1 1 auto}
-.dfw-settings .dfw-device-name{font-weight:500;overflow-wrap:anywhere}
+.dfw-settings .dfw-device-name{display:flex;align-items:center;min-height:30px;font-weight:500;line-height:1.4;overflow-wrap:anywhere}
 .dfw-settings .dfw-device-meta{margin-top:3px;font-size:12px;color:var(--dfw-muted)}
 .dfw-settings .dfw-device-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
-.dfw-settings .dfw-device-edit{display:flex;align-items:center;gap:8px;width:min(100%,320px)}
-.dfw-settings .dfw-device-edit input{min-width:0;width:100%;height:34px;padding:6px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:inherit}
+.dfw-settings .dfw-device-edit{display:flex;align-items:center;gap:8px;width:min(100%,320px);min-height:30px}
+.dfw-settings .dfw-device-edit input{min-width:0;width:100%;height:30px;padding:4px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:inherit}.dfw-settings .dfw-device-edit .dfw-button{min-height:30px;padding-block:3px}
 .dfw-settings .dfw-empty{padding:14px 16px;font-size:12px;color:var(--dfw-muted)}
 .dfw-settings .dfw-foot{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 16px;margin-top:22px}
 .dfw-settings .dfw-foot-info{min-width:0}
@@ -241,10 +241,15 @@ window.__ModuleLoader__.load({
           const copy = (value, key) => void navigator.clipboard.writeText(value)
             .then(() => { if (active.current) setTemporary(key, '已复制', { duration: 1600 }); })
             .catch(() => { if (active.current) setTemporary(key, '请手动复制', { error: true, duration: 2800 }); });
-          const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol, width } = {}) => h('button',
+          const action = (key, fallback, onClick, { primary = false, danger = false, disabled, symbol, width, invisible } = {}) => {
+            const style = {};
+            if (width) style.minWidth = width + 'px';
+            if (invisible) style.visibility = 'hidden';
+            return h('button',
             { type: 'button', className: 'dfw-button' + (primary ? ' dfw-button-primary' : '') + (danger || flashError(key) ? ' dfw-button-danger' : ''), disabled: disabled ?? busy !== '', onClick,
-              style: width ? { minWidth: width + 'px' } : undefined },
+              style: Object.keys(style).length ? style : undefined },
             symbol && icon(symbol), flashText(key, fallback));
+          };
           const openPairing = (mode, key, view) => void run(key, async signal => {
             const value = await request('/pairing/open', { ttlMs: 600000, mode }, signal);
             if (!active.current) return;
@@ -361,7 +366,7 @@ window.__ModuleLoader__.load({
                         : h('div', { className: 'dfw-device-name' }, device.label),
                       h('div', { className: 'dfw-device-meta' }, `授权至 ${new Date(device.expiresAt).toLocaleDateString()} · 最近使用 ${new Date(device.lastSeenAt).toLocaleDateString()}`)),
                     h('div', { className: 'dfw-device-actions' },
-                      editing?.id === device.id ? null : action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '', width: 84 }),
+                      action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '', width: 84, invisible: editing?.id === device.id }),
                       action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '', width: 88 })))))))),
             h('div', { className: 'dfw-foot' },
                 h('div', { className: 'dfw-foot-info' },

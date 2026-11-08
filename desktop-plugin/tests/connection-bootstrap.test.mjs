@@ -388,7 +388,7 @@ test('a pasted link without a current pairing token asks for the code', async ()
 test('login defaults to the stock entry and preserves an explicit compatible stock return', async () => {
   for (const [query, expected] of [['', '/'], ['?return=%2F%3Ffrontend%3Dstock', '/?frontend=stock'], ['?return=https%3A%2F%2Fevil.example', '/'],
     ['?return=%2Fmobile%2Fapp', '/'], ['?return=%2Fmobile%2Fapp%2F%3Ffrontend%3Dold', '/']]) {
-    const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
+    const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry', 'login-dots', 'login-status', 'login-message'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
     const destinations = [], timers = new Map(); let timerId = 0;
     const location = new URL('https://harmony.test/mobile-access/login' + query); location.replace = value => destinations.push(value);
     class Event { constructor(type, options) { this.type = type; this.detail = options.detail; } }
@@ -402,7 +402,7 @@ test('login defaults to the stock entry and preserves an explicit compatible sto
 test('login shows pairing only for invalid device authorization, not network/429/Host failures', async () => {
   for (const [response, expected] of [[() => unauthorized('device'), 'authorization-invalid'], [() => new Response('', { status: 429 }), 'unavailable'],
     [() => unauthorized('host'), 'unavailable'], [() => Promise.reject(new Error('network')), 'unavailable']]) {
-    const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
+    const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry', 'login-dots', 'login-status', 'login-message'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
     const reports = [], native = [], timers = new Map(); let timerId = 0;
     const window = { dispatchEvent: event => reports.push(event.detail), HarmonyConnector: { connectionChanged: value => native.push(value) } };
     class Event { constructor(type, options) { this.type = type; this.detail = options.detail; } }
@@ -413,12 +413,17 @@ test('login shows pairing only for invalid device authorization, not network/429
     assert.equal(reports.at(-1).state, expected);
     assert.equal(native.length, 0);
     assert.equal(nodes['login-failed'].hidden, expected !== 'authorization-invalid');
+    if (expected === 'unavailable') {
+      assert.equal(nodes['login-dots'].hidden, true, 'the bouncing dots give way to the error text');
+      assert.equal(nodes['login-message'].hidden, false);
+      assert.match(nodes['login-message'].textContent, /电脑当前不可用/);
+    }
     assert.equal(timers.size, 0);
   }
 });
 
 test('login describes a missing browser credential without calling it expired', async () => {
-  const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry', 'login-failure-message'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
+  const nodes = Object.fromEntries(['login-progress', 'login-failed', 'login-retry', 'login-failure-message', 'login-dots', 'login-status', 'login-message'].map(id => [id, { hidden: false, dataset: {}, addEventListener() {} }]));
   const window = { dispatchEvent() {} };
   class Event { constructor(type, options) { this.type = type; this.detail = options.detail; } }
   vm.runInNewContext(renderLoginScript('zh'), { window, document: { getElementById: id => nodes[id] },

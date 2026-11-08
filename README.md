@@ -19,7 +19,7 @@
   <img src="docs/images/pair-mobile.jpg" width="220" alt="手机配对">
 </p>
 
-白底启动画面使用 DeepSeek Harness 原生横向标识（鲸鱼 + deepseek + HARNESS），一次淡入后直接进入工作区；配对一次，之后打开链接即可恢复。
+白底启动画面：鲸鱼在上、deepseek + HARNESS 标识在下，恢复连接时三个点跳动；失败时才显示文字与重试。配对一次，之后打开链接即可恢复。
 
 ## 打开方式
 
