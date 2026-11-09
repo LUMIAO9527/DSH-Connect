@@ -180,10 +180,31 @@
       paintSwipe(motion);
       paneMotion.cancel();
       maskMotion?.cancel();
-      // Hold the last painted position until Harness applies its drawer state.
-      if (commitDrawer()) {
+      if (!commitDrawer()) { clearMotion(motion); return; }
+      // A committed close still runs Harness' own transform/visibility
+      // transition underneath. Keep the pane off-screen until that finishes;
+      // releasing earlier reveals the open panel for a frame and the closing
+      // animation visibly replays.
+      const started = performance.now();
+      const dock = '[data-dockkit-host=dock],[data-dockkit-empty],[data-dockkit-divider]';
+      const target = motion.pane.querySelector?.(dock);
+      if (!target) {
+        // No Harness transition underneath (for example the left drawer):
+        // release on the next painted frame as before.
         requestAnimationFrame(() => requestAnimationFrame(() => clearMotion(motion)));
-      } else clearMotion(motion);
+        return;
+      }
+      const hidden = () => {
+        if (!frame.contains(motion.pane) || motion.pane.getClientRects().length === 0) return true;
+        try { return getComputedStyle(target).visibility === 'hidden'; } catch { return true; }
+      };
+      const settle = () => {
+        if (!frame.contains(motion.pane) || drawerState() === motion.side || hidden() || performance.now() - started > 650) {
+          clearMotion(motion); return;
+        }
+        requestAnimationFrame(settle);
+      };
+      requestAnimationFrame(settle);
     });
   };
   const trackSwipe = event => {

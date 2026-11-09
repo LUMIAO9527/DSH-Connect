@@ -26,7 +26,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
 import { APP_ICONS } from '../icons.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.3';
+export const VERSION = '1.2.4';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -156,7 +156,7 @@ function requestHeaders(request, upstream, credential, upgrade = false) {
   return headers;
 }
 
-function responseHeaders(incoming, upstream, publicOrigin) {
+function responseHeaders(incoming, upstream, publicOrigin, requestTarget) {
   const headers = {};
   const blocked = new Set([...HOP, 'set-cookie', 'www-authenticate', 'access-control-allow-origin', 'access-control-allow-credentials',
     'x-dsh-foreverweb-error-scope', 'x-dsh-foreverweb-error-code']);
@@ -164,7 +164,11 @@ function responseHeaders(incoming, upstream, publicOrigin) {
   for (const [key, value] of Object.entries(incoming)) if (value !== undefined && !blocked.has(key)) headers[key] = value;
   if (headers.location) {
     try {
-      const target = new URL(headers.location, upstream);
+      // Resolve relative redirects against the request URL, not the upstream
+      // origin root: DSH's /api/file answers relative `?path=...&v=...`
+      // locations, and losing the path turned images into the HTML document.
+      const base = requestTarget === undefined ? upstream : new URL(requestTarget, upstream);
+      const target = new URL(headers.location, base);
       if (target.origin === upstream.origin) headers.location = publicOrigin + target.pathname + target.search + target.hash;
     } catch { delete headers.location; }
   }
@@ -585,7 +589,7 @@ export class DSHConnectGateway {
       requestHostGeneration = hostCredentialGeneration;
       const up = await this.upstreamRequest(req.method, target.pathname + target.search, requestHeaders(req, this.config.upstreamOrigin, credential), op.controller.signal, req);
       receivedHostResponse = true;
-      const outgoing = responseHeaders(up.headers, this.config.upstreamOrigin, origin);
+      const outgoing = responseHeaders(up.headers, this.config.upstreamOrigin, origin, target.raw);
       if (hostCredentialGeneration === this.credentialGeneration) {
         this.observeHost(up.statusCode === 401 ? 'authentication-failed' : 'reachable', up.statusCode === 401 ? 'upstream_authentication_failed' : undefined);
       }

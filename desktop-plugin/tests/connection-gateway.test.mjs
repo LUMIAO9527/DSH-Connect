@@ -180,6 +180,10 @@ async function fixture(t, options = {}) {
     if (url.pathname === '/failed-write') {
       counters.writes++; for await (const chunk of req) {} req.socket.destroy(); return;
     }
+    if (url.pathname === '/api/file') {
+      const location = '?path=' + encodeURIComponent('D:\\Programs\\AppLab\\DSH-Connect\\_wip\\preview\\icon.png') + '&v=7';
+      res.writeHead(302, { location }); res.end(); return;
+    }
     if (url.pathname === '/cancel-stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write('data: initial\n\n'); return;
     }
@@ -264,6 +268,16 @@ test('authenticated status and stock entry preserve existing authorization and h
   }
   const asset = await request(env.port, '/assets/test.js', { headers: { cookie: paired.cookie } });
   assert.equal(asset.status, 200); assert.equal(env.paths.at(-1), '/assets/test.js');
+});
+
+test('proxied relative redirects keep the request path under the public origin', { timeout: 10000 }, async t => {
+  const env = await fixture(t); const paired = await env.pair();
+  const response = await request(env.port, '/api/file?path=fixture', { headers: { cookie: paired.cookie } });
+  assert.equal(response.status, 302);
+  const location = new URL(response.headers.location);
+  assert.equal(location.origin + location.pathname, origin + '/api/file');
+  assert.equal(location.searchParams.get('path'), 'D:\\Programs\\AppLab\\DSH-Connect\\_wip\\preview\\icon.png');
+  assert.equal(location.searchParams.get('v'), '7');
 });
 
 test('startup bundles and uncompressed fonts negotiate Brotli with gzip fallback', { timeout: 10000 }, async t => {
