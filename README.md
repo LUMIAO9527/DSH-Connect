@@ -1,4 +1,4 @@
-<p align="center"><img src="branding/r1c-mark.svg" width="88" alt="DSH Connect"></p>
+<p align="center"><img src="branding/r1c-mark-rounded.svg" width="88" alt="DSH Connect"></p>
 <h1 align="center">DSH Connect</h1>
 <p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
@@ -40,7 +40,7 @@
 
 - `dsh-connect-版本.tgz`：安装在电脑 DSH 中的插件。
 - `DSH-Connect-版本-source.zip`：完整源码与构建脚本。
-- `DSH-Connect-版本-icon.svg`：R1C 矢量图标。
+- `DSH-Connect-版本-icon.svg`：R1C 满幅矢量图标（平台自行裁圆角）；README 页头用圆角展示版。
 - `SHA256SUMS.txt`：文件校验和。
 
 ## 连接方式

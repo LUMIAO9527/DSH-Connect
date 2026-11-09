@@ -11,8 +11,8 @@ $lockup = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'dsh-lockup.svg')).Rep
 $whaleMark = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'dsh-whale-mark.svg')).Replace(([string][char]13 + [char]10), $lf).Trim()
 $wordmark = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'dsh-wordmark.svg')).Replace(([string][char]13 + [char]10), $lf).Trim()
 $escape = { param($value) ($value | ConvertTo-Json -Compress).Replace('<', '\u003c').Replace('>', '\u003e').Replace('&', '\u0026').Replace("'", '\u0027') }
-# The app icon is the black tile with the portal-whale mark. Inside DSH settings the
-# sidebar icon is the monochrome mark, so it inherits the host's text colour.
+# The app icon is a full-bleed square so every launcher can apply its own corner
+# mask. Inside DSH settings the sidebar icon is the monochrome mark.
 # The HarmonyOS app was retired on 2026-11-07; its resources now live in
 # _wip/AUTO_20261107ArchiveApp and are no longer generated.
 $outputs = @{}
