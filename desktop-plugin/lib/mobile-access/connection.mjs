@@ -27,7 +27,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.18';
+export const VERSION = '1.2.19';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -137,30 +137,41 @@ const APP_HEAD_LINKS = '<link rel="manifest" href="/mobile-access/manifest.webma
   + '<script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("/mobile-access/sw.js",{scope:"/",updateViaCache:"none"}).catch(function(){})})}</script>';
 // Public, side-effect free probe used to decide whether the mobile runtime can
 // carry a P2P transport at all. It only reports what the engine supports.
-const LITE_PROBE_HTML = `<!doctype html>
+const LITE_PROBE_HTML = `﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>DSH Lite · 协议探针</title>
 <style>
-:root{color-scheme:dark;--bg:#111318;--card:#1b1e24;--line:#2e333d;--ink:#f2f4f8;--muted:#9aa0aa;--accent:#6d8cff}
+:root{color-scheme:dark;--bg:#111318;--card:#1b1e24;--line:#2e333d;--ink:#f2f4f8;--muted:#9aa0aa;--ok:#63d6a3;--bad:#ff8e86}
 *{box-sizing:border-box}body{margin:0;padding:max(16px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom));background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,sans-serif}
 h1{font-size:18px;margin:0 0 4px}p{color:var(--muted);margin:0 0 14px}
 button{min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;margin:0 8px 8px 0}
-pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:180px;max-height:55vh;overflow:auto;font:12px/1.5 ui-monospace,monospace}
-.note{font-size:12px;color:var(--muted)}.ok{color:#63d6a3}.err{color:#ff8e86}
+button:disabled{opacity:.45}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:180px;max-height:50vh;overflow:auto;font:12px/1.5 ui-monospace,monospace}
+#sessions{display:grid;gap:6px;margin:0 0 12px}
+.session{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.session b{font-weight:500;overflow-wrap:anywhere}.session span{color:var(--muted);font-size:12px}
+.note{font-size:12px;color:var(--muted)}.ok{color:var(--ok)}.err{color:var(--bad)}
 </style>
 </head>
 <body>
 <h1>DSH Lite · 协议探针</h1>
-<p>只读验证：连接 <code>/api/remote.mux</code>，请求 <code>session/list</code>。不改任何会话。</p>
-<div><button id="connect">连接并读取会话列表</button><button id="clear">清空</button></div>
+<p>只读验证：直连 <code>POST /api/session/list</code>、<code>POST /api/session/events</code>，再用 WebSocket 跟随 <code>session/follow</code>。不发消息、不改会话。</p>
+<div><button id="list">读取会话列表</button><button id="events" disabled>读取最近会话历史</button><button id="follow" disabled>跟随最近会话</button><button id="clear">清空日志</button></div>
+<div id="sessions"></div>
 <pre id="log">尚未连接。</pre>
-<div class="note">如果这里能显示 session 列表 JSON，说明轻客户端可以复用现有网关认证和 Remote 流。下一步才是渲染聊天。</div>
+<div class="note">列表出现后，下一步才是聊天渲染。审批/发送会改状态，本探针不做。</div>
 <script>
 (() => {
   const log = document.getElementById('log');
+  const sessionsBox = document.getElementById('sessions');
+  const eventsBtn = document.getElementById('events');
+  const followBtn = document.getElementById('follow');
+  let sessions = [];
+  let selected = '';
+  let socket;
   const write = (text, cls) => {
     const line = document.createElement('div');
     if (cls) line.className = cls;
@@ -169,35 +180,106 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);border:1p
     log.scrollTop = log.scrollHeight;
   };
   const clear = () => { log.textContent = ''; };
-  let socket;
-  const connect = () => {
+  const csrf = () => {
+    const entry = document.cookie.split('; ').find(value => value.startsWith('dsh_ma_csrf='));
+    return entry ? decodeURIComponent(entry.slice('dsh_ma_csrf='.length)) : '';
+  };
+  const rpc = async (endpoint, args) => {
+    const rpcId = 'probe-' + Date.now() + '-' + Math.floor(Math.random() * 1e6);
+    const response = await fetch('/api/' + endpoint, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', 'x-dsh-mobile-csrf': csrf() },
+      body: JSON.stringify({ type: 'client-request', rpcId, method: endpoint, payload: { args } })
+    });
+    const text = await response.text();
+    let body;
+    try { body = JSON.parse(text); } catch { throw new Error('HTTP ' + response.status + ': ' + text.slice(0, 200)); }
+    if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + text.slice(0, 200));
+    if (!body || body.type !== 'server-response' || body.rpcId !== rpcId) throw new Error('bad envelope');
+    if (!body.result || body.result.ok !== true) throw new Error((body.result && body.result.error && body.result.error.code) || 'rpc failed');
+    return body.result.value;
+  };
+  const select = id => {
+    selected = id;
+    eventsBtn.disabled = false;
+    followBtn.disabled = false;
+    for (const row of sessionsBox.querySelectorAll('[data-session]')) row.classList.toggle('is-selected', row.dataset.session === id);
+  };
+  const renderSessions = value => {
+    sessions = Array.isArray(value && value.items) ? value.items : [];
+    sessionsBox.textContent = '';
+    if (!sessions.length) { write('session/list 返回 0 条', 'err'); return; }
+    for (const session of sessions.slice(0, 20)) {
+      const row = document.createElement('div');
+      row.className = 'session';
+      row.dataset.session = session.sessionId;
+      const name = document.createElement('b');
+      name.textContent = (session.projections && (session.projections.title || session.projections.name)) || session.sessionId;
+      const meta = document.createElement('span');
+      meta.textContent = (session.running ? 'running ' : '') + (session.blank ? 'blank ' : '') + (session.updatedAt ? new Date(session.updatedAt).toLocaleString() : '');
+      row.append(name, meta);
+      row.addEventListener('click', () => select(session.sessionId));
+      sessionsBox.appendChild(row);
+    }
+    select(sessions[0].sessionId);
+    write('session/list ok · ' + sessions.length + ' 条', 'ok');
+  };
+  const list = async () => {
+    try {
+      clear();
+      write('POST /api/session/list');
+      const value = await rpc('session/list', { _request: {} });
+      renderSessions(value);
+      write(JSON.stringify(value).slice(0, 4000));
+    } catch (error) { write('list failed: ' + error.message, 'err'); }
+  };
+  const events = async () => {
+    if (!selected) return;
+    try {
+      clear();
+      write('POST /api/session/events · ' + selected);
+      const value = await rpc('session/events', { request: { address: { kind: 'session', sessionId: selected }, maxMessages: 30 } });
+      write('records: ' + (value && value.records ? value.records.length : '?') + ' · hasMore: ' + (value && value.hasMore), 'ok');
+      write(JSON.stringify(value).slice(0, 6000));
+    } catch (error) { write('events failed: ' + error.message, 'err'); }
+  };
+  const follow = () => {
+    if (!selected) return;
+    try { socket && socket.close(); } catch {}
     clear();
-    write('connecting ' + location.host);
+    write('WS /api/remote.mux · session/follow · ' + selected);
     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
     socket = new WebSocket(scheme + '//' + location.host + '/api/remote.mux');
     socket.onopen = () => {
       write('socket open', 'ok');
-      socket.send(JSON.stringify({ type: 'open', streamId: 'list-1', endpoint: 'session/list', payload: { args: { _request: {} } } }));
+      socket.send(JSON.stringify({ type: 'open', streamId: 'follow-1', endpoint: 'session/follow', payload: { args: { request: { address: { kind: 'session', sessionId: selected }, assistantStream: true, maxMessages: 30 } } } }));
     };
+    let frames = 0;
     socket.onmessage = event => {
-      write(event.data);
+      frames += 1;
+      let summary = event.data;
       try {
         const frame = JSON.parse(event.data);
-        if (frame.type === 'item' && frame.value && Array.isArray(frame.value.sessions)) {
-          write('sessions: ' + frame.value.sessions.length, 'ok');
-        }
-        if (frame.type === 'error') write('remote error: ' + (frame.error?.code || '') + ' ' + (frame.error?.message || ''), 'err');
+        const value = frame && frame.value;
+        summary = frame.type + (value && value.type ? ' · ' + value.type : '') + ' · ' + event.data.slice(0, 1200);
+        if (frame.type === 'error') summary = 'error: ' + (frame.error && (frame.error.code + ' ' + frame.error.message));
       } catch {}
+      write(summary, frames === 1 ? 'ok' : '');
+      if (frames >= 30) { write('已收到 30 帧，关闭探针流', 'ok'); socket.close(); }
     };
     socket.onerror = () => write('socket error', 'err');
     socket.onclose = event => write('socket closed ' + event.code + ' ' + event.reason);
   };
-  document.getElementById('connect').addEventListener('click', connect);
+  document.getElementById('list').addEventListener('click', list);
+  eventsBtn.addEventListener('click', events);
+  followBtn.addEventListener('click', follow);
   document.getElementById('clear').addEventListener('click', clear);
 })();
 </script>
 </body>
-</html>`;
+</html>
+`;
 const WEBRTC_PROBE_HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

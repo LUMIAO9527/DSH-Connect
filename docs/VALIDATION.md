@@ -1,5 +1,10 @@
 # 验证记录
 
+## 1.2.19（2026-11-10）
+
+- 119 项测试通过；探针页面断言 `POST /api/session/list`、CSRF 头、Remote mux。
+- 真机未复验：手机打开 `/mobile-access/lite`，确认列表 JSON、历史记录、follow 帧三项。
+
 ## 1.2.18（2026-11-10）
 
 - 119 项测试通过；`/mobile-access/lite` 未配对 401、已配对 200，页面含 `/api/remote.mux` 与 `session/list`。

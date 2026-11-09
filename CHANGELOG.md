@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.2.19
+
+- 修正 `/mobile-access/lite` 探针：一元调用改用 `POST /api/<endpoint>` + `x-dsh-mobile-csrf`，不再误用 WS `open`；`session/list` 结果读 `items`。
+- 探针新增只读 `session/events` 和 `session/follow` 帧查看；仍不发消息、不改会话。
+- 119 项测试通过。
+
 ## 1.2.18
 
 - 新增只读协议探针 `/mobile-access/lite`：手机可验证 DSH 的 `/api/remote.mux` 认证与 `session/list` 远程调用，为轻客户端 Phase B1 打地基。

@@ -311,7 +311,9 @@ test('read-only lite probe requires pairing and opens the Remote mux', { timeout
   const page = await request(env.port, '/mobile-access/lite', { headers: { cookie: paired.cookie } });
   assert.equal(page.status, 200);
   assert.match(page.text, /\/api\/remote\.mux/);
-  assert.match(page.text, /session\/list/);
+  assert.match(page.text, /\/api\/session\/list/);
+  assert.match(page.text, /x-dsh-mobile-csrf/);
+  assert.match(page.text, /\/api\/remote\.mux/);
 });
 
 test('service worker caches hashed assets and plugin bundles only', { timeout: 10000 }, async t => {
