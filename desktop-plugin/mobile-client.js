@@ -513,4 +513,47 @@
   window.addEventListener('dsh-foreverweb:access-state', event => { access = event.detail; update(); });
   window.addEventListener('online', update); window.addEventListener('offline', update);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', update, { once: true }); else update();
+  // Harness keeps no navigation history, so a phone Back press would leave the
+  // page even while a menu, dialog or drawer is open. Keep one guard entry for
+  // the open in-page layer and step out of it first; a page with no layer keeps
+  // the normal browser behaviour.
+  const browserBack = !native && !!(window.history && typeof window.history.pushState === 'function' && typeof window.history.back === 'function');
+  let historyGuard = false, historyIgnorePop = false, guardQueued = false;
+  const layerVisible = element => !!element && element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible';
+  const openLayer = () => {
+    if (!media.matches) return false;
+    if ([...document.querySelectorAll('[role="dialog"]')].some(layerVisible)) return true;
+    if ([...document.querySelectorAll('[role="menu"]')].some(layerVisible)) return true;
+    if (!frame) return false;
+    if (!frame.hasAttribute('data-sidebar-collapsed')) return true;
+    return !frame.hasAttribute('data-rightbar-collapsed') || frame.hasAttribute('data-rightbar-fullscreen');
+  };
+  const syncBackGuard = () => {
+    if (!browserBack) return;
+    if (openLayer()) {
+      if (!historyGuard) { window.history.pushState({ dshConnect: 1 }, ''); historyGuard = true; }
+    } else if (historyGuard) {
+      historyGuard = false; historyIgnorePop = true; window.history.back();
+    }
+  };
+  const queueBackGuard = () => {
+    if (!browserBack || guardQueued) return;
+    guardQueued = true;
+    requestAnimationFrame(() => { guardQueued = false; syncBackGuard(); });
+  };
+  if (browserBack) {
+    window.addEventListener('popstate', () => {
+      if (historyIgnorePop) { historyIgnorePop = false; return; }
+      if (!historyGuard) return;
+      historyGuard = false;
+      if (window.__DSH_CONNECT_UI__.back() === 'consumed' && openLayer()) {
+        window.history.pushState({ dshConnect: 1 }, ''); historyGuard = true;
+      }
+    });
+    document.addEventListener('click', queueBackGuard, true);
+    new MutationObserver(queueBackGuard).observe(document.body, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-sidebar-collapsed', 'data-rightbar-collapsed', 'data-rightbar-fullscreen', 'hidden'] });
+    media.addEventListener('change', queueBackGuard);
+    queueBackGuard();
+  }
 })();

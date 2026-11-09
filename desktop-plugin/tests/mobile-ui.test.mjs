@@ -1,10 +1,10 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../mobile-client.js', import.meta.url), 'utf8');
 
-function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, openMenu = false, viewport, drawer = false, hero = false, css = false } = {}) {
+function page({ authenticated = true, native = false, wide = false, files = false, transport = 'connecting', fullscreen = false, shell = false, conversation = false, settings = false, nestedDialog = false, openMenu = false, viewport, drawer = false, hero = false, css = false, history = false } = {}) {
   class Element extends EventTarget {
     constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attrs = {}; this.style = { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] || ''; } }; }
     setAttribute(key, value) { this.attrs[key] = String(value); }
@@ -21,7 +21,8 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     closest(selector) { return this.matches(selector) ? this : null; }
     focus() { this.focused = true; }
   }
-  const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [];
+  const window = new EventTarget(), document = new EventTarget(), calls = [], timers = new Map(), destinations = [], historyCalls = [];
+  if (history) window.history = { state: null, length: 1, pushState(state) { this.state = state; this.length += 1; historyCalls.push('push'); }, back() { historyCalls.push('back'); window.dispatchEvent(new Event('popstate')); } };
   const observers = [], frames = [];
   const folderButton = new Element('button');
   folderButton.setAttribute('aria-label', '用 文件资源管理器 打开');
@@ -101,7 +102,7 @@ function page({ authenticated = true, native = false, wide = false, files = fals
     toggleSidebar() { calls.push('close-left'); frame.setAttribute('data-sidebar-collapsed', 'true'); },
     closeRightbar() { calls.push('close-right'); frame.removeAttribute('data-rightbar-fullscreen'); },
   });
-  return { window, document, calls, navigator, destinations, frame, nativeMask, sidebar, center, settingsPanel, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,folderButton, turns, makeTurn,
+  return { window, document, calls, navigator, destinations, historyCalls, frame, nativeMask, sidebar, center, settingsPanel, escapes, viewportMeta, conversationHeader, titleRow, titleCluster, tabsRow, fileButton,fileInput,media,folderButton, turns, makeTurn,
     pick: () => click(fileButton, selector => selector === 'button[data-dsc-file-picker]'),
     openFolder: () => click(folderButton, isFolderSelector),
     banner: () => document.body.children.find(node => node.className === 'dsc-status'),
@@ -402,6 +403,39 @@ test('a hidden navigation dialog never consumes Back ahead of an open file pane'
   const native=page({native:true,fullscreen:true,settings:true});native.settingsPanel.visibility='hidden';
   let closed=0;native.window.__DSH_CONNECT_UI__.configure({closeRightbar:()=>closed++});
   assert.equal(native.window.__DSH_CONNECT_UI__.back(),'consumed');assert.equal(closed,1);assert.deepEqual(native.escapes,[]);
+});
+
+test('browser Back closes an open drawer instead of leaving the page', () => {
+  const app = page({ drawer: true, transport: 'connected', history: true });
+  app.frames.shift()();
+  assert.deepEqual(app.historyCalls, [], 'a closed page keeps the normal browser history');
+  app.frame.removeAttribute('data-sidebar-collapsed');
+  app.mutate([{ target: app.frame, addedNodes: [] }]);
+  app.frames.shift()();
+  assert.deepEqual(app.historyCalls, ['push'], 'opening a drawer keeps one guard entry');
+  app.window.history.back();
+  assert.ok(app.calls.includes('close-left'));
+  assert.equal(app.frame.hasAttribute('data-sidebar-collapsed'), true);
+  assert.deepEqual(app.historyCalls, ['push', 'back']);
+});
+
+test('browser Back closes the top dialog and re-guards remaining layers', () => {
+  const app = page({ settings: true, transport: 'connected', history: true });
+  app.frames.shift()();
+  assert.deepEqual(app.historyCalls, ['push']);
+  app.window.history.back();
+  assert.deepEqual(app.escapes, ['settings:keydown']);
+  assert.deepEqual(app.historyCalls, ['push', 'back', 'push'], 'the still-open dialog keeps its guard');
+});
+
+test('closing a layer from the page releases the browser Back guard', () => {
+  const app = page({ settings: true, transport: 'connected', history: true });
+  app.frames.shift()();
+  assert.deepEqual(app.historyCalls, ['push']);
+  app.settingsPanel.hidden = true;
+  app.mutate([{ target: app.document.body, addedNodes: [] }]);
+  app.frames.shift()();
+  assert.deepEqual(app.historyCalls, ['push', 'back'], 'the guard entry is popped when the layer closes itself');
 });
 
 test('native Web immersion and browsers retain system safe insets while the keyboard is closed', () => {
