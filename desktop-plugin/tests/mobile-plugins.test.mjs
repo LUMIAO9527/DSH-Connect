@@ -11,16 +11,16 @@ test('live graph drives the roster and new third-party plugins are discovered', 
     { id: 'new-plugin' },
     { id: '@someone/new-thing' }
   ]);
-  assert.deepEqual(roster.map(item => item.id), ['dsh-pet', 'new-plugin', '@someone/new-thing']);
-  assert.equal(roster[0].name, '宠宠');
-  assert.equal(roster[1].name, 'new-plugin');
-  assert.equal(roster[2].name, 'new-thing');
+  assert.deepEqual(roster.map(item => item.id), ['dsh-pet', '@someone/new-thing', 'new-plugin']);
+  assert.equal(roster[0].name, 'dsh-pet');
+  assert.equal(roster[1].name, '@someone/new-thing');
+  assert.equal(roster[2].name, 'new-plugin');
 });
 
 test('the pet alias resolves to the same mobile toggle', () => {
   const roster = mobilePluginRoster([{ id: '@linxin666/dsh-pet' }, { id: 'ds-bot' }]);
   assert.equal(roster[0].id, '@linxin666/dsh-pet');
-  assert.equal(roster[0].name, '宠宠');
+  assert.equal(roster[0].name, '@linxin666/dsh-pet');
   assert.equal(matchesPluginId('dsh-pet', '@linxin666/dsh-pet'), true);
 });
 

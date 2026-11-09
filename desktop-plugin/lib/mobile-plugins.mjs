@@ -5,21 +5,6 @@
 // The live roster comes from the Host's clientModules graph, so a newly
 // installed third-party plugin appears automatically after DSH restarts. The
 // static fallback is only used while that service is not available yet.
-const LABELS = Object.freeze({
-  'dsh-pet': '宠宠',
-  '@linxin666/dsh-pet': '宠宠',
-  'ds-bot': 'DS Bot',
-  dshmarket: '插件市场',
-  'dsh-context': 'DSH-Context',
-  'dsh-ops': 'DSH-Ops',
-  '@michengai/dsh-skills-manager': '技能',
-  'dsh-thu-automad': '清华 MadModel',
-  '@copylee/dsh-computer-use': '电脑控制',
-  'dsh-focus': 'DSH-Focus',
-  'dsh-suggestions': 'DSH-Suggestions',
-  'dsh-rea-agents': 'REA Agents'
-});
-
 const ORDER = Object.freeze([
   '@linxin666/dsh-pet', 'dsh-pet', 'ds-bot', 'dshmarket', 'dsh-context',
   'dsh-ops', '@michengai/dsh-skills-manager', 'dsh-thu-automad',
@@ -28,7 +13,7 @@ const ORDER = Object.freeze([
 
 export const FALLBACK_MOBILE_PLUGIN_ROSTER = Object.freeze(ORDER
   .filter(id => id !== '@linxin666/dsh-pet')
-  .map(id => Object.freeze({ id, name: LABELS[id] })));
+  .map(id => Object.freeze({ id, name: id })));
 
 export function matchesPluginId(left, right) {
   return left === right || left.endsWith('/' + right) || right.endsWith('/' + left);
@@ -36,10 +21,6 @@ export function matchesPluginId(left, right) {
 
 export function isCorePluginId(id) {
   return typeof id !== 'string' || id === 'dsh' || id === 'dsh-connect' || id.startsWith('@deepseek-ai/');
-}
-
-function labelFor(id) {
-  return LABELS[id] || LABELS[id.split('/').pop()] || id.split('/').pop();
 }
 
 function orderFor(id) {
@@ -56,7 +37,7 @@ export function mobilePluginRoster(entries) {
     if (leftOrder >= 0 && rightOrder >= 0) return leftOrder - rightOrder;
     if (leftOrder >= 0) return -1;
     if (rightOrder >= 0) return 1;
-    return labelFor(left).localeCompare(labelFor(right), 'zh-Hans-CN') || left.localeCompare(right);
+    return left.localeCompare(right);
   });
-  return Object.freeze(ids.map(id => Object.freeze({ id, name: labelFor(id) })));
+  return Object.freeze(ids.map(id => Object.freeze({ id, name: id })));
 }

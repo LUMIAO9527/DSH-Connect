@@ -101,15 +101,15 @@ window.__ModuleLoader__.load({
   .dfw-settings .dfw-device-edit{width:100%;flex-wrap:wrap}
   .dfw-settings .dfw-foot{flex-direction:column}
 }
-.dfw-settings .dfw-plugin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 0;padding:0;list-style:none}
-.dfw-settings .dfw-plugin-card{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 11px;border:1px solid var(--dfw-line);border-radius:12px;background:color-mix(in srgb,var(--dfw-field) 42%,var(--dfw-surface))}
-.dfw-settings .dfw-plugin-card.is-off{opacity:.58}
-.dfw-settings .dfw-plugin-name{min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dfw-settings .dfw-plugin-list{margin:12px 0 0;padding:0;list-style:none;border:1px solid var(--dfw-line);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--dfw-field) 36%,var(--dfw-surface))}
+.dfw-settings .dfw-plugin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-plugin-row:first-child{border-top:0}
+.dfw-settings .dfw-plugin-row.is-off .dfw-plugin-name{color:var(--dfw-muted)}
+.dfw-settings .dfw-plugin-name{min-width:0;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
 .dfw-settings .dfw-switch{width:34px;height:20px;border:0;border-radius:10px;background:color-mix(in srgb,var(--dfw-ink) 16%,transparent);position:relative;cursor:pointer;flex:none;padding:0;transition:background-color 160ms}
 .dfw-settings .dfw-switch::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dfw-surface);box-shadow:0 1px 2px #0003;transition:translate 160ms cubic-bezier(.2,.7,.25,1),background-color 160ms}
 .dfw-settings .dfw-switch.is-on{background:var(--dfw-accent,#4d6bfe)}
 .dfw-settings .dfw-switch.is-on::after{translate:14px 0;background:#fff}
-@container dsh-connect-settings (max-width:560px){.dfw-plugin-grid{grid-template-columns:1fr}}
 .dfw-settings .dfw-plugin-hint{font-size:12px;color:var(--dfw-muted);margin-top:8px}
 @media(prefers-reduced-motion:no-preference){
   .dfw-settings .dfw-button{transition:scale 140ms cubic-bezier(.2,.7,.25,1),background-color 140ms,color 140ms}
@@ -334,9 +334,9 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'dfw-count' }, mobilePlugins.disabled.length ? '已关闭 ' + mobilePlugins.disabled.length + ' / ' + mobilePlugins.plugins.length : '共 ' + mobilePlugins.plugins.length + ' 个'))),
             h('div', { className: 'dfw-card' },
               h('p', { className: 'dfw-note' }, '关闭后手机不下载该插件，电脑端不受影响；新增插件会在 DSH 重启后自动出现。'),
-              h('ul', { className: 'dfw-plugin-grid' }, mobilePlugins.plugins.map(plugin => {
+              h('ul', { className: 'dfw-plugin-list' }, mobilePlugins.plugins.map(plugin => {
                 const enabled = !mobilePlugins.disabled.includes(plugin.id);
-                return h('li', { className: 'dfw-plugin-card' + (enabled ? '' : ' is-off'), key: plugin.id, title: plugin.id },
+                return h('li', { className: 'dfw-plugin-row' + (enabled ? '' : ' is-off'), key: plugin.id, title: plugin.id },
                   h('span', { className: 'dfw-plugin-name' }, plugin.name),
                   h('button', { type: 'button', role: 'switch', 'aria-checked': enabled, 'aria-label': plugin.name + '在手机端加载',
                     className: 'dfw-switch' + (enabled ? ' is-on' : ''), disabled: pluginBusy !== '',
