@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import z from '@deepseek-ai/schemastery';
 import { stateDirectoryFor, configurationFor, connectionFields, validateOrigin } from './lib/configuration.mjs';
-import { MOBILE_PLUGIN_ROSTER } from './lib/mobile-plugins.mjs';
+import { mobilePluginRoster, matchesPluginId } from './lib/mobile-plugins.mjs';
 import { updateController } from './lib/updates.mjs';
 import { DSHConnectGateway, VERSION } from './lib/mobile-access/connection.mjs';
 import { localNetworkAddress, localNetworkIdentity } from './lib/mobile-access/lan.mjs';
@@ -94,6 +94,10 @@ export async function apply(ctx, config = {}) {
       ctx.logger(name).warn(configurationError);
     }
   }
+  const pluginRoster = () => {
+    try { return mobilePluginRoster(ctx.get?.('clientModules')?.graph?.()?.entries); }
+    catch { return mobilePluginRoster(undefined); }
+  };
   const authenticated = request => ctx.connection.requestRejection(request) === undefined;
   const admin = gateway?.localAdminRoute(adminPath, authenticated);
   ctx.effect(() => ctx.webServer.register({
@@ -111,19 +115,21 @@ export async function apply(ctx, config = {}) {
         catch { sendJson(response, 409, { error: 'update_not_ready', message: '更新尚未准备好，请重新检查。' }, false); } return;
       }
       if (request.method === 'GET' && request.url === adminPath + '/plugins') {
+        const roster = pluginRoster();
         const saved = gateway?.mobileDisabledPlugins?.() ?? config.mobileDisabledPlugins ?? [];
-        sendJson(response, 200, { plugins: MOBILE_PLUGIN_ROSTER,
-          disabled: saved.filter(id => MOBILE_PLUGIN_ROSTER.some(item => item.id === id)) }, false);
+        sendJson(response, 200, { plugins: roster,
+          disabled: roster.filter(item => saved.some(id => matchesPluginId(id, item.id))).map(item => item.id) }, false);
         return;
       }
       if (request.method === 'POST' && request.url === adminPath + '/plugins') {
         try {
           const body = await readJsonObject(request, 8192);
+          const roster = pluginRoster();
           const requested = Array.isArray(body.disabled) ? body.disabled : [];
-          if (requested.length > MOBILE_PLUGIN_ROSTER.length || requested.some(id => typeof id !== 'string' || !MOBILE_PLUGIN_ROSTER.some(item => item.id === id))) {
+          if (requested.length > roster.length || requested.some(id => typeof id !== 'string' || !roster.some(item => item.id === id || matchesPluginId(id, item.id)))) {
             throw new Error('Unknown plugin id');
           }
-          const disabled = [...new Set(requested)];
+          const disabled = [...new Set(requested.map(id => roster.find(item => item.id === id || matchesPluginId(id, item.id))?.id ?? id))];
           const editor = ctx.get('configEditor');
           const entry = editor?.entries().find(row => row.fiber?.ctx === ctx || row.options.id === ctx.fiber?.entry?.options?.id || row.options.name === name);
           if (!entry) throw new Error('Configuration editor unavailable');

@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({
     const ADMIN = '/api/foreverweb';
     const BRAND_SVG = "<!-- DSH Connect mark: the DSH whale passing through a portal ring. Monochrome so it can inherit the current text colour. -->\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 32 32\" fill=\"none\" role=\"img\" aria-label=\"DSH Connect\">\n<circle cx=\"16\" cy=\"16\" r=\"12.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-dasharray=\"70.595 9.830\" transform=\"rotate(-4 16 16)\"/>\n<g transform=\"translate(-127.293 -2.110) scale(0.92)\"><path d=\"M168.384 12.9517C168.138 12.8317 168.033 13.0607 167.889 13.1767C167.84 13.2142 167.799 13.2632 167.757 13.3082C167.399 13.6912 166.98 13.9427 166.433 13.9127C165.632 13.8677 164.949 14.1192 164.345 14.7312C164.217 13.9767 163.79 13.5262 163.141 13.2372C162.802 13.0872 162.458 12.9367 162.22 12.6102C162.054 12.3776 162.009 12.1186 161.926 11.8631C161.873 11.7091 161.82 11.5516 161.643 11.5251C161.45 11.4951 161.375 11.6566 161.299 11.7916C160.997 12.3436 160.88 12.9517 160.892 13.5677C160.918 14.9532 161.503 16.0568 162.666 16.8418C162.798 16.9318 162.832 17.0218 162.79 17.1533C162.711 17.4238 162.617 17.6863 162.534 17.9568C162.481 18.1293 162.402 18.1673 162.217 18.0918C161.579 17.8253 161.028 17.4308 160.541 16.9543C159.714 16.1548 158.967 15.2722 158.035 14.5812C157.816 14.4197 157.597 14.2697 157.37 14.1267C156.419 13.2032 157.495 12.4446 157.744 12.3546C158.004 12.2606 157.834 11.9376 156.993 11.9416C156.151 11.9451 155.381 12.2271 154.4 12.6027C154.256 12.6592 154.105 12.7002 153.951 12.7342C153.06 12.5652 152.135 12.5277 151.169 12.6367C149.35 12.8392 147.897 13.6992 146.829 15.1672C145.546 16.9318 145.244 18.9368 145.613 21.0279C146.002 23.232 147.127 25.0565 148.855 26.4831C150.648 27.9621 152.713 28.6871 155.068 28.5481C156.499 28.4656 158.091 28.2741 159.888 26.7536C160.341 26.9791 160.816 27.0691 161.605 27.1366C162.212 27.1931 162.797 27.1066 163.25 27.0126C163.96 26.8626 163.911 26.2056 163.654 26.0851C161.575 25.1165 162.031 25.5105 161.616 25.1915C162.673 23.9415 164.287 21.7194 164.785 18.6938C164.834 18.3598 164.896 17.8893 164.889 17.6188C164.885 17.4538 164.923 17.3898 165.111 17.3708C165.632 17.3108 166.138 17.1683 166.603 16.9128C167.95 16.1768 168.494 14.9677 168.622 13.5187C168.641 13.2972 168.618 13.0682 168.384 12.9517ZM156.642 25.9951C154.626 24.4105 153.649 23.889 153.245 23.9115C152.868 23.934 152.936 24.366 153.019 24.6475C153.106 24.9255 153.219 25.117 153.377 25.361C153.487 25.5225 153.562 25.7625 153.268 25.9431C152.619 26.3446 151.49 25.808 151.437 25.7815C150.124 25.008 149.025 23.987 148.251 22.5905C147.504 21.2464 147.07 19.8044 146.998 18.2653C146.979 17.8938 147.089 17.7623 147.459 17.6948C147.946 17.6048 148.448 17.5858 148.934 17.6573C150.992 17.9578 152.743 18.8773 154.211 20.3344C155.049 21.1639 155.683 22.1554 156.336 23.124C157.03 24.1525 157.777 25.1325 158.729 25.9361C159.065 26.2176 159.333 26.4316 159.589 26.5896C158.816 26.6761 157.525 26.6946 156.642 25.9961V25.9951ZM157.608 19.7814C157.608 19.6164 157.74 19.4849 157.906 19.4849C157.943 19.4849 157.977 19.4924 158.008 19.5034C158.049 19.5184 158.087 19.5409 158.117 19.5749C158.17 19.6274 158.2 19.7024 158.2 19.7814C158.2 19.9464 158.068 20.0779 157.902 20.0779C157.736 20.0779 157.608 19.9464 157.608 19.7814ZM160.608 21.3204C160.416 21.3994 160.223 21.4669 160.038 21.4744C159.751 21.4894 159.438 21.3729 159.268 21.2304C159.004 21.0089 158.815 20.8849 158.736 20.4984C158.702 20.3334 158.721 20.0779 158.751 19.9314C158.819 19.6159 158.744 19.4134 158.521 19.2294C158.34 19.0793 158.11 19.0378 157.857 19.0378C157.762 19.0378 157.676 18.9963 157.611 18.9628C157.506 18.9103 157.419 18.7788 157.502 18.6173C157.528 18.5648 157.657 18.4373 157.687 18.4148C158.03 18.2193 158.426 18.2833 158.793 18.4298C159.132 18.5688 159.389 18.8238 159.759 19.1844C160.136 19.6199 160.204 19.7399 160.419 20.0669C160.589 20.3224 160.744 20.5849 160.85 20.8854C160.914 21.0729 160.831 21.2264 160.608 21.3204Z\" fill=\"currentColor\"/></g>\n</svg>\n";
     const STYLE = `
-.dfw-settings{--dfw-ink:var(--dsw-alias-label-primary,CanvasText);--dfw-muted:var(--dsw-alias-label-secondary,var(--dfw-ink));--dfw-line:color-mix(in srgb,var(--dfw-ink) 11%,transparent);--dfw-surface:var(--dsw-alias-bg-layer-1,Canvas);--dfw-field:var(--dsw-alias-bg-module-platform,var(--dfw-surface));--dfw-soft:color-mix(in srgb,var(--dfw-field) 52%,var(--dfw-surface));--dfw-inverse:var(--dsw-alias-bg-base,Canvas);--dfw-danger:var(--dsw-alias-label-error,#b72c39);--dfw-ok:var(--dsw-alias-state-success-label,var(--dsw-alias-state-success-primary,#16814a));container:dsh-connect-settings / inline-size;width:100%;max-width:680px;padding:8px 0 24px;color:var(--dfw-ink);font-size:14px;line-height:1.6;box-sizing:border-box}
+.dfw-settings{--dfw-accent:var(--dsw-alias-brand-primary,#4d6bfe);--dfw-ink:var(--dsw-alias-label-primary,CanvasText);--dfw-muted:var(--dsw-alias-label-secondary,var(--dfw-ink));--dfw-line:color-mix(in srgb,var(--dfw-ink) 11%,transparent);--dfw-surface:var(--dsw-alias-bg-layer-1,Canvas);--dfw-field:var(--dsw-alias-bg-module-platform,var(--dfw-surface));--dfw-soft:color-mix(in srgb,var(--dfw-field) 52%,var(--dfw-surface));--dfw-inverse:var(--dsw-alias-bg-base,Canvas);--dfw-danger:var(--dsw-alias-label-error,#b72c39);--dfw-ok:var(--dsw-alias-state-success-label,var(--dsw-alias-state-success-primary,#16814a));container:dsh-connect-settings / inline-size;width:100%;max-width:680px;padding:8px 0 24px;color:var(--dfw-ink);font-size:14px;line-height:1.6;box-sizing:border-box}
 .dfw-settings *{box-sizing:border-box}
 .dfw-settings h3,.dfw-settings h4,.dfw-settings p{margin:0}
 .dfw-settings h3{font-size:20px;line-height:1.4;font-weight:600}
@@ -101,14 +101,16 @@ window.__ModuleLoader__.load({
   .dfw-settings .dfw-device-edit{width:100%;flex-wrap:wrap}
   .dfw-settings .dfw-foot{flex-direction:column}
 }
-.dfw-settings .dfw-plugin-list{display:grid;gap:2px;margin:10px 0 0;padding:0;list-style:none}
-.dfw-settings .dfw-plugin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 2px;border-top:1px solid var(--dfw-line)}
-.dfw-settings .dfw-plugin-row:first-child{border-top:0}
-.dfw-settings .dfw-plugin-name{font-size:13px}
-.dfw-settings .dfw-switch{width:38px;height:22px;border-radius:11px;border:1px solid var(--dfw-line);background:var(--dfw-soft);position:relative;cursor:pointer;flex:none;padding:0}
-.dfw-settings .dfw-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dfw-muted);transition:translate 150ms,background-color 150ms}
-.dfw-settings .dfw-switch.is-on{background:var(--dfw-ok);border-color:transparent}
-.dfw-settings .dfw-switch.is-on::after{translate:16px 0;background:#fff}
+.dfw-settings .dfw-plugin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 0;padding:0;list-style:none}
+.dfw-settings .dfw-plugin-card{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 11px;border:1px solid var(--dfw-line);border-radius:12px;background:color-mix(in srgb,var(--dfw-field) 42%,var(--dfw-surface))}
+.dfw-settings .dfw-plugin-card.is-off{opacity:.58}
+.dfw-settings .dfw-plugin-name{min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dfw-settings .dfw-switch{width:34px;height:20px;border:0;border-radius:10px;background:color-mix(in srgb,var(--dfw-ink) 16%,transparent);position:relative;cursor:pointer;flex:none;padding:0;transition:background-color 160ms}
+.dfw-settings .dfw-switch::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dfw-surface);box-shadow:0 1px 2px #0003;transition:translate 160ms cubic-bezier(.2,.7,.25,1),background-color 160ms}
+.dfw-settings .dfw-switch.is-on{background:var(--dfw-accent,#4d6bfe)}
+.dfw-settings .dfw-switch.is-on::after{translate:14px 0;background:#fff}
+@container dsh-connect-settings (max-width:560px){.dfw-plugin-grid{grid-template-columns:1fr}}
+.dfw-settings .dfw-plugin-hint{font-size:12px;color:var(--dfw-muted);margin-top:8px}
 @media(prefers-reduced-motion:no-preference){
   .dfw-settings .dfw-button{transition:scale 140ms cubic-bezier(.2,.7,.25,1),background-color 140ms,color 140ms}
   .dfw-settings .dfw-button:active:not(:disabled){scale:.97;transition-duration:85ms}
@@ -327,18 +329,20 @@ window.__ModuleLoader__.load({
             { primary: true, width: 112, disabled: busy !== '' || !address.trim() || !status.editable })));
           const pluginSection = mobilePlugins && h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-mobile-plugins-title' },
             h('div', { className: 'dfw-section-head' },
-              h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-mobile-plugins-title' }, '手机端插件')),
-              h('span', { className: 'dfw-state' }, '只影响手机')),
+              h('div', { className: 'dfw-section-title' },
+                h('h4', { id: 'dfw-mobile-plugins-title' }, '手机端插件'),
+                h('span', { className: 'dfw-count' }, mobilePlugins.disabled.length ? '已关闭 ' + mobilePlugins.disabled.length + ' / ' + mobilePlugins.plugins.length : '共 ' + mobilePlugins.plugins.length + ' 个'))),
             h('div', { className: 'dfw-card' },
-              h('p', { className: 'dfw-note' }, '关闭后，手机加载 DSH 时不下载该插件；电脑端不受影响。手机刷新后生效。'),
-              h('ul', { className: 'dfw-plugin-list' }, mobilePlugins.plugins.map(plugin => {
+              h('p', { className: 'dfw-note' }, '关闭后手机不下载该插件，电脑端不受影响；新增插件会在 DSH 重启后自动出现。'),
+              h('ul', { className: 'dfw-plugin-grid' }, mobilePlugins.plugins.map(plugin => {
                 const enabled = !mobilePlugins.disabled.includes(plugin.id);
-                return h('li', { className: 'dfw-plugin-row', key: plugin.id },
+                return h('li', { className: 'dfw-plugin-card' + (enabled ? '' : ' is-off'), key: plugin.id, title: plugin.id },
                   h('span', { className: 'dfw-plugin-name' }, plugin.name),
                   h('button', { type: 'button', role: 'switch', 'aria-checked': enabled, 'aria-label': plugin.name + '在手机端加载',
                     className: 'dfw-switch' + (enabled ? ' is-on' : ''), disabled: pluginBusy !== '',
                     onClick: () => void togglePlugin(plugin) }, h('span', { className: 'dfw-sr' }, enabled ? '已开启' : '已关闭')));
               })),
+              h('p', { className: 'dfw-plugin-hint' }, '手机刷新后生效'),
               flashText('plugins') && h('div', { className: 'dfw-note' }, flashText('plugins', ''))));
           return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
             h('style', null, STYLE),
