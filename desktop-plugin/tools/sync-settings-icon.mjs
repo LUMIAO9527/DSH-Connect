@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 const root = new URL('../', import.meta.url);
-// The sidebar icon is the monochrome Cn glyph so it can inherit the host's text colour.
+// The sidebar icon is the monochrome DSH Connect glyph so it can inherit the host's text colour.
 const svg = await readFile(new URL('brand.svg', root), 'utf8');
 const descriptor = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 const target = new URL(existsSync(new URL('src/client.js', root)) ? 'src/client.js' : 'client.js', root);

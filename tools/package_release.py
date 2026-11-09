@@ -40,7 +40,7 @@ for folder in ['desktop-plugin','branding','tools','docs','.github']:
         files.append((source, relative.as_posix()))
 products = [tgz]
 icon = artifacts / f'DSH-Connect-{version}-icon.svg'
-icon.write_bytes((root / 'branding' / 'cn-mark.svg').read_bytes())
+icon.write_bytes((root / 'branding' / 'r1c-mark.svg').read_bytes())
 products.append(icon)
 preview = artifacts / f'DSH-Connect-{version}-preview.html'
 if preview.is_file():
