@@ -26,7 +26,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
 import { APP_ICONS } from '../icons.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.5';
+export const VERSION = '1.2.6';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
