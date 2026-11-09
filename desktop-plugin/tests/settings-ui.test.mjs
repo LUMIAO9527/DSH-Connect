@@ -37,6 +37,7 @@ async function mount(overrides = {}, options = {}) {
     if (entry.url.endsWith('/status')) return response(activeStatus);
     if (entry.url.endsWith('/updates/status')) return response({ current: '1.0.14', message: '更新保留连接地址和已配对设备。' });
     if (entry.url.endsWith('/devices')) return response({ devices: deviceList });
+    if (entry.url.endsWith('/plugins')) return response({ plugins: [{ id: 'dsh-pet', name: '宠宠' }], disabled: [] });
     if (entry.url.endsWith('/devices/rename')) {
       const target = deviceList.find(device => device.id === entry.body.deviceId);
       return response({ device: { ...target, label: entry.body.label.trim() } });
@@ -57,6 +58,21 @@ async function mount(overrides = {}, options = {}) {
   await flush();
   return { render: () => all(render()), requests, intervals };
 }
+
+test('mobile plugin switch sends the disabled list to the gateway', async () => {
+  const view = await mount();
+  let nodes = view.render();
+  const toggle = nodes.find(node => node.type === 'button' && node.props.role === 'switch' && node.props['aria-label'] === '宠宠在手机端加载');
+  assert.ok(toggle);
+  assert.equal(toggle.props['aria-checked'], true);
+  toggle.props.onClick();
+  await flush();
+  const request = view.requests.find(entry => entry.method === 'POST' && entry.url.endsWith('/plugins'));
+  assert.deepEqual(request.body, { disabled: ['dsh-pet'] });
+  nodes = view.render();
+  const updated = nodes.find(node => node.type === 'button' && node.props.role === 'switch');
+  assert.equal(updated.props['aria-checked'], false);
+});
 
 test('connection and device sections replace expanding notices with button feedback', async () => {
   const view = await mount();

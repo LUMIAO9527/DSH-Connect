@@ -171,7 +171,7 @@ async function fixture(t, options = {}) {
     if (url.pathname === '/late-denied') {
       startLateDenied(); await lateDeniedReleased; res.writeHead(401); res.end('old Host credential'); return;
     }
-    if (url.pathname === '/') { res.setHeader('content-type', 'text/html'); res.end('<html><head><base href="./"><script>window.fixture=true</script></head><body>DSH fixture</body></html>'); return; }
+    if (url.pathname === '/') { res.setHeader('content-type', 'text/html'); res.end('<html><head><base href="./"><link rel="preload" as="script" href="plugins/??dsh-pet/client.js,ds-bot/client.js&rev=merged"><script>window.fixture=true</script></head><body>DSH fixture<script>globalThis["__DSH_BOOT__"] = {"rev":"boot-rev","release":{"version":"1.2.11"},"entries":[{"id":"dsh-pet","url":"plugins/??dsh-pet/client.js&rev=pet","rev":"pet"},{"id":"ds-bot","url":"plugins/??ds-bot/client.js&rev=bot","rev":"bot"}],"batches":[{"phase":"application","url":"plugins/??dsh-pet/client.js,ds-bot/client.js&rev=merged","rev":"merged","entries":["dsh-pet","ds-bot"]}]}</script></body></html>'); return; }
     if (url.pathname.startsWith('/assets/')) { res.writeHead(200, { 'content-type': 'text/javascript' }); res.end('fixture asset'); return; }
     if (url.pathname === '/api/status' && req.method === 'GET') {
       const body = JSON.stringify({ ok: true, payload: 'x'.repeat(2048) });
@@ -284,6 +284,23 @@ test('proxied relative redirects keep the request path under the public origin',
   assert.equal(location.origin + location.pathname, origin + '/api/file');
   assert.equal(location.searchParams.get('path'), 'D:\\Programs\\AppLab\\DSH-Connect\\_wip\\preview\\icon.png');
   assert.equal(location.searchParams.get('v'), '7');
+});
+
+test('mobile boot filtering drops a disabled plugin and its merged bundle', { timeout: 10000 }, async t => {
+  const env = await fixture(t, { gateway: { mobileDisabledPlugins: ['dsh-pet'] } });
+  const paired = await env.pair();
+  const response = await request(env.port, '/', { headers: { cookie: paired.cookie } });
+  assert.equal(response.status, 200);
+  const html = response.text;
+  assert.doesNotMatch(html, /dsh-pet/);
+  assert.match(html, /ds-bot/);
+  assert.doesNotMatch(html, /dsh-pet\/client\.js,ds-bot/);
+  assert.match(html, /<link rel="preload" as="script" href="plugins\/\?\?ds-bot\/client\.js&amp;rev=bot">/);
+  const boot = /<script>globalThis\["__DSH_BOOT__"\] = ([\s\S]*?)<\/script>/.exec(html);
+  assert.ok(boot);
+  const graph = JSON.parse(boot[1]);
+  assert.deepEqual(graph.entries.map(entry => entry.id), ['ds-bot']);
+  assert.deepEqual(graph.batches.map(batch => batch.entries), [['ds-bot']]);
 });
 
 test('hashed Harness assets receive a long-lived cache policy', { timeout: 10000 }, async t => {

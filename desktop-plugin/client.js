@@ -101,6 +101,14 @@ window.__ModuleLoader__.load({
   .dfw-settings .dfw-device-edit{width:100%;flex-wrap:wrap}
   .dfw-settings .dfw-foot{flex-direction:column}
 }
+.dfw-settings .dfw-plugin-list{display:grid;gap:2px;margin:10px 0 0;padding:0;list-style:none}
+.dfw-settings .dfw-plugin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 2px;border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-plugin-row:first-child{border-top:0}
+.dfw-settings .dfw-plugin-name{font-size:13px}
+.dfw-settings .dfw-switch{width:38px;height:22px;border-radius:11px;border:1px solid var(--dfw-line);background:var(--dfw-soft);position:relative;cursor:pointer;flex:none;padding:0}
+.dfw-settings .dfw-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dfw-muted);transition:translate 150ms,background-color 150ms}
+.dfw-settings .dfw-switch.is-on{background:var(--dfw-ok);border-color:transparent}
+.dfw-settings .dfw-switch.is-on::after{translate:16px 0;background:#fff}
 @media(prefers-reduced-motion:no-preference){
   .dfw-settings .dfw-button{transition:scale 140ms cubic-bezier(.2,.7,.25,1),background-color 140ms,color 140ms}
   .dfw-settings .dfw-button:active:not(:disabled){scale:.97;transition-duration:85ms}
@@ -142,6 +150,7 @@ window.__ModuleLoader__.load({
           const [editing, setEditing] = useState(null), [revoking, setRevoking] = useState('');
           const [pairingView, setPairingView] = useState('');
           const [linkMode, setLinkMode] = useState('permanent');
+          const [mobilePlugins, setMobilePlugins] = useState(null), [pluginBusy, setPluginBusy] = useState('');
           const active = useRef(false), pending = useRef(false), abort = useRef(null), timers = useRef(new Map());
           const devicesRef = useRef([]);
           const setTemporary = (key, text, { error = false, duration = 2200, announce = true } = {}) => {
@@ -172,9 +181,14 @@ window.__ModuleLoader__.load({
           };
           useEffect(() => {
             active.current = true; const controller = new AbortController(); abort.current = controller;
-            if (local()) void refresh(controller.signal).catch(error => {
-              if (active.current && !controller.signal.aborted) setTemporary('status', error.message, { error: true, duration: 8000 });
-            });
+            if (local()) {
+              void refresh(controller.signal).catch(error => {
+                if (active.current && !controller.signal.aborted) setTemporary('status', error.message, { error: true, duration: 8000 });
+              });
+              void request('/plugins', undefined, controller.signal).then(value => {
+                if (active.current && Array.isArray(value.plugins) && Array.isArray(value.disabled)) setMobilePlugins(value);
+              }).catch(() => {});
+            }
             return () => { active.current = false; controller.abort(); for (const timer of timers.current.values()) clearTimeout(timer); timers.current.clear(); };
           }, []);
           useEffect(() => { if (!pairing) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [pairing]);
@@ -287,6 +301,20 @@ window.__ModuleLoader__.load({
             : (pairingView === 'link' && pairing ? pairing.pairUrl : '');
           const sameNetwork = status?.localNetwork === true;
           const differentNetwork = publicOrigin && status?.remoteAvailable !== false;
+          const togglePlugin = async plugin => {
+            if (!mobilePlugins || pluginBusy) return;
+            const disabled = mobilePlugins.disabled.includes(plugin.id)
+              ? mobilePlugins.disabled.filter(id => id !== plugin.id)
+              : [...mobilePlugins.disabled, plugin.id];
+            const previous = mobilePlugins;
+            setMobilePlugins({ ...mobilePlugins, disabled }); setPluginBusy(plugin.id);
+            try {
+              await request('/plugins', { disabled });
+              if (active.current) setTemporary('plugins', '已保存，手机刷新后生效', { duration: 2600 });
+            } catch (error) {
+              if (active.current) { setMobilePlugins(previous); setTemporary('plugins', error.message, { error: true, duration: 5000 }); }
+            } finally { if (active.current) setPluginBusy(''); }
+          };
           const addressForm = () => h('div', { className: 'dfw-setup-body' },
             h('label', { htmlFor: 'dsh-connect-origin' }, '电脑访问地址'),
             h('input', { id: 'dsh-connect-origin', type: 'url', placeholder: 'https://…', value: address,
@@ -296,6 +324,21 @@ window.__ModuleLoader__.load({
               await refresh(signal);
             }, () => setTemporary('configuration', '保存失败，重试', { error: true, duration: 4000 })),
             { primary: true, width: 112, disabled: busy !== '' || !address.trim() || !status.editable })));
+          const pluginSection = mobilePlugins && h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-mobile-plugins-title' },
+            h('div', { className: 'dfw-section-head' },
+              h('div', { className: 'dfw-section-title' }, h('h4', { id: 'dfw-mobile-plugins-title' }, '手机端插件')),
+              h('span', { className: 'dfw-state' }, '只影响手机')),
+            h('div', { className: 'dfw-card' },
+              h('p', { className: 'dfw-note' }, '关闭后，手机加载 DSH 时不下载该插件；电脑端不受影响。手机刷新后生效。'),
+              h('ul', { className: 'dfw-plugin-list' }, mobilePlugins.plugins.map(plugin => {
+                const enabled = !mobilePlugins.disabled.includes(plugin.id);
+                return h('li', { className: 'dfw-plugin-row', key: plugin.id },
+                  h('span', { className: 'dfw-plugin-name' }, plugin.name),
+                  h('button', { type: 'button', role: 'switch', 'aria-checked': enabled, 'aria-label': plugin.name + '在手机端加载',
+                    className: 'dfw-switch' + (enabled ? ' is-on' : ''), disabled: pluginBusy !== '',
+                    onClick: () => void togglePlugin(plugin) }, h('span', { className: 'dfw-sr' }, enabled ? '已开启' : '已关闭')));
+              })),
+              flashText('plugins') && h('div', { className: 'dfw-note' }, flashText('plugins', ''))));
           return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
             h('style', null, STYLE),
             h('header', { className: 'dfw-head' },
@@ -368,6 +411,7 @@ window.__ModuleLoader__.load({
                     h('div', { className: 'dfw-device-actions' },
                       action('rename:' + device.id, '重命名', () => setEditing({ id: device.id, name: device.label }), { disabled: busy !== '', width: 84, invisible: editing?.id === device.id }),
                       action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '', width: 88 })))))))),
+            pluginSection,
             h('div', { className: 'dfw-foot' },
                 h('div', { className: 'dfw-foot-info' },
                   h('div', { className: 'dfw-foot-version' }, 'DSH Connect ' + (status?.version || '')),

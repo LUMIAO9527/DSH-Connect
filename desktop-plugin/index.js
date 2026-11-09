@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import z from '@deepseek-ai/schemastery';
 import { stateDirectoryFor, configurationFor, connectionFields, validateOrigin } from './lib/configuration.mjs';
+import { MOBILE_PLUGIN_ROSTER } from './lib/mobile-plugins.mjs';
 import { updateController } from './lib/updates.mjs';
 import { DSHConnectGateway, VERSION } from './lib/mobile-access/connection.mjs';
 import { localNetworkAddress, localNetworkIdentity } from './lib/mobile-access/lan.mjs';
@@ -106,6 +107,26 @@ export async function apply(ctx, config = {}) {
       if (request.method === 'POST' && request.url === adminPath + '/updates/apply') {
         try { const body = await readJsonObject(request, 4096); sendJson(response, 202, await updates.start(body.version), false); }
         catch { sendJson(response, 409, { error: 'update_not_ready', message: '更新尚未准备好，请重新检查。' }, false); } return;
+      }
+      if (request.method === 'GET' && request.url === adminPath + '/plugins') {
+        sendJson(response, 200, { plugins: MOBILE_PLUGIN_ROSTER,
+          disabled: (config.mobileDisabledPlugins || []).filter(id => MOBILE_PLUGIN_ROSTER.some(item => item.id === id)) }, false);
+        return;
+      }
+      if (request.method === 'POST' && request.url === adminPath + '/plugins') {
+        try {
+          const body = await readJsonObject(request, 8192);
+          const requested = Array.isArray(body.disabled) ? body.disabled : [];
+          if (requested.length > MOBILE_PLUGIN_ROSTER.length || requested.some(id => typeof id !== 'string' || !MOBILE_PLUGIN_ROSTER.some(item => item.id === id))) {
+            throw new Error('Unknown plugin id');
+          }
+          const disabled = [...new Set(requested)];
+          const editor = ctx.get('configEditor');
+          const entry = editor?.entries().find(row => row.fiber?.ctx === ctx || row.options.id === ctx.fiber?.entry?.options?.id || row.options.name === name);
+          if (!entry) throw new Error('Configuration editor unavailable');
+          await editor.edit(entry, raw => ({ ...connectionFields(config), ...raw, mobileDisabledPlugins: disabled }));
+          sendJson(response, 200, { saved: true, disabled }, false);
+        } catch { sendJson(response, 400, { error: 'plugins_refused', message: '手机端插件设置未能保存，请重试。' }, false); } return;
       }
       if (request.method === 'POST' && request.url === adminPath + '/configuration') {
         try {

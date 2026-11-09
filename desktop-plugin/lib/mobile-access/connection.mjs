@@ -26,7 +26,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
 import { APP_ICONS } from '../icons.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.11';
+export const VERSION = '1.2.12';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -129,6 +129,8 @@ export function gatewayConfig(input) {
   if (sessionTtlMs > deviceTtlMs) throw new Error('Session lifetime exceeds device lifetime');
   return Object.freeze({ ...input, stateFile, instanceId, upstreamOrigin, publicOrigin: origin?.origin ?? '', listenHost,
     listenPort: limit(input.listenPort, 3446, 0, 65535), secure: origin?.protocol !== 'http:',
+    mobileDisabledPlugins: Object.freeze(Array.isArray(input.mobileDisabledPlugins)
+      ? [...new Set(input.mobileDisabledPlugins.filter(id => typeof id === 'string' && id.length <= 200))].slice(0, 32) : []),
     pairingTtlMs: limit(input.pairingTtlMs, 600000, 10000, 600000), deviceTtlMs, sessionTtlMs,
     maxDevices: limit(input.maxDevices, 20, 1, 256), maxSessions: limit(input.maxSessions, 40, 1, 1024),
     maxConnections: limit(input.maxConnections, 128, 1, 1024), maxActiveRequests: limit(input.maxActiveRequests, 128, 1, 1024),
@@ -186,6 +188,53 @@ function encodingQuality(value, encoding) {
     if (coding === encoding) exact = weight; else wildcard = weight;
   }
   return exact ?? wildcard ?? 0;
+}
+
+/**
+ * Drop selected optional client plugins from the phone boot graph. The Host
+ * still composes one graph for every client; the mobile gateway only trims the
+ * graph it serves to phones. Removing an entry that another enabled entry
+ * injects would break module resolution, so dependents are removed too.
+ */
+function filterMobileBootHtml(html, disabled) {
+  if (!Array.isArray(disabled) || disabled.length === 0) return html;
+  const boot = /<script>globalThis\["__DSH_BOOT__"\] = ([\s\S]*?)<\/script>/.exec(html);
+  if (!boot) return html;
+  let graph;
+  try { graph = JSON.parse(boot[1]); } catch { return html; }
+  if (!Array.isArray(graph.entries) || !Array.isArray(graph.batches)) return html;
+  const stripClient = id => id.endsWith('/client') ? id.slice(0, -7) : id;
+  const disabledSet = new Set(disabled);
+  // Follow inject edges until no enabled entry depends on a removed plugin.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const entry of graph.entries) {
+      if (disabledSet.has(entry.id) || !Array.isArray(entry.inject)) continue;
+      if (entry.inject.some(dependency => disabledSet.has(stripClient(dependency)))) {
+        disabledSet.add(entry.id); changed = true;
+      }
+    }
+  }
+  const entries = graph.entries.filter(entry => !disabledSet.has(entry.id));
+  const bootstrap = graph.batches.filter(batch => batch.phase === 'bootstrap');
+  const bootstrapIds = new Set(bootstrap.flatMap(batch => batch.entries || []));
+  const application = entries.filter(entry => !bootstrapIds.has(entry.id));
+  // A batch URL is the only thing the client fetches for its entries. Replace
+  // the merged application batches with one combo per remaining plugin so no
+  // removed plugin bytes are requested on the phone.
+  graph.entries = entries;
+  graph.batches = [...bootstrap, ...application.map(entry => ({
+    phase: 'application', url: entry.url, rev: entry.rev, entries: [entry.id] }))];
+  const markup = '<script>globalThis["__DSH_BOOT__"] = '
+    + JSON.stringify(graph).replaceAll('<', '\\u003c') + '</script>';
+  html = html.replace(boot[0], markup);
+  html = html.replace(/<link rel="preload" as="script" href="[^"]*plugins\/[^"]*">/g, '');
+  if (application.length > 0) {
+    const links = application.map(entry => '<link rel="preload" as="script" href="'
+      + entry.url.replaceAll('&', '&amp;').replaceAll('"', '&quot;') + '">').join('');
+    html = html.includes('</head>') ? html.replace('</head>', links + '</head>') : links + html;
+  }
+  return html;
 }
 
 function responseCompression(req, target, upstream, headers) {
@@ -621,6 +670,7 @@ export class DSHConnectGateway {
         if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, value => APP_HEAD_LINKS + value);
         else if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, value => value + APP_HEAD_LINKS);
         else html = APP_HEAD_LINKS + html;
+        html = filterMobileBootHtml(html, this.config.mobileDisabledPlugins);
         const state = JSON.stringify(this.connectionState(authorization)).replace(/</g, '\\u003c');
         const marker = META + '<script type="application/json" id="dsh-foreverweb-access-state">' + state + '</script>';
         html = /<head\b[^>]*>/i.test(html) ? html.replace(/<head\b[^>]*>/i, value => value + marker) : marker + html;
