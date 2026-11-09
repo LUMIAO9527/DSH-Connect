@@ -15,6 +15,7 @@ export const name = 'dsh-connect';
 export const inject = ['webServer', 'connection'];
 export const Config = z.object({
   publicOrigin: z.string().default('').description('固定 HTTPS 访问地址，例如 https://dsh.example.com；由 HTTPS 反向代理转发到本机网关。'),
+  mobileDisabledPlugins: z.array(z.string()).default([]).description('手机端不加载的可选插件包名；只影响移动入口，电脑端插件不变。'),
   localNetwork: z.boolean().default(true).description('允许同一私有网络上的手机浏览器扫码直连。'),
   relayConfigFile: z.string().default('').description('跨网中继凭据文件的绝对路径，由服务运营方提供。'),
   listenPort: z.number().min(1024).max(65535).step(1).default(3446).description('DSH Connect 网关端口。'),
@@ -51,6 +52,7 @@ export async function apply(ctx, config = {}) {
       gateway = new DSHConnectGateway({
         listenHost: '127.0.0.1', listenPort: config.listenPort ?? 3446,
         upstreamOrigin: ctx.webServer.getOrigin(), publicOrigin, lan,
+        mobileDisabledPlugins: config.mobileDisabledPlugins || [],
         stateFile: join(stateDirectory, 'devices.json'),
         deviceTtlMs: (config.deviceLifetimeDays ?? 90) * 86400000,
         sessionTtlMs: (config.sessionLifetimeHours ?? 8) * 3600000,

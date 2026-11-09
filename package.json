@@ -1,6 +1,6 @@
 {
   "name": "dsh-connect",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "displayName": "DSH Connect",
   "description": "通过手机浏览器连接电脑上的完整 DeepSeek Harness。",
   "license": "Apache-2.0",
@@ -19,6 +19,7 @@
     "desktop-plugin/locale/*.json",
     "desktop-plugin/README.md",
     "desktop-plugin/LICENSE",
+    "desktop-plugin/lib/mobile-plugins.mjs",
     "desktop-plugin/lib/configuration.mjs",
     "desktop-plugin/icon.svg",
     "desktop-plugin/lib/updates.mjs",
