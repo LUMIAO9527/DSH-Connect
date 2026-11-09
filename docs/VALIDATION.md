@@ -1,5 +1,10 @@
 # 验证记录
 
+## 1.2.18（2026-11-10）
+
+- 119 项测试通过；`/mobile-access/lite` 未配对 401、已配对 200，页面含 `/api/remote.mux` 与 `session/list`。
+- 真机未复验：手机打开探针，确认能返回 session 列表 JSON；若 gateway/WS 认证不通过，页面会显示 socket error。
+
 ## 1.2.17（2026-11-10）
 
 - 118 项测试通过；SW 路由、scope 头、缓存范围、页面注册断言。

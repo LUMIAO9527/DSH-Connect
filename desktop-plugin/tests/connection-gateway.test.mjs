@@ -303,6 +303,17 @@ test('mobile boot filtering drops a disabled plugin and its merged bundle', { ti
   assert.deepEqual(graph.batches.map(batch => batch.entries), [['ds-bot']]);
 });
 
+test('read-only lite probe requires pairing and opens the Remote mux', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const denied = await request(env.port, '/mobile-access/lite');
+  assert.equal(denied.status, 401);
+  const paired = await env.pair();
+  const page = await request(env.port, '/mobile-access/lite', { headers: { cookie: paired.cookie } });
+  assert.equal(page.status, 200);
+  assert.match(page.text, /\/api\/remote\.mux/);
+  assert.match(page.text, /session\/list/);
+});
+
 test('service worker caches hashed assets and plugin bundles only', { timeout: 10000 }, async t => {
   const env = await fixture(t);
   const worker = await request(env.port, '/mobile-access/sw.js');

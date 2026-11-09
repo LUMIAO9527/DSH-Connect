@@ -1,5 +1,11 @@
 # 更新记录
 
+## 1.2.18
+
+- 新增只读协议探针 `/mobile-access/lite`：手机可验证 DSH 的 `/api/remote.mux` 认证与 `session/list` 远程调用，为轻客户端 Phase B1 打地基。
+- 探针只读会话列表，不改任何会话、不发消息；需已配对。
+- 119 项测试通过（探针路由/鉴权/协议端点断言）。
+
 ## 1.2.17
 
 - 手机入口注册 Service Worker：首次打开后缓存 hashed assets、插件 bundle 和图标；第二次打开直接走本地缓存，减少重复下载。

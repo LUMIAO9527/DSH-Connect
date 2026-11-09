@@ -27,7 +27,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.17';
+export const VERSION = '1.2.18';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -137,6 +137,67 @@ const APP_HEAD_LINKS = '<link rel="manifest" href="/mobile-access/manifest.webma
   + '<script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("/mobile-access/sw.js",{scope:"/",updateViaCache:"none"}).catch(function(){})})}</script>';
 // Public, side-effect free probe used to decide whether the mobile runtime can
 // carry a P2P transport at all. It only reports what the engine supports.
+const LITE_PROBE_HTML = `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DSH Lite · 协议探针</title>
+<style>
+:root{color-scheme:dark;--bg:#111318;--card:#1b1e24;--line:#2e333d;--ink:#f2f4f8;--muted:#9aa0aa;--accent:#6d8cff}
+*{box-sizing:border-box}body{margin:0;padding:max(16px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom));background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,sans-serif}
+h1{font-size:18px;margin:0 0 4px}p{color:var(--muted);margin:0 0 14px}
+button{min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;margin:0 8px 8px 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:180px;max-height:55vh;overflow:auto;font:12px/1.5 ui-monospace,monospace}
+.note{font-size:12px;color:var(--muted)}.ok{color:#63d6a3}.err{color:#ff8e86}
+</style>
+</head>
+<body>
+<h1>DSH Lite · 协议探针</h1>
+<p>只读验证：连接 <code>/api/remote.mux</code>，请求 <code>session/list</code>。不改任何会话。</p>
+<div><button id="connect">连接并读取会话列表</button><button id="clear">清空</button></div>
+<pre id="log">尚未连接。</pre>
+<div class="note">如果这里能显示 session 列表 JSON，说明轻客户端可以复用现有网关认证和 Remote 流。下一步才是渲染聊天。</div>
+<script>
+(() => {
+  const log = document.getElementById('log');
+  const write = (text, cls) => {
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = text;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  };
+  const clear = () => { log.textContent = ''; };
+  let socket;
+  const connect = () => {
+    clear();
+    write('connecting ' + location.host);
+    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    socket = new WebSocket(scheme + '//' + location.host + '/api/remote.mux');
+    socket.onopen = () => {
+      write('socket open', 'ok');
+      socket.send(JSON.stringify({ type: 'open', streamId: 'list-1', endpoint: 'session/list', payload: { args: { _request: {} } } }));
+    };
+    socket.onmessage = event => {
+      write(event.data);
+      try {
+        const frame = JSON.parse(event.data);
+        if (frame.type === 'item' && frame.value && Array.isArray(frame.value.sessions)) {
+          write('sessions: ' + frame.value.sessions.length, 'ok');
+        }
+        if (frame.type === 'error') write('remote error: ' + (frame.error?.code || '') + ' ' + (frame.error?.message || ''), 'err');
+      } catch {}
+    };
+    socket.onerror = () => write('socket error', 'err');
+    socket.onclose = event => write('socket closed ' + event.code + ' ' + event.reason);
+  };
+  document.getElementById('connect').addEventListener('click', connect);
+  document.getElementById('clear').addEventListener('click', clear);
+})();
+</script>
+</body>
+</html>`;
 const WEBRTC_PROBE_HTML = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -656,6 +717,11 @@ export class DSHConnectGateway {
       throw error;
     }
     if (!READ_METHODS.has(req.method)) this.assertCsrf(authorization, req.headers[CSRF_HEADER]);
+    if (p === '/mobile-access/lite' && req.method === 'GET' && !target.search) {
+      setSecurityHeaders(res, this.config.secure);
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(LITE_PROBE_HTML) });
+      res.end(LITE_PROBE_HTML); return;
+    }
     if (p === '/mobile-access/status' && req.method === 'GET' && !target.search) {
       sendJson(res, 200, this.connectionState(authorization), this.config.secure); return;
     }
