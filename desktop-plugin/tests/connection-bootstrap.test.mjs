@@ -327,26 +327,23 @@ test('pairing success opens the stock entry and never resubmits while pending', 
   assert.equal(submit.textContent, '连接电脑', 'the submit label is restored after the attempt');
 });
 
-test('opening a complete pairing link pairs once and confirms saved browser authorization before entering DSH', async () => {
-  for (const saved of [true, false]) {
-    const calls = [], destinations = [], timers = new Map(); let timerId = 0;
-    const token = { value: '', addEventListener() {}, removeAttribute() {}, setAttribute() {}, focus() {} };
-    const nodes = { 'pair-form': { querySelector: () => ({ disabled: false }), addEventListener() {}, setAttribute() {}, removeAttribute() {} },
-      'pair-token': token, 'device-label': { value: '' }, 'pair-status': { value: '' } };
-    const location = new URL('https://harmony.test/mobile-access/pair#instance=' + 'a'.repeat(64) + '&token=' + 'B'.repeat(43));
-    location.replace = value => destinations.push(value);
-    vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
-      URLSearchParams, AbortController, fetch: async (input, init) => {
-        calls.push({ input, init });
-        return input.endsWith('/pair') ? Response.json({ paired: true }, { status: 201 }) : new Response('{}', { status: saved ? 200 : 401 });
-      }, setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout(id) { timers.delete(id); } });
-    await flush();
-    assert.equal(calls.length, 2); assert.equal(JSON.parse(calls[0].init.body).token, 'B'.repeat(43));
-    assert.equal(calls[1].input, '/mobile-access/status');
-    assert.deepEqual(destinations, saved ? ['/'] : []);
-    if (!saved) assert.match(nodes['pair-status'].value, /浏览器没有保存配对授权/);
-    assert.equal(timers.size, 0);
-  }
+test('opening a complete pairing link prefills the code and keeps the device name editable', async () => {
+  const calls = [], destinations = [], timers = new Map(); let timerId = 0;
+  const token = { value: '', addEventListener() {}, removeAttribute() {}, setAttribute() {}, focus() {} };
+  const label = { value: '', focused: false, selected: false, focus() { this.focused = true; }, select() { this.selected = true; } };
+  const nodes = { 'pair-form': { querySelector: () => ({ disabled: false }), addEventListener() {}, setAttribute() {}, removeAttribute() {} },
+    'pair-token': token, 'device-label': label, 'pair-status': { value: '' } };
+  const location = new URL('https://harmony.test/mobile-access/pair#instance=' + 'a'.repeat(64) + '&token=' + 'B'.repeat(43));
+  location.replace = value => destinations.push(value);
+  vm.runInNewContext(renderPairScript('zh'), { window: { addEventListener() {} }, document: { getElementById: id => nodes[id] }, location, history: { replaceState() {} },
+    URLSearchParams, AbortController, fetch: async (input, init) => { calls.push({ input, init }); return new Response('{}', { status: 200 }); },
+    setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; }, clearTimeout(id) { timers.delete(id); } });
+  await flush();
+  assert.equal(calls.length, 0, 'opening the link must not pair automatically');
+  assert.equal(token.value, 'B'.repeat(43));
+  assert.equal(nodes['pair-status'].value, '配对码已填入，确认设备名称后点「配对」。');
+  assert.equal(label.focused, true); assert.equal(label.selected, true);
+  assert.deepEqual(destinations, []);
 });
 
 test('a pasted pairing link is reduced to its one-use code', async () => {

@@ -111,8 +111,9 @@ export async function apply(ctx, config = {}) {
         catch { sendJson(response, 409, { error: 'update_not_ready', message: '更新尚未准备好，请重新检查。' }, false); } return;
       }
       if (request.method === 'GET' && request.url === adminPath + '/plugins') {
+        const saved = gateway?.mobileDisabledPlugins?.() ?? config.mobileDisabledPlugins ?? [];
         sendJson(response, 200, { plugins: MOBILE_PLUGIN_ROSTER,
-          disabled: (config.mobileDisabledPlugins || []).filter(id => MOBILE_PLUGIN_ROSTER.some(item => item.id === id)) }, false);
+          disabled: saved.filter(id => MOBILE_PLUGIN_ROSTER.some(item => item.id === id)) }, false);
         return;
       }
       if (request.method === 'POST' && request.url === adminPath + '/plugins') {
@@ -127,6 +128,7 @@ export async function apply(ctx, config = {}) {
           const entry = editor?.entries().find(row => row.fiber?.ctx === ctx || row.options.id === ctx.fiber?.entry?.options?.id || row.options.name === name);
           if (!entry) throw new Error('Configuration editor unavailable');
           await editor.edit(entry, raw => ({ ...connectionFields(config), ...raw, mobileDisabledPlugins: disabled }));
+          gateway?.setMobileDisabledPlugins?.(disabled);
           sendJson(response, 200, { saved: true, disabled }, false);
         } catch { sendJson(response, 400, { error: 'plugins_refused', message: '手机端插件设置未能保存，请重试。' }, false); } return;
       }

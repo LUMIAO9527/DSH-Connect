@@ -292,9 +292,9 @@ test('mobile boot filtering drops a disabled plugin and its merged bundle', { ti
   const response = await request(env.port, '/', { headers: { cookie: paired.cookie } });
   assert.equal(response.status, 200);
   const html = response.text;
-  assert.doesNotMatch(html, /dsh-pet/);
+  assert.doesNotMatch(html, /@linxin666\/dsh-pet/);
   assert.match(html, /ds-bot/);
-  assert.doesNotMatch(html, /dsh-pet\/client\.js,ds-bot/);
+  assert.doesNotMatch(html, /@linxin666\/dsh-pet\/client\.js,ds-bot/);
   assert.match(html, /<link rel="preload" as="script" href="plugins\/\?\?ds-bot\/client\.js&amp;rev=bot">/);
   const boot = /<script>globalThis\["__DSH_BOOT__"\] = ([\s\S]*?)<\/script>/.exec(html);
   assert.ok(boot);

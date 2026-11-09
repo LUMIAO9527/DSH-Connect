@@ -137,14 +137,21 @@ html[data-dsh-connect-mobile] body{margin:0;-webkit-tap-highlight-color:transpar
 [data-dsh-connect-mobile] button{touch-action:manipulation}
 [data-dsh-connect-mobile] button:focus-visible{outline:2px solid var(--dsc-accent);outline-offset:3px}
 [data-dsh-connect-mobile] input,[data-dsh-connect-mobile] textarea{font-size:max(16px,1em)}
-.dsc-status{position:fixed;z-index:10001;left:50%;top:64px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:10px 14px;background:var(--dsw-alias-bg-elevated,#fff);color:var(--dsw-alias-label-primary,#202329);border:1px solid var(--dsw-alias-border-l2,#e7e9ee);border-radius:16px;box-shadow:0 8px 32px #141b2d16;font:13px/1.5 system-ui,sans-serif}
-.dsc-status[hidden]{display:none}.dsc-status-dot{width:7px;height:7px;flex:none;border-radius:50%;background:#e6a23c}.dsc-status[data-state=offline] .dsc-status-dot{background:#969ba6}.dsc-status[data-state=auth-required] .dsc-status-dot{background:#d66c61}.dsc-status button{flex:none;min-height:32px;padding:4px 10px;border:0;border-radius:9px;background:#4d6bfe;color:#fff;font:inherit;cursor:pointer}
-.dsc-status>span:not(.dsc-status-dot){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsc-status[data-state=auth-required]{box-sizing:border-box;inset:0;width:100%;height:100%;max-width:none;padding:28px;transform:none;flex-direction:column;justify-content:center;gap:20px;border:0;border-radius:0;box-shadow:none;text-align:center;background:var(--dsw-alias-bg-base,#fff);font-size:16px}
+.dsc-status{position:fixed;z-index:10001;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);display:flex;align-items:center;gap:9px;width:fit-content;max-width:calc(100vw - 24px);padding:8px 10px 8px 12px;background:color-mix(in srgb,var(--dsw-alias-bg-layer-1,#1b1e24) 90%,transparent);color:var(--dsw-alias-label-primary,#f2f4f8);border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:14px;box-shadow:0 10px 30px #0005;font:13px/1.45 system-ui,sans-serif;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.dsc-status[hidden]{display:none}
+.dsc-status-dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--dsw-alias-label-secondary,#9aa0aa)}
+.dsc-status[data-state=offline] .dsc-status-dot{background:var(--dsw-alias-label-secondary,#9aa0aa);opacity:.55}
+.dsc-status[data-state=auth-required] .dsc-status-dot{background:var(--dsw-alias-label-error,#d66c61)}
+.dsc-status[data-state=connecting] .dsc-status-dot{width:13px;height:13px;background:transparent;border:2px solid color-mix(in srgb,currentColor 22%,transparent);border-top-color:currentColor;animation:dsc-spin .9s linear infinite}
+.dsc-status button{flex:none;min-height:30px;padding:4px 10px;border-radius:9px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);background:color-mix(in srgb,currentColor 8%,transparent);color:inherit;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap}
+.dsc-status button:active:not(:disabled){background:color-mix(in srgb,currentColor 14%,transparent)}
+.dsc-status>span:not(.dsc-status-dot){flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsc-status[data-state=auth-required]{box-sizing:border-box;inset:0;width:100%;height:100%;max-width:none;padding:28px;transform:none;flex-direction:column;justify-content:center;gap:20px;border:0;border-radius:0;box-shadow:none;text-align:center;background:var(--dsw-alias-bg-base,#111318);font-size:16px;backdrop-filter:none}
 .dsc-status[data-state=auth-required] .dsc-status-dot{display:none}
 .dsc-status[data-state=auth-required] button{min-height:44px;padding:10px 22px;border-radius:12px}
+@keyframes dsc-spin{to{rotate:360deg}}
 @media(prefers-reduced-motion:no-preference){.dsc-status{animation:dsc-appear 180ms ease-out}@keyframes dsc-appear{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}}
-@media(min-width:901px){.dsc-status{top:16px}}
+@media(min-width:901px){.dsc-status{top:calc(env(safe-area-inset-top,0px) + 12px)}}
 /* Keep the drawn size and grow the hit area of the two drawer buttons toward the
    44px touch target. The inset stays inside the header row so the title keeps
    its own taps. */

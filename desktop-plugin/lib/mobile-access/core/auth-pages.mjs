@@ -11,6 +11,7 @@ const COPY = {
         deviceName: 'Device name',
         pair: 'Pair',
         pairing: 'Pairing…',
+        pairReady: 'Pairing code filled in. Check the device name, then tap Pair.',
         cookieRequired: 'This browser did not save the pairing authorization. Open the complete link in your regular browser and allow this site to save its data.',
         invalidPairingCode: 'Enter the 43-character pairing code or paste the complete pairing link.',
         pairFailed: 'Pairing failed. Check the code or generate a new one on the computer.',
@@ -37,6 +38,7 @@ const COPY = {
         deviceName: '设备名称',
         pair: '连接电脑',
         pairing: '正在配对…',
+        pairReady: '配对码已填入，确认设备名称后点「配对」。',
         cookieRequired: '浏览器没有保存配对授权。请在常用浏览器中打开完整链接，并允许此网站保存数据。',
         invalidPairingCode: '请输入 43 位配对码，或粘贴完整的配对链接。',
         pairFailed: '配对失败，请检查输入或在电脑端重新生成配对码。',
@@ -63,6 +65,7 @@ const COPY = {
         deviceName: 'Nome dispositivo',
         pair: 'Abbina',
         pairing: 'Abbinamento…',
+        pairReady: 'Codice inserito. Controlla il nome del dispositivo, poi tocca Abbina.',
         cookieRequired: 'Il browser non ha salvato l’autorizzazione. Apri il link completo nel browser abituale e consenti i dati del sito.',
         invalidPairingCode: 'Inserisci il codice di 43 caratteri o incolla il link completo di abbinamento.',
         pairFailed: 'Abbinamento non riuscito. Controlla il codice o generane uno nuovo sul computer.',
@@ -209,7 +212,6 @@ export function renderPairScript(locale) {
   const status = document.getElementById('pair-status')
   const submit = form.querySelector('button[type="submit"]')
   let submitting = false
-  let pendingLink = false
   token.addEventListener('input', () => {
     token.removeAttribute('aria-invalid')
     if (!submitting) status.value = ''
@@ -279,18 +281,17 @@ export function renderPairScript(locale) {
       submit.disabled = false
       submit.textContent = ${JSON.stringify(copy.pair)}
       form.removeAttribute('aria-busy')
-      if (pendingLink) receivePairLink()
     }
   }
   form.addEventListener('submit', pair)
   function receivePairLink() {
     const supplied = new URLSearchParams(location.hash.slice(1)).get('token')
-    if (!supplied) return
-    if (submitting) { pendingLink = true; return }
-    pendingLink = false
+    if (!supplied || submitting) return
     history.replaceState(null, '', location.pathname)
     token.value = supplied
-    void pair({ preventDefault() {} })
+    status.value = ${JSON.stringify(copy.pairReady)}
+    label.focus?.()
+    label.select?.()
   }
   window.addEventListener('hashchange', receivePairLink)
   receivePairLink()

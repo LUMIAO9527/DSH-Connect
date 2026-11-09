@@ -313,7 +313,15 @@
     releasing?.cancel();
     press = releasing = undefined;
   });
-  let banner, caption, retry, lastCaption = '', detailTimer = 0;
+  let banner, caption, retry, lastCaption = '', detailTimer = 0, bootOverlay, bootLeaving = false;
+  const dismissBoot = () => {
+    if (bootLeaving) return;
+    bootOverlay ??= document.querySelector?.('[data-dsc-boot]');
+    if (!bootOverlay || !bootOverlay.isConnected) return;
+    bootLeaving = true;
+    bootOverlay.classList.add('is-leaving');
+    setTimeout(() => bootOverlay.remove(), 220);
+  };
   const headerSlot = '[data-slot="conversation.session.header"]';
   const tabsSelector = '[data-conversation-tabs]';
   const composerSelector = '[data-composer-card]';
@@ -445,6 +453,8 @@
       else void window.__DSH_FOREVERWEB_ACCESS__?.resume('user-retry');
     });
     banner.append(dot, caption, retry); document.body.append(banner);
+    setTimeout(dismissBoot, 25000);
+    window.__DSH_BOOT_READY__?.promise?.then(dismissBoot, dismissBoot);
     const markFrame=()=>{
       const overlay=document.querySelector('[data-shell-overlay]');if(!overlay)return false;
       frame=overlay.parentElement;
@@ -455,6 +465,7 @@
       frame.setAttribute('data-dsc-frame','');
       for(const column of columns){column.removeAttribute('data-dsc-sidebar');column.removeAttribute('data-dsc-center');}
       sidebar.setAttribute('data-dsc-sidebar','');center.setAttribute('data-dsc-center','');
+      dismissBoot();
       return true;
     };
     if(!markFrame()){const observer=new MutationObserver(()=>{if(markFrame())observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(()=>observer.disconnect(),60000);}
@@ -496,6 +507,7 @@
     if (next === lastState) return;
     lastState = next;
     if (next === 'auth-required') {
+      dismissBoot();
       if (frame && !frame.hasAttribute('inert')) { frame.setAttribute('inert', ''); accessBlockedFrame = frame; }
     } else if (accessBlockedFrame) {
       accessBlockedFrame.removeAttribute('inert');

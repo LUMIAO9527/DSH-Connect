@@ -24,9 +24,10 @@ import { bridgeCompressedWebSocket } from './core/websocket-bridge.mjs';
 import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure, scopeFailure,
   ConnectionDiagnostics, ConnectionQueueBudget } from './core/connection-state.mjs';
 import { APP_ICONS } from '../icons.mjs';
+import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.13';
+export const VERSION = '1.2.14';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -48,6 +49,38 @@ const APP_MANIFEST = Buffer.from(JSON.stringify({
     { src: '/mobile-access/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
   ]
 }));
+const BOOT_SPLASH_STYLE = `<style>
+#dsc-boot{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:#fff;color:#0f1115;transition:opacity 180ms ease-out}
+#dsc-boot.is-leaving{opacity:0;pointer-events:none}
+#dsc-boot .dsc-boot-whale{display:block;width:min(38vw,132px);max-width:100%;margin:0 auto 18px;color:#0f1115}
+#dsc-boot .dsc-boot-whale svg,#dsc-boot .dsc-boot-wordmark svg{display:block;width:100%;height:auto}
+#dsc-boot .dsc-boot-wordmark{display:block;width:min(66vw,236px);max-width:100%;margin:0 auto 26px;color:#0f1115;--dsc-lockup-contrast:#fff}
+#dsc-boot .dsc-boot-dots{display:inline-flex;align-items:center;gap:7px;height:14px}
+#dsc-boot .dsc-boot-dots i{display:block;width:6px;height:6px;border-radius:50%;background:#8a8f99}
+#dsc-boot .dsc-boot-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media(prefers-reduced-motion:no-preference){
+  #dsc-boot .dsc-boot-whale{animation:dsc-boot-mark 620ms cubic-bezier(.2,.7,.25,1) both}
+  #dsc-boot .dsc-boot-wordmark{animation:dsc-boot-name 520ms cubic-bezier(.2,.7,.25,1) 120ms both}
+  #dsc-boot .dsc-boot-dots{animation:dsc-boot-name 520ms cubic-bezier(.2,.7,.25,1) 200ms both}
+  #dsc-boot .dsc-boot-dots i{animation:dsc-boot-dot 1150ms cubic-bezier(.45,0,.55,1) infinite}
+  #dsc-boot .dsc-boot-dots i:nth-child(2){animation-delay:120ms}
+  #dsc-boot .dsc-boot-dots i:nth-child(3){animation-delay:240ms}
+}
+@keyframes dsc-boot-mark{from{opacity:0;translate:0 12px;scale:.965}to{opacity:1;translate:0 0;scale:1}}
+@keyframes dsc-boot-name{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+@keyframes dsc-boot-dot{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-5px);opacity:1}}
+@media(prefers-color-scheme:dark){
+  #dsc-boot{background:#17191e;color:#f2f4f8}
+  #dsc-boot .dsc-boot-whale,#dsc-boot .dsc-boot-wordmark{color:#f2f4f8}
+  #dsc-boot .dsc-boot-wordmark{--dsc-lockup-contrast:#17191e}
+  #dsc-boot .dsc-boot-dots i{background:#8b919c}
+}
+</style>`;
+const BOOT_SPLASH = '<div id="dsc-boot" data-dsc-boot aria-hidden="true">'
+  + '<div class="dsc-boot-whale">' + BRAND_WHALE_SVG + '</div>'
+  + '<div class="dsc-boot-wordmark" role="img" aria-label="DeepSeek Harness">' + BRAND_WORDMARK_SVG + '</div>'
+  + '<div class="dsc-boot-dots"><i></i><i></i><i></i></div>'
+  + '<span class="dsc-boot-sr">正在加载 DSH</span></div>';
 const APP_HEAD_LINKS = '<link rel="manifest" href="/mobile-access/manifest.webmanifest">'
   + '<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">'
   + '<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">';
@@ -205,17 +238,19 @@ function filterMobileBootHtml(html, disabled) {
   if (!Array.isArray(graph.entries) || !Array.isArray(graph.batches)) return html;
   const stripClient = id => id.endsWith('/client') ? id.slice(0, -7) : id;
   const disabledSet = new Set(disabled);
+  const isDisabled = id => disabledSet.has(id)
+    || [...disabledSet].some(value => id.endsWith('/' + value) || value.endsWith('/' + id));
   // Follow inject edges until no enabled entry depends on a removed plugin.
   for (let changed = true; changed;) {
     changed = false;
     for (const entry of graph.entries) {
-      if (disabledSet.has(entry.id) || !Array.isArray(entry.inject)) continue;
-      if (entry.inject.some(dependency => disabledSet.has(stripClient(dependency)))) {
+      if (isDisabled(entry.id) || !Array.isArray(entry.inject)) continue;
+      if (entry.inject.some(dependency => isDisabled(stripClient(dependency)))) {
         disabledSet.add(entry.id); changed = true;
       }
     }
   }
-  const entries = graph.entries.filter(entry => !disabledSet.has(entry.id));
+  const entries = graph.entries.filter(entry => !isDisabled(entry.id));
   const bootstrap = graph.batches.filter(batch => batch.phase === 'bootstrap');
   const bootstrapIds = new Set(bootstrap.flatMap(batch => batch.entries || []));
   const application = entries.filter(entry => !bootstrapIds.has(entry.id));
@@ -352,6 +387,15 @@ export class DSHConnectGateway {
   observeHost(state, code) {
     if (this.hostState.state !== state) this.diagnostics.record('host_state', { code: code ?? state, scope: 'host' });
     this.hostState = Object.freeze({ state, observedAt: Date.now(), ...(code ? { code } : {}) });
+  }
+
+  mobileDisabledPlugins() { return this.config.mobileDisabledPlugins; }
+
+  setMobileDisabledPlugins(value) {
+    const disabled = Object.freeze(Array.isArray(value)
+      ? [...new Set(value.filter(id => typeof id === 'string' && id.length <= 200))].slice(0, 32) : []);
+    this.config = Object.freeze({ ...this.config, mobileDisabledPlugins: disabled });
+    return disabled;
   }
 
   async start() {
@@ -667,9 +711,10 @@ export class DSHConnectGateway {
         // routes, so saving this page to a home screen works offline of the
         // session and does not fall back to a generic system icon.
         html = html.replace(/<link\b[^>]*\brel="(?:manifest|icon|apple-touch-icon)"[^>]*>/gi, '');
-        if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, value => APP_HEAD_LINKS + value);
-        else if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, value => value + APP_HEAD_LINKS);
-        else html = APP_HEAD_LINKS + html;
+        if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, value => APP_HEAD_LINKS + BOOT_SPLASH_STYLE + value);
+        else if (/<head\b[^>]*>/i.test(html)) html = html.replace(/<head\b[^>]*>/i, value => value + APP_HEAD_LINKS + BOOT_SPLASH_STYLE);
+        else html = APP_HEAD_LINKS + BOOT_SPLASH_STYLE + html;
+        html = /<body\b[^>]*>/i.test(html) ? html.replace(/<body\b[^>]*>/i, value => value + BOOT_SPLASH) : BOOT_SPLASH + html;
         html = filterMobileBootHtml(html, this.config.mobileDisabledPlugins);
         const state = JSON.stringify(this.connectionState(authorization)).replace(/</g, '\\u003c');
         const marker = META + '<script type="application/json" id="dsh-foreverweb-access-state">' + state + '</script>';

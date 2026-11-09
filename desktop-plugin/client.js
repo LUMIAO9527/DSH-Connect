@@ -121,8 +121,9 @@ window.__ModuleLoader__.load({
         copy: 'M9 9h12v12H9zM15 5V3H3v12h2', qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z', refresh: 'M20 7V3m0 4h-4M4 17v4m0-4h4M5.1 8a8 8 0 0 1 13.4-3L20 7M4 17l1.5 2A8 8 0 0 0 19 16' };
       return h('svg', { className: 'dfw-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }));
     }
-    const local = () => location.protocol === 'dsh-app:' && location.hostname === 'app'
-      || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    const local = () => (location.protocol === 'dsh-app:' && location.hostname === 'app')
+      || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+      || Boolean(document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]'));
     async function request(path, body, signal) {
       const headers = { 'content-type': 'application/json' };
       if (body !== undefined) headers[location.protocol === 'dsh-app:' ? 'x-dsh-mobile-desktop-admin' : 'x-dsh-mobile-web-admin']
