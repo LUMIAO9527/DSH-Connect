@@ -6,7 +6,7 @@ import { connect as connectSocket, isIPv4 } from 'node:net';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolve, isAbsolute } from 'node:path';
 import { promisify } from 'node:util';
-import { gunzip, inflate, brotliDecompress, createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
+import { gunzip, inflate, brotliDecompress, brotliCompressSync, gzipSync, createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import QRCode from 'qrcode';
 import { AccessController, AccessError, BoundedRateLimiter } from './core/access.mjs';
@@ -26,7 +26,7 @@ import { CONNECTION_PROTOCOL_VERSION, CONNECTION_CAPABILITIES, connectionFailure
 import { APP_ICONS } from '../icons.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.10';
+export const VERSION = '1.2.11';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -196,7 +196,12 @@ function responseCompression(req, target, upstream, headers) {
     && /^(?:text\/(?:javascript|css)|application\/(?:javascript|json)|image\/svg\+xml)$/.test(type);
   const font = READ_METHODS.has(req.method) && /^font\/(?:ttf|otf)$/.test(type)
     && /\.(?:ttf|otf)$/i.test(target.decodedPathname);
-  if ((!rpc && !asset && !font) || upstream.statusCode !== 200
+  // Plain GET JSON responses carry session lists and transcripts; only
+  // complete bodies (content-length) are compressed so long-lived streams are
+  // never buffered behind a transform.
+  const jsonGet = READ_METHODS.has(req.method) && target.decodedPathname.startsWith('/api/')
+    && /^application\/(?:json|[\w.+-]+\+json)$/.test(type) && headers['content-length'] !== undefined;
+  if ((!rpc && !asset && !font && !jsonGet) || upstream.statusCode !== 200
     || req.headers.range || headers['content-range']
     || (headers['content-encoding'] && headers['content-encoding'] !== 'identity')
     || /(?:^|,)\s*no-transform\s*(?:,|$)/i.test(String(headers['cache-control']))
@@ -206,7 +211,7 @@ function responseCompression(req, target, upstream, headers) {
   headers.vary = vary.join(', ');
   const accepted = req.headers['accept-encoding'];
   const gzip = encodingQuality(accepted, 'gzip');
-  const br = asset || font ? encodingQuality(accepted, 'br') : 0;
+  const br = asset || font || jsonGet ? encodingQuality(accepted, 'br') : 0;
   const encoding = br > 0 && br >= gzip ? 'br' : gzip > 0 ? 'gzip' : undefined;
   if (!encoding) return;
   delete headers['content-length']; delete headers['accept-ranges'];
@@ -349,7 +354,7 @@ export class DSHConnectGateway {
     const server = tls ? https.createServer(tls, request) : http.createServer(request);
     const sockets = new Set();
     this.listeners.set(server, sockets);
-    server.requestTimeout = 120000; server.headersTimeout = 20000; server.keepAliveTimeout = 5000; server.maxHeadersCount = 128;
+    server.requestTimeout = 120000; server.headersTimeout = 25000; server.keepAliveTimeout = 15000; server.maxHeadersCount = 128;
     server.on('connection', socket => {
       if (this.sockets.size >= this.config.maxConnections) { socket.destroy(); return; }
       this.sockets.add(socket); sockets.add(socket);
@@ -597,6 +602,12 @@ export class DSHConnectGateway {
         if (this.authenticatedUrl && hostCredentialGeneration === this.credentialGeneration) { this.credential = undefined; this.credentialExpires = 0; }
         outgoing['x-dsh-foreverweb-error-scope'] = 'host'; outgoing['x-dsh-foreverweb-error-code'] = 'upstream_authentication_failed';
       }
+      // Harness asset names carry a content hash; keep them for a year even
+      // when the Host omits an explicit policy. Plugin bundles stay untouched.
+      if (!outgoing['cache-control'] && READ_METHODS.has(req.method)
+        && /^\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(target.decodedPathname)) {
+        outgoing['cache-control'] = 'public, max-age=31536000, immutable';
+      }
       const document = req.method === 'GET' && (target.decodedPathname === '/' || target.decodedPathname === '/index.html')
         && up.statusCode === 200 && String(up.headers['content-type']).includes('text/html');
       if (document) {
@@ -613,8 +624,21 @@ export class DSHConnectGateway {
         const state = JSON.stringify(this.connectionState(authorization)).replace(/</g, '\\u003c');
         const marker = META + '<script type="application/json" id="dsh-foreverweb-access-state">' + state + '</script>';
         html = /<head\b[^>]*>/i.test(html) ? html.replace(/<head\b[^>]*>/i, value => value + marker) : marker + html;
-        const body = Buffer.from(html); delete outgoing['content-encoding']; delete outgoing.etag; delete outgoing['last-modified'];
+        let body = Buffer.from(html); delete outgoing['content-encoding']; delete outgoing.etag; delete outgoing['last-modified'];
         delete outgoing['content-security-policy'];
+        const accepted = req.headers['accept-encoding'];
+        const gzip = encodingQuality(accepted, 'gzip');
+        const br = encodingQuality(accepted, 'br');
+        const encoding = br > 0 && br >= gzip ? 'br' : gzip > 0 ? 'gzip' : undefined;
+        if (encoding) {
+          body = encoding === 'br'
+            ? brotliCompressSync(body, { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5 } })
+            : gzipSync(body, { level: zlibConstants.Z_BEST_SPEED });
+          outgoing['content-encoding'] = encoding;
+          const vary = String(outgoing.vary || '').split(',').map(value => value.trim()).filter(Boolean);
+          if (!vary.some(value => value === '*' || value.toLowerCase() === 'accept-encoding')) vary.push('Accept-Encoding');
+          outgoing.vary = vary.join(', ');
+        }
         outgoing['content-length'] = String(body.length); outgoing['cache-control'] = 'no-store'; outgoing['content-type'] = 'text/html; charset=utf-8';
         setSecurityHeaders(res, this.config.secure, 'proxied'); res.writeHead(up.statusCode, outgoing); res.end(body);
       } else {

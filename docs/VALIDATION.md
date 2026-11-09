@@ -1,5 +1,12 @@
 # 验证记录
 
+## 1.2.11（2026-11-10）
+
+- 112 项测试通过（新增 HTML/GET JSON 压缩、hashed asset 缓存、连接状态“重新加载”用例）。
+- 压缩：HTML 文档与带 Content-Length 的 /api/ JSON GET 支持 br/gzip，Vary 正确；流式响应不压缩。
+- 缓存：/assets/ 下带内容哈希的 js/css 若 Host 未给 Cache-Control，则补 public, max-age=31536000, immutable。
+- 连接：keep-alive 15s；connecting 状态提示条提供“重新加载”。
+
 ## 1.2.10（2026-11-09）
 
 - 108 项测试通过；Brand 6 项生成/校验通过。

@@ -441,6 +441,7 @@
     });
     retry.addEventListener('click', () => {
       if (banner.dataset.state === 'auth-required') location.assign('/mobile-access/login?return=' + encodeURIComponent(location.pathname + location.search));
+      else if (banner.dataset.state === 'connecting') location.reload();
       else void window.__DSH_FOREVERWEB_ACCESS__?.resume('user-retry');
     });
     banner.append(dot, caption, retry); document.body.append(banner);
@@ -509,7 +510,7 @@
       mount(); if (!banner) return; banner.dataset.state = next;
       caption.textContent = ({ offline: '网络已断开', 'auth-required': '需要重新配对这台设备', connecting: '正在重新连接…' })[next];
       lastCaption = caption.textContent;
-      retry.textContent = next === 'auth-required' ? '去配对' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
+      retry.textContent = next === 'auth-required' ? '去配对' : next === 'connecting' ? '重新加载' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
     }, next === 'connecting' ? 3500 : 0);
   };
   window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; }, setTransport(value) { transport = value; update(); }, resume() {

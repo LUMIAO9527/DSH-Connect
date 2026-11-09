@@ -172,6 +172,12 @@ async function fixture(t, options = {}) {
       startLateDenied(); await lateDeniedReleased; res.writeHead(401); res.end('old Host credential'); return;
     }
     if (url.pathname === '/') { res.setHeader('content-type', 'text/html'); res.end('<html><head><base href="./"><script>window.fixture=true</script></head><body>DSH fixture</body></html>'); return; }
+    if (url.pathname.startsWith('/assets/')) { res.writeHead(200, { 'content-type': 'text/javascript' }); res.end('fixture asset'); return; }
+    if (url.pathname === '/api/status' && req.method === 'GET') {
+      const body = JSON.stringify({ ok: true, payload: 'x'.repeat(2048) });
+      res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) });
+      res.end(body); return;
+    }
     if (url.pathname === '/write' || url.pathname === '/host-denied') {
       counters.writes++; for await (const chunk of req) {}
       res.writeHead(url.pathname === '/host-denied' ? 401 : 200, { 'content-type': 'application/json' });
@@ -278,6 +284,37 @@ test('proxied relative redirects keep the request path under the public origin',
   assert.equal(location.origin + location.pathname, origin + '/api/file');
   assert.equal(location.searchParams.get('path'), 'D:\\Programs\\AppLab\\DSH-Connect\\_wip\\preview\\icon.png');
   assert.equal(location.searchParams.get('v'), '7');
+});
+
+test('hashed Harness assets receive a long-lived cache policy', { timeout: 10000 }, async t => {
+  const env = await fixture(t); const paired = await env.pair();
+  const response = await request(env.port, '/assets/index-ABCD1234.js', { headers: { cookie: paired.cookie } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['cache-control'], 'public, max-age=31536000, immutable');
+  const plugin = await request(env.port, '/plugins/index.js', { headers: { cookie: paired.cookie } });
+  assert.equal(plugin.headers['cache-control'], undefined);
+});
+
+test('authenticated JSON GET responses negotiate Brotli compression', { timeout: 10000 }, async t => {
+  const env = await fixture(t); const paired = await env.pair();
+  const response = await request(env.port, '/api/status', { headers: { cookie: paired.cookie, 'accept-encoding': 'gzip, br' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['content-encoding'], 'br');
+  assert.equal(response.headers.vary, 'Accept-Encoding');
+  assert.deepEqual(JSON.parse(brotliDecompressSync(response.data).toString()), { ok: true, payload: 'x'.repeat(2048) });
+  const identity = await request(env.port, '/api/status', { headers: { cookie: paired.cookie } });
+  assert.equal(identity.headers['content-encoding'], undefined);
+});
+
+test('proxied documents negotiate gzip compression', { timeout: 10000 }, async t => {
+  const env = await fixture(t); const paired = await env.pair();
+  const response = await request(env.port, '/', { headers: { cookie: paired.cookie, 'accept-encoding': 'gzip' } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers['content-encoding'], 'gzip');
+  assert.equal(response.headers.vary, 'Accept-Encoding');
+  const html = gunzipSync(response.data).toString();
+  assert.match(html, /dsh-foreverweb-access-state/);
+  assert.match(html, /DSH fixture/);
 });
 
 test('startup bundles and uncompressed fonts negotiate Brotli with gzip fallback', { timeout: 10000 }, async t => {

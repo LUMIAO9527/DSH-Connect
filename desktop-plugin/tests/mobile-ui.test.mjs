@@ -93,7 +93,7 @@ function page({ authenticated = true, native = false, wide = false, files = fals
   window.__DSH_FOREVERWEB_ACCESS__ = { getSnapshot: () => ({ device: { state: 'valid' }, session: { state: 'valid' } }), resume: async reason => calls.push(reason) };
   if (native) window.HarmonyConnector = { connectionChanged: state => calls.push(state), showComputers() {} };
   const navigator = { onLine: true, userAgent: native ? 'ArkWeb DSH-Connect/0.2.0' : 'Browser', clipboard: { writeText: async () => {} } };
-  vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url) },
+  vm.runInNewContext(source, { window, document, navigator, location: { origin: 'https://example.test', pathname: '/', search: '', assign: url => destinations.push(url), reload: () => destinations.push('reload') },
     setTimeout(callback) { const id = timers.size + 1; timers.set(id, callback); return id; }, clearTimeout(id) { timers.delete(id); },
     MutationObserver: class { constructor(callback) { observers.push(callback); } observe() {} disconnect() {} },
     requestAnimationFrame: callback => frames.push(callback),
@@ -356,6 +356,15 @@ test('invalid device grant asks for pairing and retry never replays a business r
   assert.equal(browser.banner().dataset.state, 'auth-required'); assert.equal(browser.banner().hidden, false);
   browser.banner().children[2].dispatchEvent(new Event('click'));
   assert.deepEqual(browser.destinations, ['/mobile-access/login?return=%2F']); assert.deepEqual(browser.calls, []);
+});
+
+test('a stalled transport offers a reload action', () => {
+  const browser = page({ transport: 'connecting' });
+  browser.flush();
+  assert.equal(browser.banner().dataset.state, 'connecting');
+  assert.equal(browser.banner().children[2].textContent, '重新加载');
+  browser.banner().children[2].dispatchEvent(new Event('click'));
+  assert.deepEqual(browser.destinations, ['reload']);
 });
 
 test('native back closes a fullscreen tool page whose layout reserves no side track', () => {
