@@ -303,6 +303,21 @@ test('mobile boot filtering drops a disabled plugin and its merged bundle', { ti
   assert.deepEqual(graph.batches.map(batch => batch.entries), [['ds-bot']]);
 });
 
+test('service worker caches hashed assets and plugin bundles only', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const worker = await request(env.port, '/mobile-access/sw.js');
+  assert.equal(worker.status, 200);
+  assert.match(worker.headers['content-type'], /javascript/);
+  assert.equal(worker.headers['service-worker-allowed'], '/');
+  assert.match(worker.text, /dsh-connect-static-/);
+  assert.match(worker.text, /path\.startsWith\('\/assets\/'\)/);
+  assert.match(worker.text, /path\.startsWith\('\/plugins\/'\)/);
+  assert.doesNotMatch(worker.text, /\/api\//);
+  const paired = await env.pair();
+  const page = await request(env.port, '/', { headers: { cookie: paired.cookie } });
+  assert.match(page.text, /serviceWorker\.register\("\/mobile-access\/sw\.js"/);
+});
+
 test('hashed Harness assets receive a long-lived cache policy', { timeout: 10000 }, async t => {
   const env = await fixture(t); const paired = await env.pair();
   const response = await request(env.port, '/assets/index-ABCD1234.js', { headers: { cookie: paired.cookie } });

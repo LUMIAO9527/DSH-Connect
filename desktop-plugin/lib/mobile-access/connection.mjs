@@ -27,7 +27,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.16';
+export const VERSION = '1.2.17';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -81,9 +81,60 @@ const BOOT_SPLASH = '<div id="dsc-boot" data-dsc-boot aria-hidden="true">'
   + '<div class="dsc-boot-wordmark" role="img" aria-label="DeepSeek Harness">' + BRAND_WORDMARK_SVG + '</div>'
   + '<div class="dsc-boot-dots"><i></i><i></i><i></i></div>'
   + '<span class="dsc-boot-sr">正在加载 DSH</span></div>';
+const SERVICE_WORKER_STATIC_PATHS = Object.freeze([
+  '/mobile-access/apple-touch-icon.png',
+  '/mobile-access/icon-192.png',
+  '/mobile-access/icon-512.png',
+  '/mobile-access/icon-maskable-512.png',
+  '/mobile-access/manifest.webmanifest'
+]);
+const SERVICE_WORKER_SOURCE = `'use strict';
+const CACHE = ${JSON.stringify('dsh-connect-static-' + VERSION)};
+const STATIC_PATHS = ${JSON.stringify(SERVICE_WORKER_STATIC_PATHS)};
+self.addEventListener('install', () => { self.skipWaiting(); });
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  const path = url.pathname;
+  const cacheable = path.startsWith('/assets/') || path.startsWith('/plugins/') || STATIC_PATHS.includes(path);
+  if (!cacheable) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const hit = await cache.match(request);
+    if (hit) return hit;
+    try {
+      const response = await fetch(request);
+      if (response && response.status === 200 && response.type === 'basic') {
+        void cache.put(request, response.clone());
+        void trim(cache);
+      }
+      return response;
+    } catch (error) {
+      const fallback = await cache.match(request, { ignoreSearch: true });
+      if (fallback) return fallback;
+      throw error;
+    }
+  })());
+});
+async function trim(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= 240) return;
+  await Promise.all(keys.slice(0, keys.length - 240).map(key => cache.delete(key)));
+}
+`;
 const APP_HEAD_LINKS = '<link rel="manifest" href="/mobile-access/manifest.webmanifest">'
   + '<link rel="apple-touch-icon" sizes="180x180" href="/mobile-access/apple-touch-icon.png">'
-  + '<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">';
+  + '<link rel="icon" type="image/png" sizes="192x192" href="/mobile-access/icon-192.png">'
+  + '<script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("/mobile-access/sw.js",{scope:"/",updateViaCache:"none"}).catch(function(){})})}</script>';
 // Public, side-effect free probe used to decide whether the mobile runtime can
 // carry a P2P transport at all. It only reports what the engine supports.
 const WEBRTC_PROBE_HTML = `<!doctype html>
@@ -553,6 +604,11 @@ export class DSHConnectGateway {
     }
     if (req.method === 'GET' && !target.search && p === '/mobile-access/metadata') { sendJson(res, 200, { version: 1, pluginVersion: VERSION,
       protocolVersion: CONNECTION_PROTOCOL_VERSION, capabilities: CONNECTION_CAPABILITIES }, this.config.secure); return; }
+    if (req.method === 'GET' && !target.search && p === '/mobile-access/sw.js') {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'content-length': Buffer.byteLength(SERVICE_WORKER_SOURCE),
+        'cache-control': 'no-cache', 'service-worker-allowed': '/', 'x-content-type-options': 'nosniff' });
+      res.end(SERVICE_WORKER_SOURCE); return;
+    }
     if (req.method === 'GET' && !target.search && p === '/mobile-access/manifest.webmanifest') {
       res.writeHead(200, { 'content-type': 'application/manifest+json; charset=utf-8', 'content-length': APP_MANIFEST.length,
         'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' });
@@ -698,7 +754,8 @@ export class DSHConnectGateway {
       // Harness asset names carry a content hash; keep them for a year even
       // when the Host omits an explicit policy. Plugin bundles stay untouched.
       if (!outgoing['cache-control'] && READ_METHODS.has(req.method)
-        && /^\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(target.decodedPathname)) {
+        && (/^\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(target.decodedPathname)
+          || /^\/plugins\//.test(target.decodedPathname) && /(?:^|[?&])rev=[A-Za-z0-9_-]+/.test(target.search))) {
         outgoing['cache-control'] = 'public, max-age=31536000, immutable';
       }
       const document = req.method === 'GET' && (target.decodedPathname === '/' || target.decodedPathname === '/index.html')
