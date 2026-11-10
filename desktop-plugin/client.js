@@ -11,13 +11,14 @@ window.__ModuleLoader__.load({
 .dfw-settings h3{font-size:20px;line-height:1.4;font-weight:600}
 .dfw-settings h4{font-size:14px;font-weight:600}
 .dfw-settings p{color:var(--dfw-muted)}
-.dfw-settings .dfw-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 20px}
+.dfw-settings .dfw-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px 20px}
 .dfw-settings .dfw-brand{display:flex;align-items:center;gap:10px;min-width:0}
 .dfw-settings .dfw-brand-mark,.dfw-settings .dfw-brand-mark svg,.dfw-settings .dfw-brand-mark img{display:block;width:36px;height:36px;flex:none}
 .dfw-settings .dfw-brand-mark{overflow:hidden;border-radius:10px}
 .dfw-settings .dfw-brand-mark img{object-fit:contain}
-.dfw-settings .dfw-features{display:flex;flex-wrap:wrap;gap:6px;min-width:0;margin:0;padding:0;list-style:none}
-.dfw-settings .dfw-features li{max-width:100%;padding:2px 8px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-soft);color:var(--dfw-muted);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.dfw-settings .dfw-brand-copy{display:grid;gap:1px;min-width:0}
+.dfw-settings .dfw-brand-sub{font-size:12px;line-height:1.5;color:var(--dfw-muted)}
+.dfw-settings .dfw-version{flex:none;margin-left:auto;padding-top:6px;color:var(--dfw-muted);font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.02em}
 .dfw-settings .dfw-state{display:inline-flex;padding:2px 7px;border-radius:8px;background:color-mix(in srgb,var(--dfw-ok) 11%,var(--dfw-surface));color:color-mix(in srgb,var(--dfw-ok) 72%,var(--dfw-ink));font-size:12px;line-height:17px}
 .dfw-settings .dfw-section,.dfw-settings .dfw-head+.dfw-card{margin-top:22px}
 .dfw-settings .dfw-section-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px}
@@ -76,10 +77,9 @@ window.__ModuleLoader__.load({
 .dfw-settings .dfw-device-edit{display:flex;align-items:center;gap:8px;width:min(100%,320px);min-height:30px}
 .dfw-settings .dfw-device-edit input{min-width:0;width:100%;height:30px;padding:4px 10px;border:1px solid var(--dfw-line);border-radius:8px;background:var(--dfw-field);color:var(--dfw-ink);font:inherit}.dfw-settings .dfw-device-edit .dfw-button{min-height:30px;padding-block:3px}
 .dfw-settings .dfw-empty{padding:14px 16px;font-size:12px;color:var(--dfw-muted)}
-.dfw-settings .dfw-foot{display:flex;align-items:flex-start;justify-content:space-between;gap:12px 16px;margin-top:22px}
-.dfw-settings .dfw-foot-info{min-width:0}
-.dfw-settings .dfw-foot-version{font-size:12px;font-weight:600;color:var(--dfw-ink)}
-.dfw-settings .dfw-foot-note{margin-top:3px;font-size:12px;color:var(--dfw-muted);overflow-wrap:anywhere}
+.dfw-settings .dfw-foot{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 14px;margin-top:24px;padding-top:14px;border-top:1px solid var(--dfw-line)}
+.dfw-settings .dfw-foot-info{display:flex;align-items:center;gap:10px;min-width:0;margin-right:auto}
+.dfw-settings .dfw-foot-note{font-size:12px;line-height:1.5;color:var(--dfw-muted);overflow-wrap:anywhere}
 .dfw-settings .dfw-foot-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .dfw-settings .dfw-loading{padding:20px 2px;color:var(--dfw-muted)}
 .dfw-settings .dfw-setup{padding:14px 16px}
@@ -101,16 +101,25 @@ window.__ModuleLoader__.load({
   .dfw-settings .dfw-device-edit{width:100%;flex-wrap:wrap}
   .dfw-settings .dfw-foot{flex-direction:column}
 }
-.dfw-settings .dfw-plugin-list{margin:12px 0 0;padding:0;list-style:none;border:1px solid var(--dfw-line);border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--dfw-field) 36%,var(--dfw-surface))}
-.dfw-settings .dfw-plugin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:9px 12px;border-top:1px solid var(--dfw-line)}
-.dfw-settings .dfw-plugin-row:first-child{border-top:0}
-.dfw-settings .dfw-plugin-row.is-off .dfw-plugin-name{color:var(--dfw-muted)}
-.dfw-settings .dfw-plugin-name{min-width:0;font-size:13px;line-height:1.35;overflow-wrap:anywhere}
-.dfw-settings .dfw-switch{width:34px;height:20px;border:0;border-radius:10px;background:color-mix(in srgb,var(--dfw-ink) 16%,transparent);position:relative;cursor:pointer;flex:none;padding:0;transition:background-color 160ms}
-.dfw-settings .dfw-switch::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dfw-surface);box-shadow:0 1px 2px #0003;transition:translate 160ms cubic-bezier(.2,.7,.25,1),background-color 160ms}
-.dfw-settings .dfw-switch.is-on{background:var(--dfw-accent,#4d6bfe)}
-.dfw-settings .dfw-switch.is-on::after{translate:14px 0;background:#fff}
-.dfw-settings .dfw-plugin-hint{font-size:12px;color:var(--dfw-muted);margin-top:8px}
+.dfw-settings .dfw-section-copy{display:grid;gap:2px;min-width:0}
+.dfw-settings .dfw-section-desc{font-size:12px;line-height:1.5;color:var(--dfw-muted)}
+.dfw-settings .dfw-saved{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:400;line-height:18px;color:var(--dfw-muted)}
+.dfw-settings .dfw-saved::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--dfw-ok)}
+.dfw-settings .dfw-saved[data-error=true]{color:var(--dfw-danger)}
+.dfw-settings .dfw-saved[data-error=true]::before{background:var(--dfw-danger)}
+.dfw-settings .dfw-plugin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:0;padding:0;list-style:none}
+.dfw-settings .dfw-plugin-grid>li{min-width:0;display:flex}
+.dfw-settings .dfw-plugin-tile{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:40px;padding:7px 10px;border:1px solid var(--dfw-line);border-radius:10px;background:color-mix(in srgb,var(--dfw-field) 46%,var(--dfw-surface));color:var(--dfw-ink);font:inherit;text-align:left;cursor:pointer;touch-action:manipulation;transition:background-color 140ms,border-color 140ms}
+.dfw-settings .dfw-plugin-tile:hover:not(:disabled){border-color:color-mix(in srgb,var(--dfw-ink) 22%,transparent);background:color-mix(in srgb,var(--dfw-field) 72%,var(--dfw-surface))}
+.dfw-settings .dfw-plugin-tile:disabled{cursor:progress;opacity:.65}
+.dfw-settings .dfw-plugin-tile.is-off{background:transparent}
+.dfw-settings .dfw-plugin-tile.is-off .dfw-plugin-name{color:var(--dfw-muted)}
+.dfw-settings .dfw-plugin-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:500;line-height:1.4;letter-spacing:0}
+.dfw-settings .dfw-switch{position:relative;flex:none;width:30px;height:17px;border-radius:9px;background:color-mix(in srgb,var(--dfw-ink) 20%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dfw-ink) 6%,transparent);transition:background-color 160ms}
+.dfw-settings .dfw-switch::after{content:'';position:absolute;top:3px;left:3px;width:11px;height:11px;border-radius:50%;background:#fff;box-shadow:0 1px 2.5px rgb(0 0 0 / 32%),0 0 0 .5px rgb(0 0 0 / 8%);transition:translate 160ms cubic-bezier(.2,.7,.25,1)}
+.dfw-settings .dfw-switch.is-on{background:var(--dfw-accent,#4d6bfe);box-shadow:none}
+.dfw-settings .dfw-switch.is-on::after{translate:13px 0}
+.dfw-settings .dfw-plugin-tile:focus-visible{outline:2px solid var(--dfw-accent);outline-offset:2px}
 @media(prefers-reduced-motion:no-preference){
   .dfw-settings .dfw-button{transition:scale 140ms cubic-bezier(.2,.7,.25,1),background-color 140ms,color 140ms}
   .dfw-settings .dfw-button:active:not(:disabled){scale:.97;transition-duration:85ms}
@@ -123,6 +132,9 @@ window.__ModuleLoader__.load({
         copy: 'M9 9h12v12H9zM15 5V3H3v12h2', qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z', refresh: 'M20 7V3m0 4h-4M4 17v4m0-4h4M5.1 8a8 8 0 0 1 13.4-3L20 7M4 17l1.5 2A8 8 0 0 0 19 16' };
       return h('svg', { className: 'dfw-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: paths[name] }));
     }
+    // The roster carries the real boot id. A scoped package keeps its last
+    // segment in the tile, while the full id stays in the title and label.
+    const pluginLabel = value => String(value || '').split('/').filter(Boolean).pop() || String(value || '');
     const local = () => (location.protocol === 'dsh-app:' && location.hostname === 'app')
       || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
       || Boolean(document.querySelector('meta[name="dsh-foreverweb-gateway"][content="authenticated"]'));
@@ -329,29 +341,34 @@ window.__ModuleLoader__.load({
             { primary: true, width: 112, disabled: busy !== '' || !address.trim() || !status.editable })));
           const pluginSection = mobilePlugins && h('section', { className: 'dfw-section', 'aria-labelledby': 'dfw-mobile-plugins-title' },
             h('div', { className: 'dfw-section-head' },
-              h('div', { className: 'dfw-section-title' },
-                h('h4', { id: 'dfw-mobile-plugins-title' }, '手机端插件'),
-                h('span', { className: 'dfw-count' }, mobilePlugins.disabled.length ? '已关闭 ' + mobilePlugins.disabled.length + ' / ' + mobilePlugins.plugins.length : '共 ' + mobilePlugins.plugins.length + ' 个'))),
-            h('div', { className: 'dfw-card' },
-              h('p', { className: 'dfw-note' }, '关闭后手机不下载该插件，电脑端不受影响；新增插件会在 DSH 重启后自动出现。'),
-              h('ul', { className: 'dfw-plugin-list' }, mobilePlugins.plugins.map(plugin => {
-                const enabled = !mobilePlugins.disabled.includes(plugin.id);
-                return h('li', { className: 'dfw-plugin-row' + (enabled ? '' : ' is-off'), key: plugin.id, title: plugin.id },
-                  h('span', { className: 'dfw-plugin-name' }, plugin.name),
-                  h('button', { type: 'button', role: 'switch', 'aria-checked': enabled, 'aria-label': plugin.name + '在手机端加载',
-                    className: 'dfw-switch' + (enabled ? ' is-on' : ''), disabled: pluginBusy !== '',
-                    onClick: () => void togglePlugin(plugin) }, h('span', { className: 'dfw-sr' }, enabled ? '已开启' : '已关闭')));
-              })),
-              h('p', { className: 'dfw-plugin-hint' }, '手机刷新后生效'),
-              flashText('plugins') && h('div', { className: 'dfw-note' }, flashText('plugins', ''))));
+              h('div', { className: 'dfw-section-copy' },
+                h('div', { className: 'dfw-section-title' },
+                  h('h4', { id: 'dfw-mobile-plugins-title' }, '手机端插件'),
+                  flashText('plugins') && h('span', { className: 'dfw-saved', 'data-error': flashError('plugins') }, flashText('plugins', ''))),
+                h('p', { className: 'dfw-section-desc' }, '关闭后手机端不加载这个插件，电脑端照常运行。')),
+              h('span', { className: 'dfw-count' }, mobilePlugins.disabled.length
+                ? mobilePlugins.plugins.length + ' 个 · ' + mobilePlugins.disabled.length + ' 个已关闭'
+                : '共 ' + mobilePlugins.plugins.length + ' 个')),
+            h('ul', { className: 'dfw-plugin-grid' }, mobilePlugins.plugins.map(plugin => {
+              const enabled = !mobilePlugins.disabled.includes(plugin.id), label = pluginLabel(plugin.id);
+              return h('li', { key: plugin.id }, h('button', { type: 'button', role: 'switch', 'aria-checked': enabled,
+                'aria-label': label + '在手机端加载', title: plugin.id, disabled: pluginBusy !== '',
+                className: 'dfw-plugin-tile' + (enabled ? '' : ' is-off'), onClick: () => void togglePlugin(plugin) },
+              h('span', { className: 'dfw-plugin-name' }, label),
+              h('span', { className: 'dfw-switch' + (enabled ? ' is-on' : ''), 'aria-hidden': true }),
+              h('span', { className: 'dfw-sr' }, enabled ? '已开启' : '已关闭')));
+            })));
+          const updateNotice = issue || (update?.available || ['downloading', 'installing', 'restoring'].includes(update?.stage)
+            ? update?.message || '' : '');
           return h('section', { className: 'dfw-settings', 'aria-label': 'DSH Connect' },
             h('style', null, STYLE),
             h('header', { className: 'dfw-head' },
               h('div', { className: 'dfw-brand' },
                 h('span', { className: 'dfw-brand-mark', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: window.__DSH_CONNECT_BRAND__ || BRAND_SVG } }),
-                h('h3', null, 'DSH Connect')),
-              h('ul', { className: 'dfw-features', role: 'list' },
-                h('li', null, '浏览器访问'), h('li', null, '扫码配对'), h('li', null, '设备管理'))),
+                h('div', { className: 'dfw-brand-copy' },
+                  h('h3', null, 'DSH Connect'),
+                  h('p', { className: 'dfw-brand-sub' }, '在手机浏览器里打开这台电脑上的 DSH。'))),
+              status?.version && h('span', { className: 'dfw-version' }, 'v' + status.version)),
             !local() ? h('div', { className: 'dfw-card' }, h('p', { className: 'dfw-empty' }, '请在运行 DSH 的电脑上打开此设置页，生成配对链接和管理设备。'))
             : !status ? h('div', { className: 'dfw-loading' },
               h('div', null, flashText('status', '正在读取连接状态…')),
@@ -418,9 +435,8 @@ window.__ModuleLoader__.load({
                       action('revoke:' + device.id, revoking === device.id ? '确认撤销' : '撤销授权', () => revoke(device), { danger: revoking === device.id, disabled: busy !== '', width: 88 })))))))),
             pluginSection,
             h('div', { className: 'dfw-foot' },
-                h('div', { className: 'dfw-foot-info' },
-                  h('div', { className: 'dfw-foot-version' }, 'DSH Connect ' + (status?.version || '')),
-                  h('div', { className: 'dfw-foot-note', role: 'status', 'aria-live': 'polite' }, issue || update?.message || '更新保留连接地址和已配对设备。')),
+                updateNotice && h('div', { className: 'dfw-foot-info' },
+                  h('div', { className: 'dfw-foot-note', role: 'status', 'aria-live': 'polite' }, updateNotice)),
                 local() && h('div', { className: 'dfw-foot-actions' },
                   action('updates', busy === 'updates' ? '正在检查…' : '检查更新', () => void run('updates', async signal => {
                     const value = await request('/updates/check', {}, signal);

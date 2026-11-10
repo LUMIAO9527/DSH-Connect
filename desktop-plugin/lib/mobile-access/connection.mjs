@@ -27,7 +27,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.2.19';
+export const VERSION = '1.3.0';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device

@@ -37,7 +37,11 @@ async function mount(overrides = {}, options = {}) {
     if (entry.url.endsWith('/status')) return response(activeStatus);
     if (entry.url.endsWith('/updates/status')) return response({ current: '1.0.14', message: '更新保留连接地址和已配对设备。' });
     if (entry.url.endsWith('/devices')) return response({ devices: deviceList });
-    if (entry.url.endsWith('/plugins')) return response({ plugins: [{ id: 'dsh-pet', name: '宠宠' }], disabled: [] });
+    if (entry.url.endsWith('/plugins')) return response({ plugins: [
+      { id: 'dsh-pet', name: 'dsh-pet' },
+      { id: 'dshmarket', name: 'dshmarket' },
+      { id: '@michengai/dsh-skills-manager', name: '@michengai/dsh-skills-manager' }
+    ], disabled: [] });
     if (entry.url.endsWith('/devices/rename')) {
       const target = deviceList.find(device => device.id === entry.body.deviceId);
       return response({ device: { ...target, label: entry.body.label.trim() } });
@@ -62,16 +66,32 @@ async function mount(overrides = {}, options = {}) {
 test('mobile plugin switch sends the disabled list to the gateway', async () => {
   const view = await mount();
   let nodes = view.render();
-  const toggle = nodes.find(node => node.type === 'button' && node.props.role === 'switch' && node.props['aria-label'] === '宠宠在手机端加载');
+  const toggle = nodes.find(node => node.type === 'button' && node.props.role === 'switch' && node.props['aria-label'] === 'dsh-pet在手机端加载');
   assert.ok(toggle);
   assert.equal(toggle.props['aria-checked'], true);
+  assert.equal(toggle.props.className, 'dfw-plugin-tile', 'the whole tile is the switch');
   toggle.props.onClick();
   await flush();
   const request = view.requests.find(entry => entry.method === 'POST' && entry.url.endsWith('/plugins'));
   assert.deepEqual(request.body, { disabled: ['dsh-pet'] });
   nodes = view.render();
-  const updated = nodes.find(node => node.type === 'button' && node.props.role === 'switch');
+  const updated = nodes.find(node => node.type === 'button' && node.props.role === 'switch' && node.props['aria-label'] === 'dsh-pet在手机端加载');
   assert.equal(updated.props['aria-checked'], false);
+  assert.ok(String(updated.props.className).includes('is-off'));
+});
+
+test('the plugin shelf shows real names in a compact grid without notes above or below', async () => {
+  const view = await mount();
+  const nodes = view.render();
+  const names = nodes.filter(node => node.props.className === 'dfw-plugin-name').map(text);
+  assert.deepEqual(names, ['dsh-pet', 'dshmarket', 'dsh-skills-manager']);
+  const scoped = nodes.find(node => node.type === 'button' && node.props['aria-label'] === 'dsh-skills-manager在手机端加载');
+  assert.equal(scoped.props.title, '@michengai/dsh-skills-manager', 'the full bootstrap id stays available');
+  assert.ok(nodes.find(node => node.props.className === 'dfw-plugin-grid'));
+  const section = nodes.find(node => node.props['aria-labelledby'] === 'dfw-mobile-plugins-title');
+  assert.equal(section.children.some(node => node.props.className === 'dfw-plugin-hint'), false);
+  assert.equal(text(section).includes('手机刷新后生效'), false, 'the save hint only appears as transient feedback');
+  assert.equal(text(section).includes('关闭后手机端不加载这个插件，电脑端照常运行。'), true);
 });
 
 test('connection and device sections replace expanding notices with button feedback', async () => {
