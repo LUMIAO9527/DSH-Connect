@@ -3,7 +3,7 @@
 <p align="center">把电脑上的 DeepSeek Harness，带在身边。</p>
 
 <p align="center">
-  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.3.0-4d6bfe" alt="release"></a>
+  <a href="https://github.com/LUMIAO9527/DSH-Connect/releases/latest"><img src="https://img.shields.io/badge/release-1.3.1-4d6bfe" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="license"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20browser-0078D4" alt="platform">
 </p>

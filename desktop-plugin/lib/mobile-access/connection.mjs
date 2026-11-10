@@ -27,7 +27,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.3.0';
+export const VERSION = '1.3.1';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -89,13 +89,14 @@ const SERVICE_WORKER_STATIC_PATHS = Object.freeze([
   '/mobile-access/manifest.webmanifest'
 ]);
 const SERVICE_WORKER_SOURCE = `'use strict';
-const CACHE = ${JSON.stringify('dsh-connect-static-' + VERSION)};
+const CACHE_PREFIX = 'dsh-connect-static-';
+const CACHE = CACHE_PREFIX + ${JSON.stringify(VERSION)};
 const STATIC_PATHS = ${JSON.stringify(SERVICE_WORKER_STATIC_PATHS)};
 self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -119,7 +120,7 @@ self.addEventListener('fetch', event => {
       }
       return response;
     } catch (error) {
-      const fallback = await cache.match(request, { ignoreSearch: true });
+      const fallback = await cache.match(request);
       if (fallback) return fallback;
       throw error;
     }

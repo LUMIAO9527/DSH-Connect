@@ -6,6 +6,7 @@ import { X509Certificate } from 'node:crypto';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
+import { runInNewContext } from 'node:vm';
 import { DSHConnectGateway, VERSION } from '../lib/mobile-access/connection.mjs';
 import { MemoryDeviceStore } from '../lib/mobile-access/core/storage.mjs';
 import { createLanCertificate, localNetworkAddress } from '../lib/mobile-access/lan.mjs';
@@ -329,6 +330,74 @@ test('service worker caches hashed assets and plugin bundles only', { timeout: 1
   const paired = await env.pair();
   const page = await request(env.port, '/', { headers: { cookie: paired.cookie } });
   assert.match(page.text, /serviceWorker\.register\("\/mobile-access\/sw\.js"/);
+});
+
+function workerRuntime(source, { caches, fetch = async () => { throw new Error('offline'); } }) {
+  const listeners = new Map();
+  runInNewContext(source, {
+    URL, caches, fetch,
+    self: { location: { origin }, skipWaiting() {}, clients: { async claim() {} },
+      addEventListener(name, callback) { listeners.set(name, callback); } },
+  });
+  return {
+    async activate() {
+      let done;
+      listeners.get('activate')({ waitUntil(value) { done = value; } });
+      await done;
+    },
+    fetch(request) {
+      let response;
+      listeners.get('fetch')({ request, respondWith(value) { response = value; } });
+      return response;
+    },
+  };
+}
+
+test('service worker activation preserves caches owned by Harness and other plugins', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const worker = await request(env.port, '/mobile-access/sw.js');
+  const current = `dsh-connect-static-${VERSION}`;
+  const stored = new Set(['dsh-connect-static-0.0.0', current, 'harness-assets', 'other-plugin-state']);
+  const runtime = workerRuntime(worker.text, { caches: {
+    async keys() { return [...stored]; },
+    async delete(name) { return stored.delete(name); },
+  } });
+  await runtime.activate();
+  assert.deepEqual([...stored].sort(), [current, 'harness-assets', 'other-plugin-state'].sort());
+});
+
+test('offline plugin requests never substitute a different bundle or revision', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const worker = await request(env.port, '/mobile-access/sw.js');
+  const saved = new Map([[origin + '/plugins/?bundle=fixture&rev=1', 'revision one']]);
+  let networkCalls = 0;
+  const runtime = workerRuntime(worker.text, { caches: {
+    async open() { return {
+      async match(input, options = {}) {
+        if (!options.ignoreSearch) return saved.get(input.url);
+        const url = new URL(input.url);
+        return [...saved].find(([key]) => new URL(key).pathname === url.pathname)?.[1];
+      },
+    }; },
+  }, fetch: async () => { networkCalls += 1; throw new Error('fixture offline'); } });
+  for (const path of ['/plugins/?bundle=fixture&rev=2', '/plugins/?bundle=different&rev=1']) {
+    await assert.rejects(runtime.fetch({ method: 'GET', url: origin + path }), /fixture offline/);
+  }
+  assert.equal(networkCalls, 2);
+});
+
+test('an exact cached revision stays available offline without fetching the network', { timeout: 10000 }, async t => {
+  const env = await fixture(t);
+  const worker = await request(env.port, '/mobile-access/sw.js');
+  const url = origin + '/plugins/?bundle=fixture&rev=1';
+  let networkCalls = 0;
+  const runtime = workerRuntime(worker.text, { caches: {
+    async open() { return { async match(input) { return input.url === url ? 'cached exact revision' : undefined; } }; },
+  }, fetch: async () => { networkCalls += 1; throw new Error('offline'); } });
+  assert.equal(await runtime.fetch({ method: 'GET', url }), 'cached exact revision');
+  assert.equal(networkCalls, 0);
+  assert.equal(runtime.fetch({ method: 'GET', url: origin + '/api/session/list' }), undefined);
+  assert.equal(runtime.fetch({ method: 'GET', url: 'https://other.test/plugins/?rev=1' }), undefined);
 });
 
 test('hashed Harness assets receive a long-lived cache policy', { timeout: 10000 }, async t => {
