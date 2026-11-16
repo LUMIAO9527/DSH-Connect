@@ -48,3 +48,27 @@ for (const failure of [false, true]) test(`managed update ${failure ? 'restores 
   assert.equal(updates.status().stage, failure ? 'failed' : 'complete');
   assert.deepEqual(calls, failure ? ['remove', 'install', 'restore', 'configure'] : ['remove', 'install', 'configure']);
 });
+
+test('the check still resolves when the anonymous API is refused', async t => {
+  const parent = fileURLToPath(new URL('../../_wip/tests/', import.meta.url)); await mkdir(parent, { recursive: true });
+  const directory = await mkdtemp(join(parent, 'lookup-')); t.after(() => rm(directory, { recursive: true, force: true }));
+  const bytes = archive(nextVersion), sum = createHash('sha256').update(bytes).digest('hex'), seen = [];
+  const fetcher = async (url, init = {}) => {
+    seen.push((init.method || 'GET') + ' ' + url);
+    if (url.includes('api.github.com')) return new Response('', { status: 403 });
+    if (url.endsWith('/releases/latest')) return new Response(null, { status: 302, headers: { location: 'https://github.com/LUMIAO9527/DSH-Connect/releases/tag/v' + nextVersion } });
+    if (url.endsWith('/SHA256SUMS.txt')) return new Response(sum + '  dsh-connect-' + nextVersion + '.tgz\n');
+    if (init.method === 'HEAD') return new Response(null, { status: 200, headers: { 'content-length': String(bytes.length) } });
+    return new Response('', { status: 500 });
+  };
+  const manager = { listBundles: async () => [{ name: 'dsh-connect', installed: true, enabled: true, source: 'file:D:/kept/previous.tgz' }], removeBundle: async () => ({ application: 'applied' }), installBundle: async () => ({ application: 'applied' }) };
+  const editor = { entries: () => [{ options: { name: 'dsh-connect' } }], edit: async () => {} };
+  const updates = updateController({ get: name => name === 'pluginManager' ? manager : editor }, directory, { publicOrigin: 'https://computer.example.com', stateDirectory: directory }, fetcher);
+  const view = await updates.check();
+  assert.equal(view.latest, nextVersion);
+  assert.equal(view.available, true);
+  assert.equal(view.stage, 'available');
+  assert.equal(view.canUpdate, true);
+  assert.ok(seen.some(row => row.startsWith('HEAD ')));
+  assert.ok(seen.some(row => row.includes('SHA256SUMS.txt')));
+});

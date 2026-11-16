@@ -24,6 +24,53 @@ async function bounded(url, maximum, fetcher = fetch) {
   for await (const chunk of response.body) { size += chunk.length; if (size > maximum) throw new Error('Update response too large'); chunks.push(chunk); }
   return Buffer.concat(chunks);
 }
+// Anonymous API calls are refused with 403 on plenty of networks (GitHub
+// rate-limits by IP). The release redirect, the published checksum file and a
+// HEAD request carry the same three facts, so a check must not depend on the API.
+async function latestTag(fetcher = fetch) {
+  const response = await fetcher(REPO + '/releases/latest', {
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10000),
+    headers: { 'User-Agent': 'DSH-Connect/' + VERSION },
+  });
+  const match = /\/releases\/tag\/v?(\d+\.\d+\.\d+)$/.exec(String(response.headers.get('location') || ''));
+  if (!match) throw new Error('Update lookup failed');
+  return match[1];
+}
+
+async function releaseChecksum(version, fetcher = fetch) {
+  const text = (await bounded(REPO + '/releases/download/v' + version + '/SHA256SUMS.txt', 64 * 1024, fetcher)).toString('utf8');
+  const row = text.split(/\r?\n/).find(line => line.trim().endsWith('dsh-connect-' + version + '.tgz'));
+  const hash = row?.trim().split(/\s+/)[0] ?? '';
+  if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('Update checksum missing');
+  return hash;
+}
+
+async function releaseSize(url, fetcher = fetch) {
+  const response = await fetcher(url, {
+    method: 'HEAD',
+    signal: AbortSignal.timeout(10000),
+    headers: { 'User-Agent': 'DSH-Connect/' + VERSION },
+  });
+  const size = Number(response.headers.get('content-length'));
+  if (!response.ok || !Number.isSafeInteger(size) || size < 100 || size > 8 * 1024 * 1024) throw new Error('Update lookup failed');
+  return size;
+}
+
+async function latestAsset(fetcher = fetch) {
+  try {
+    const release = JSON.parse((await bounded(API, 256 * 1024, fetcher)).toString());
+    const latest = String(release.tag_name || '').replace(/^v/, '');
+    if (!/^\d+\.\d+\.\d+$/.test(latest) || release.prerelease || release.draft) throw new Error('Invalid latest release');
+    return newerVersion(latest, VERSION) ? releaseAsset(release) : undefined;
+  } catch {
+    const latest = await latestTag(fetcher);
+    if (!newerVersion(latest, VERSION)) return undefined;
+    const url = REPO + '/releases/download/v' + latest + '/dsh-connect-' + latest + '.tgz';
+    return { version: latest, url, sha256: await releaseChecksum(latest, fetcher), size: await releaseSize(url, fetcher) };
+  }
+}
+
 export function verifyPackage(bytes, expected) {
   if (bytes.length !== expected.size || createHash('sha256').update(bytes).digest('hex') !== expected.sha256) throw new Error('Update checksum mismatch');
   const archive = gunzipSync(bytes, { maxOutputLength: 32 * 1024 * 1024 }); let descriptor;
@@ -60,11 +107,8 @@ export function updateController(ctx, directory, config, fetcher = fetch) {
     status: view,
     async check() {
       if (['downloading', 'installing', 'restoring'].includes(job.stage)) return view();
-      const release = JSON.parse((await bounded(API, 256 * 1024, fetcher)).toString());
-      const latest = String(release.tag_name || '').replace(/^v/, '');
-      if (!/^\d+\.\d+\.\d+$/.test(latest) || release.prerelease || release.draft) throw new Error('Invalid latest release');
-      if (!newerVersion(latest, VERSION)) { job.stage = 'current'; job.message = '已是最新版本'; job.asset = undefined; return view(); }
-      job.asset = releaseAsset(release);
+      job.asset = await latestAsset(fetcher);
+      if (!job.asset) { job.stage = 'current'; job.message = '已是最新版本'; return view(); }
       const row = await ownBundle();
       job.canUpdate = Boolean(row?.source && (/^file:.+\.(?:tgz|tar\.gz)$/i.test(row.source) || row.source.startsWith(REPO + '/releases/download/') || /^dsh-connect(?:@[\d.^~]+)?$/.test(row.source)) && manager()?.installBundle && manager()?.removeBundle && editor);
       job.stage = 'available'; job.message = job.canUpdate ? '有新版本可用' : '开发目录由源码维护'; return view();
