@@ -29,7 +29,7 @@ export function scopeFailure(error, scope) {
 
 // No request URLs, messages, tokens or exception text are retained here.
 export class ConnectionDiagnostics {
-  constructor(limit = 64) { this.limit = limit; this.entries = []; this.sequence = 0; }
+  constructor(limit = 64, onRecord) { this.limit = limit; this.entries = []; this.sequence = 0; this.onRecord = onRecord; }
   record(kind, detail = {}) {
     const entry = { sequence: ++this.sequence, at: Date.now(), kind: String(kind).slice(0, 48) };
     for (const key of ['scope', 'code', 'branch', 'connectionId']) {
@@ -40,6 +40,8 @@ export class ConnectionDiagnostics {
     }
     this.entries.push(Object.freeze(entry));
     if (this.entries.length > this.limit) this.entries.splice(0, this.entries.length - this.limit);
+    // An observer receives the same bounded, frozen entry the snapshot exposes.
+    if (this.onRecord) { try { this.onRecord(entry); } catch {} }
   }
   snapshot() { return { sequence: this.sequence, entries: [...this.entries] }; }
 }

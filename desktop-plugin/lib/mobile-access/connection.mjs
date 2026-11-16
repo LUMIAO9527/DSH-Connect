@@ -4,7 +4,8 @@ import http from 'node:http';
 import https from 'node:https';
 import { connect as connectSocket, isIPv4 } from 'node:net';
 import { createHash, randomUUID } from 'node:crypto';
-import { resolve, isAbsolute } from 'node:path';
+import { resolve, isAbsolute, dirname, join } from 'node:path';
+import { appendFile, stat, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { gunzip, inflate, brotliDecompress, brotliCompressSync, gzipSync, createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
@@ -27,7 +28,7 @@ import { APP_ICONS } from '../icons.mjs';
 import { BRAND_WHALE_SVG, BRAND_WORDMARK_SVG } from '../brand.mjs';
 
 export { JsonDeviceStore };
-export const VERSION = '1.3.1';
+export const VERSION = '1.3.2';
 const CONTROL_LIMIT = 16 * 1024;
 const DOCUMENT_LIMIT = 8 * 1024 * 1024;
 // The DSH frontend ships its own icons, but those requests require a device
@@ -58,6 +59,10 @@ const BOOT_SPLASH_STYLE = `<style>
 #dsc-boot .dsc-boot-dots{display:inline-flex;align-items:center;gap:7px;height:14px}
 #dsc-boot .dsc-boot-dots i{display:block;width:6px;height:6px;border-radius:50%;background:#8a8f99}
 #dsc-boot .dsc-boot-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+#dsc-boot .dsc-boot-note{display:none;margin:14px 0 0;font:400 14px/1.5 system-ui,-apple-system,sans-serif;color:#6b7280;text-align:center}
+#dsc-boot .dsc-boot-retry{display:none;margin-top:12px;min-height:40px;padding:8px 20px;border-radius:12px;border:1px solid rgba(15,17,21,.14);background:transparent;font:500 14px/1 system-ui,-apple-system,sans-serif;color:inherit;cursor:pointer}
+#dsc-boot[data-stalled] .dsc-boot-dots{display:none}
+#dsc-boot[data-stalled] .dsc-boot-note,#dsc-boot[data-stalled] .dsc-boot-retry{display:block}
 @media(prefers-reduced-motion:no-preference){
   #dsc-boot .dsc-boot-whale{animation:dsc-boot-mark 620ms cubic-bezier(.2,.7,.25,1) both}
   #dsc-boot .dsc-boot-wordmark{animation:dsc-boot-name 520ms cubic-bezier(.2,.7,.25,1) 120ms both}
@@ -70,16 +75,21 @@ const BOOT_SPLASH_STYLE = `<style>
 @keyframes dsc-boot-name{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
 @keyframes dsc-boot-dot{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-5px);opacity:1}}
 @media(prefers-color-scheme:dark){
+  html:has(#dsc-boot){background:#17191e;color-scheme:dark}
   #dsc-boot{background:#17191e;color:#f2f4f8}
   #dsc-boot .dsc-boot-whale,#dsc-boot .dsc-boot-wordmark{color:#f2f4f8}
   #dsc-boot .dsc-boot-wordmark{--dsc-lockup-contrast:#17191e}
   #dsc-boot .dsc-boot-dots i{background:#8b919c}
+  #dsc-boot .dsc-boot-note{color:#8b919c}
+  #dsc-boot .dsc-boot-retry{border-color:rgba(242,244,248,.18)}
 }
 </style>`;
 const BOOT_SPLASH = '<div id="dsc-boot" data-dsc-boot aria-hidden="true">'
   + '<div class="dsc-boot-whale">' + BRAND_WHALE_SVG + '</div>'
   + '<div class="dsc-boot-wordmark" role="img" aria-label="DeepSeek Harness">' + BRAND_WORDMARK_SVG + '</div>'
   + '<div class="dsc-boot-dots"><i></i><i></i><i></i></div>'
+  + '<p class="dsc-boot-note">连不上这台电脑</p>'
+  + '<button class="dsc-boot-retry" type="button">重新加载</button>'
   + '<span class="dsc-boot-sr">正在加载 DSH</span></div>';
 const SERVICE_WORKER_STATIC_PATHS = Object.freeze([
   '/mobile-access/apple-touch-icon.png',
@@ -544,6 +554,27 @@ async function waitWithSignal(task, signal) {
   } finally { signal.removeEventListener('abort', abort); }
 }
 
+// The bounded ring buffer answers for the current process only, so the events
+// that decide reachability are also appended beside the device store. A phone
+// that cannot connect leaves one line per attempt; no URL, token, message or
+// exception text is written.
+const DIAGNOSTIC_LOG_KINDS = new Set(['ws_open', 'ws_rejected', 'ws_closed', 'host_state', 'session_ended']);
+const DIAGNOSTIC_LOG_LIMIT = 1024 * 1024;
+function diagnosticSink(stateFile) {
+  const path = join(dirname(stateFile), 'diagnostics.log');
+  let size;
+  const write = async entry => {
+    try {
+      if (size === undefined) size = (await stat(path).catch(() => undefined))?.size ?? 0;
+      const line = JSON.stringify(entry) + '\n';
+      await appendFile(path, line);
+      size += Buffer.byteLength(line);
+      if (size > DIAGNOSTIC_LOG_LIMIT) { await writeFile(path, ''); size = 0; }
+    } catch {}
+  };
+  return entry => { if (DIAGNOSTIC_LOG_KINDS.has(entry.kind)) void write(entry); };
+}
+
 export class DSHConnectGateway {
   constructor(input, { authenticatedUrl, store, now, remoteReady = () => true, configurationEditable = () => false } = {}) {
     this.config = gatewayConfig(input); this.authenticatedUrl = authenticatedUrl;
@@ -555,7 +586,7 @@ export class DSHConnectGateway {
     this.sockets = new Set(); this.operations = new Set(); this.webSockets = new Set(); this.listeners = new Map();
     this.connectorInstanceId = randomUUID();
     this.hostState = Object.freeze({ state: 'unknown' });
-    this.diagnostics = new ConnectionDiagnostics(64);
+    this.diagnostics = new ConnectionDiagnostics(64, diagnosticSink(this.config.stateFile));
     this.queueBudget = new ConnectionQueueBudget(this.config.maxDeviceQueuedBytes, this.config.maxTotalQueuedBytes);
     this.credentialExpires = 0; this.credentialGeneration = 0; this.closing = false; this.ready = false;
     this.authLimiter = new BoundedRateLimiter(80, 60000, 256);

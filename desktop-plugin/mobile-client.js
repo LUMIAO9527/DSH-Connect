@@ -313,14 +313,44 @@
     releasing?.cancel();
     press = releasing = undefined;
   });
-  let banner, caption, retry, lastCaption = '', detailTimer = 0, bootOverlay, bootLeaving = false;
+  let banner, caption, retry, lastCaption = '', detailTimer = 0, bootOverlay, bootLeaving = false, bootStalled = false, stallTimer = 0, phaseTimer = 0;
   const dismissBoot = () => {
     if (bootLeaving) return;
     bootOverlay ??= document.querySelector?.('[data-dsc-boot]');
     if (!bootOverlay || !bootOverlay.isConnected) return;
+    clearTimeout(stallTimer); clearTimeout(phaseTimer);
     bootLeaving = true;
     bootOverlay.classList.add('is-leaving');
     setTimeout(() => bootOverlay.remove(), 220);
+  };
+  // The splash stays until the Host shell is painted. When the link never gets
+  // there, the splash itself becomes the error state: same mark, one line and
+  // one reload. Nothing is pulled away to reveal the Host's own loading page.
+  const stallBoot = () => {
+    if (bootLeaving || bootStalled) return;
+    bootOverlay ??= document.querySelector?.('[data-dsc-boot]');
+    if (!bootOverlay || !bootOverlay.isConnected) return;
+    bootStalled = true;
+    bootOverlay.removeAttribute('aria-hidden');
+    bootOverlay.dataset.stalled = '';
+  };
+  // Hand the splash over instead of cutting it: the mark fades out over the
+  // colour the shell actually paints, on the frame after that colour exists.
+  const handoffBoot = () => {
+    if (bootLeaving) return;
+    bootOverlay ??= document.querySelector?.('[data-dsc-boot]');
+    if (!bootOverlay || !bootOverlay.isConnected) { clearTimeout(stallTimer); return; }
+    const painted = window.getComputedStyle?.(document.body)?.backgroundColor;
+    if (painted && painted !== 'rgba(0, 0, 0, 0)' && painted !== 'transparent') bootOverlay.style.background = painted;
+    requestAnimationFrame(() => requestAnimationFrame(dismissBoot));
+  };
+  // The shell container can appear before the conversation phase settles; wait
+  // that one beat so the splash never hands over to a half-built screen.
+  const markReady = () => {
+    if (bootLeaving) return;
+    clearTimeout(stallTimer);
+    if (document.querySelector?.('[data-phase]')) { handoffBoot(); return; }
+    phaseTimer = setTimeout(handoffBoot, 1200);
   };
   const headerSlot = '[data-slot="conversation.session.header"]';
   const tabsSelector = '[data-conversation-tabs]';
@@ -449,12 +479,15 @@
     });
     retry.addEventListener('click', () => {
       if (banner.dataset.state === 'auth-required') location.assign('/mobile-access/login?return=' + encodeURIComponent(location.pathname + location.search));
-      else if (banner.dataset.state === 'connecting') location.reload();
       else void window.__DSH_FOREVERWEB_ACCESS__?.resume('user-retry');
     });
     banner.append(dot, caption, retry); document.body.append(banner);
-    setTimeout(dismissBoot, 25000);
-    window.__DSH_BOOT_READY__?.promise?.then(dismissBoot, dismissBoot);
+    // __DSH_BOOT_READY__ settles as soon as the injected script table is in the
+    // document, long before the Host paints its shell, so it cannot decide when
+    // the splash leaves. Only markFrame() below proves the shell exists.
+    bootOverlay = document.querySelector?.('[data-dsc-boot]');
+    bootOverlay?.querySelector?.('.dsc-boot-retry')?.addEventListener('click', () => location.reload());
+    stallTimer = setTimeout(stallBoot, 12000);
     const markFrame=()=>{
       const overlay=document.querySelector('[data-shell-overlay]');if(!overlay)return false;
       frame=overlay.parentElement;
@@ -465,10 +498,10 @@
       frame.setAttribute('data-dsc-frame','');
       for(const column of columns){column.removeAttribute('data-dsc-sidebar');column.removeAttribute('data-dsc-center');}
       sidebar.setAttribute('data-dsc-sidebar','');center.setAttribute('data-dsc-center','');
-      dismissBoot();
+      markReady();
       return true;
     };
-    if(!markFrame()){const observer=new MutationObserver(()=>{if(markFrame())observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});setTimeout(()=>observer.disconnect(),60000);}
+    if(!markFrame()){const observer=new MutationObserver(()=>{if(markFrame())observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});}
     document.addEventListener('click',event=>{
       if(!(media.matches||native)||!frame||frame.hasAttribute('data-sidebar-collapsed'))return;
       const row=event.target.closest?.('[data-row-key^="session:"]');
@@ -518,12 +551,15 @@
     }
     clearTimeout(timer);
     if (next === 'connected') { if (banner) banner.hidden = true; return; }
+    // The splash already explains a first connection. Only a session that had
+    // been on screen and then dropped gets a notice, and it waits out blips.
+    if (next === 'connecting' && !frame) return;
     timer = setTimeout(() => {
-      mount(); if (!banner) return; banner.dataset.state = next;
-      caption.textContent = ({ offline: '网络已断开', 'auth-required': '需要重新配对这台设备', connecting: '正在重新连接…' })[next];
+      mount(); if (!banner || (next === 'connecting' && !frame)) return; banner.dataset.state = next;
+      caption.textContent = ({ offline: '网络已断开', 'auth-required': '需要重新配对这台设备', connecting: '连接已断开，正在恢复' })[next];
       lastCaption = caption.textContent;
-      retry.textContent = next === 'auth-required' ? '去配对' : next === 'connecting' ? '重新加载' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
-    }, next === 'connecting' ? 3500 : 0);
+      retry.textContent = next === 'auth-required' ? '去配对' : '重试'; retry.hidden = next === 'offline'; banner.hidden = false;
+    }, next === 'connecting' ? 1800 : 0);
   };
   window.__DSH_CONNECT_UI__ = Object.freeze({ configure(value) { controls = value; }, setTransport(value) { transport = value; update(); }, resume() {
     layout();

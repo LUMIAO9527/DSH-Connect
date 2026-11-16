@@ -358,13 +358,22 @@ test('invalid device grant asks for pairing and retry never replays a business r
   assert.deepEqual(browser.destinations, ['/mobile-access/login?return=%2F']); assert.deepEqual(browser.calls, []);
 });
 
-test('a stalled transport offers a reload action', () => {
+test('a stalled first connection keeps the notice quiet', () => {
   const browser = page({ transport: 'connecting' });
   browser.flush();
+  assert.equal(browser.banner().hidden, true);
+  assert.deepEqual(browser.destinations, []);
+});
+
+test('a transport that drops after the shell is up offers a retry', () => {
+  const browser = page({ transport: 'connected', shell: true });
+  browser.window.__DSH_CONNECT_UI__.setTransport('connecting');
+  browser.flush();
   assert.equal(browser.banner().dataset.state, 'connecting');
-  assert.equal(browser.banner().children[2].textContent, '重新加载');
+  assert.equal(browser.banner().hidden, false);
+  assert.equal(browser.banner().children[2].textContent, '重试');
   browser.banner().children[2].dispatchEvent(new Event('click'));
-  assert.deepEqual(browser.destinations, ['reload']);
+  assert.deepEqual(browser.calls, ['user-retry']);
 });
 
 test('native back closes a fullscreen tool page whose layout reserves no side track', () => {
